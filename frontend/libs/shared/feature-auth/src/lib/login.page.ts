@@ -14,7 +14,7 @@ import {
   Validators,
 } from '@angular/forms';
 import { Router } from '@angular/router';
-import { LocalAuthService, safeReturnUrl } from '@care/shared-data-access-auth';
+import { AuthService, safeReturnUrl } from '@care/shared-data-access-auth';
 import { problemMessage } from '@care/shared-data-access-api';
 import { LanguageSwitcher, ThemeSwitcher } from '@care/shared-ui-layout';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
@@ -46,7 +46,7 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LoginPage {
-  private readonly auth = inject(LocalAuthService);
+  private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly transloco = inject(TranslocoService);
 

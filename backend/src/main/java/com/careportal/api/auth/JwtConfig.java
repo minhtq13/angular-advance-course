@@ -4,7 +4,6 @@ import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import java.nio.charset.StandardCharsets;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -15,13 +14,9 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 
-/**
- * Che do care.auth.mode=local: backend tu ky va tu kiem tra JWT (HMAC SHA-256).
- * Khi co bean JwtDecoder nay, Spring Boot bo qua cau hinh issuer-uri cua Keycloak.
- */
+/** Backend tu ky va tu kiem tra JWT (HMAC SHA-256); khong phu thuoc may chu dinh danh ben ngoai. */
 @Configuration
-@ConditionalOnProperty(prefix = "care.auth", name = "mode", havingValue = "local", matchIfMissing = true)
-public class LocalAuthConfig {
+public class JwtConfig {
 
     static final String ISSUER = "care-api";
 

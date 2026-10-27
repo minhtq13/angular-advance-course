@@ -9,7 +9,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.careportal.api.config.RolesClaimConverter;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -38,7 +37,7 @@ class SubscriberApiTests {
 
     private static RequestPostProcessor user(String username, String... roles) {
         return jwt()
-                .jwt(j -> j.claim("preferred_username", username).claim("realm_access", Map.of("roles", List.of(roles))))
+                .jwt(j -> j.claim("preferred_username", username).claim("roles", List.of(roles)))
                 .authorities(new RolesClaimConverter());
     }
 

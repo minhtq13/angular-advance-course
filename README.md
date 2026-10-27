@@ -7,7 +7,7 @@ Dự án mẫu xuyên suốt cho khóa **Angular nâng cao (10 buổi)**: hệ t
 |---|---|
 | Frontend | Angular 22, Nx 24, ng-zorro-antd 22, NgRx 22, RxJS 7, Transloco (vi/en), Vitest, Playwright |
 | Backend | Spring Boot 3.5, Java 21, Spring Security (JWT), JPA, Flyway, MapStruct, springdoc, Testcontainers |
-| Hạ tầng | Docker Compose: PostgreSQL 16, API, Adminer. Tùy chọn: Keycloak 26 (SSO, buổi 5), Redis 7 |
+| Hạ tầng | Docker Compose: PostgreSQL 16, API, Adminer. Tùy chọn: Redis 7 |
 
 ## Chạy nhanh
 
@@ -29,31 +29,22 @@ Giao diện mặc định tiếng Việt và theo chế độ sáng/tối của 
 | http://localhost:8081/swagger-ui.html | Tài liệu API |
 | http://localhost:8088 | Adminer, xem DB ([course/setup/database.md](course/setup/database.md)) |
 
-## Xác thực: 2 chế độ
+## Xác thực
 
-| | `local` (mặc định) | `keycloak` (buổi 5) |
-|---|---|---|
-| Ai phát JWT | Backend: `POST /api/auth/login` | Keycloak (OIDC + PKCE) |
-| Đăng nhập | Trang `/login` trong app | Trang Keycloak, SSO giữa portal và admin |
-| Bật | Mặc định | `AUTH_MODE=keycloak docker compose -f infra/docker-compose.yml --profile sso up -d`<br>và sửa `auth` trong `frontend/apps/*/public/config.json` |
+Dùng JWT do chính backend phát, không cần máy chủ đăng nhập riêng:
 
-`frontend/apps/portal/public/config.json` cho chế độ Keycloak:
+1. Trang `/login` gửi `POST /api/auth/login` → backend kiểm tra mật khẩu (bcrypt) và trả về access token + refresh token (JWT, ký HS256).
+2. Frontend gắn `Authorization: Bearer <access token>` vào mọi request tới API (interceptor).
+3. Backend kiểm tra chữ ký, hạn dùng và role trong claim `roles` của token; refresh token không dùng để gọi API được.
 
-```json
-{
-  "apiUrl": "http://localhost:8081",
-  "auth": { "mode": "oidc", "issuer": "http://localhost:8180/realms/care", "clientId": "care-portal" }
-}
-```
-
-Ở chế độ Keycloak, app admin dùng `"clientId": "care-admin"`.
+Hai app `portal` và `admin` đăng nhập riêng (token lưu trong `sessionStorage` của từng app).
 
 ## Cấu trúc repo
 
 ```
 frontend/   Nx workspace (xem frontend/README.md)
 backend/    Spring Boot API (Dockerfile build sẵn, học viên không cần cài JDK)
-infra/      docker-compose, dump dữ liệu mẫu, Keycloak realm
+infra/      docker-compose, dump dữ liệu mẫu
 course/     Tài liệu khóa học: slide, lab, đáp án, ghi chú giảng viên theo từng buổi
 ```
 

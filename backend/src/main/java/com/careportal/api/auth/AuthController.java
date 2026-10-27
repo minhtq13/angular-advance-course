@@ -5,7 +5,6 @@ import com.careportal.api.common.GlobalExceptionHandler;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -19,7 +18,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
-@ConditionalOnProperty(prefix = "care.auth", name = "mode", havingValue = "local", matchIfMissing = true)
 public class AuthController {
 
     public record LoginRequest(@NotBlank String username, @NotBlank String password) {

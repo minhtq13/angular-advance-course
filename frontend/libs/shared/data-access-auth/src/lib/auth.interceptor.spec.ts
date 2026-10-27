@@ -24,7 +24,7 @@ describe('authInterceptor', () => {
         provideHttpClient(withInterceptors([authInterceptor])),
         provideHttpClientTesting(),
         provideRouter([]),
-        provideAppConfig({ apiUrl: 'http://api', auth: { mode: 'local' } }),
+        provideAppConfig({ apiUrl: 'http://api' }),
         { provide: AuthService, useValue: { accessToken: () => token, login } },
       ],
     });

@@ -1,7 +1,78 @@
-import { userFromClaims } from './auth.service';
+import { provideHttpClient } from '@angular/common/http';
+import {
+  HttpTestingController,
+  provideHttpClientTesting,
+} from '@angular/common/http/testing';
+import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
+import { provideAppConfig } from '@care/shared-util-config';
+import { AuthService, userFromClaims } from './auth.service';
+
+/** Tao JWT gia (khong ky) - FE chi doc payload, backend moi kiem tra chu ky. */
+function fakeJwt(payload: object): string {
+  const encode = (o: object) => btoa(JSON.stringify(o)).replace(/=+$/, '');
+  return `${encode({ alg: 'none' })}.${encode(payload)}.sig`;
+}
+
+describe('AuthService', () => {
+  let service: AuthService;
+  let http: HttpTestingController;
+
+  beforeEach(() => {
+    sessionStorage.clear();
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        provideAppConfig({ apiUrl: 'http://api' }),
+      ],
+    });
+    service = TestBed.inject(AuthService);
+    http = TestBed.inject(HttpTestingController);
+  });
+
+  it('dang nhap thanh cong -> co user, token va luu vao sessionStorage', () => {
+    const accessToken = fakeJwt({
+      preferred_username: 'supervisor1',
+      name: 'Supervisor One',
+      roles: ['AGENT', 'SUPERVISOR'],
+      exp: Date.now() / 1000 + 900,
+    });
+
+    service.loginWithPassword('supervisor1', 'supervisor1').subscribe();
+    const req = http.expectOne('http://api/api/auth/login');
+    expect(req.request.body).toEqual({
+      username: 'supervisor1',
+      password: 'supervisor1',
+    });
+    req.flush({ accessToken, refreshToken: 'r', expiresIn: 900 });
+
+    expect(service.isAuthenticated()).toBe(true);
+    expect(service.hasAnyRole('SUPERVISOR')).toBe(true);
+    expect(service.accessToken()).toBe(accessToken);
+    expect(sessionStorage.getItem('care.auth')).toContain(accessToken);
+  });
+
+  it('bo qua token het han khi khoi dong lai', async () => {
+    const expired = fakeJwt({
+      preferred_username: 'agent1',
+      exp: Date.now() / 1000 - 60,
+    });
+    sessionStorage.setItem(
+      'care.auth',
+      JSON.stringify({ accessToken: expired, refreshToken: 'r', expiresIn: 0 }),
+    );
+
+    await service.init();
+
+    expect(service.isAuthenticated()).toBe(false);
+    expect(sessionStorage.getItem('care.auth')).toBeNull();
+  });
+});
 
 describe('userFromClaims', () => {
-  it('doc role tu claim "roles" (che do local)', () => {
+  it('doc ten, ten hien thi va role tu claim cua backend', () => {
     const user = userFromClaims({
       preferred_username: 'agent1',
       name: 'Agent One',
@@ -15,15 +86,17 @@ describe('userFromClaims', () => {
     });
   });
 
-  it('doc role tu "realm_access.roles" (Keycloak) va bo role mac dinh', () => {
-    const user = userFromClaims({
-      preferred_username: 'admin1',
-      realm_access: {
-        roles: ['offline_access', 'ADMIN', 'default-roles-care'],
-      },
-    });
+  it('dung username lam ten hien thi khi khong co claim name', () => {
+    expect(
+      userFromClaims({ preferred_username: 'admin1', roles: ['ADMIN'] })
+        .displayName,
+    ).toBe('admin1');
+  });
 
-    expect(user.roles).toEqual(['ADMIN']);
-    expect(user.displayName).toBe('admin1');
+  it('bo qua role la (khong thuoc AGENT/SUPERVISOR/ADMIN)', () => {
+    expect(
+      userFromClaims({ preferred_username: 'x', roles: ['ADMIN', 'ROOT'] })
+        .roles,
+    ).toEqual(['ADMIN']);
   });
 });

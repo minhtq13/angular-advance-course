@@ -35,21 +35,9 @@ spring:
     type: ${CACHE_TYPE:simple}
     redis:
       time-to-live: 10m
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          # Chi dung khi care.auth.mode=keycloak.
-          # Issuer phai khop voi URL ma trinh duyet dung de dang nhap Keycloak.
-          issuer-uri: ${OIDC_ISSUER:http://localhost:8180/realms/care}
-          # Khi chay trong docker, backend lay JWKS qua mang noi bo.
-          jwk-set-uri: ${OIDC_JWKS:${spring.security.oauth2.resourceserver.jwt.issuer-uri}/protocol/openid-connect/certs}
 
 care:
   auth:
-    # local: backend tu phat JWT qua POST /api/auth/login (mac dinh)
-    # keycloak: dang nhap qua Keycloak (SSO) - buoi 5
-    mode: ${AUTH_MODE:local}
     # Chi dung cho moi truong dev/hoc. Production phai truyen qua bien moi truong / secret manager.
     jwt-secret: ${JWT_SECRET:care-dev-secret-change-me-in-production-0123456789}
     access-token-ttl: ${ACCESS_TOKEN_TTL:15m}

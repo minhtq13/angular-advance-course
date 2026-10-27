@@ -10,7 +10,7 @@ apps/
 libs/
   shared/util-config          type:util         Cấu hình runtime (/config.json)
   shared/util-i18n            type:util         Đa ngôn ngữ (Transloco): vi (mặc định) / en, file dịch, LanguageService
-  shared/data-access-auth     type:data-access  AuthService (local JWT / OIDC), interceptor, guard
+  shared/data-access-auth     type:data-access  AuthService (JWT), interceptor, guard
   shared/feature-auth         type:feature      Trang đăng nhập
   shared/data-access-api      type:data-access  API client, model, nhãn hiển thị
   shared/ui-layout            type:ui           Shell, trang 403/404, provideUi()

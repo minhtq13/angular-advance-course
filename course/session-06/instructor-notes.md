@@ -2,7 +2,7 @@
 
 ## Chuẩn bị trước buổi
 - [ ] Checkout tag `session06-start`, chạy `docker compose up -d`, backend, frontend
-- [ ] Mở sẵn: slide, IDE, trình duyệt (portal + Keycloak), Swagger
+- [ ] Mở sẵn: slide, IDE, trình duyệt (portal), Swagger
 
 ## Timeline (3,5 giờ)
 | Thời gian | Nội dung | Hình thức |

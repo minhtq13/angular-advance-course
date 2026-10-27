@@ -1,8 +1,11 @@
-import { computed, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { computed, inject, Injectable, signal } from '@angular/core';
+import { Router } from '@angular/router';
+import { APP_CONFIG } from '@care/shared-util-config';
+import { map, Observable, tap } from 'rxjs';
+import { decodeJwtPayload, isExpired } from './jwt';
 
 export type AppRole = 'AGENT' | 'SUPERVISOR' | 'ADMIN';
-
-const APP_ROLES: readonly string[] = ['AGENT', 'SUPERVISOR', 'ADMIN'];
 
 /** Key dich ten vai tro (khong hien ma ky thuat AGENT/SUPERVISOR cho nguoi dung). */
 export const ROLE_LABEL_KEYS: Record<AppRole, string> = {
@@ -17,31 +20,41 @@ export interface AuthUser {
   roles: AppRole[];
 }
 
-/** Claim trong access token. Che do local dung "roles", Keycloak dung "realm_access.roles". */
+/** Claim trong access token do backend phat (xem TokenService.issue). */
 export interface AccessTokenClaims {
   preferred_username?: string;
   name?: string;
   roles?: string[];
-  realm_access?: { roles?: string[] };
 }
 
 export function userFromClaims(claims: AccessTokenClaims): AuthUser {
   const username = claims.preferred_username ?? '';
-  const roles = claims.roles ?? claims.realm_access?.roles ?? [];
-  return {
-    username,
-    displayName: claims.name ?? username,
-    // Bo cac role mac dinh cua Keycloak (offline_access, uma_authorization, ...).
-    roles: roles.filter((role) => APP_ROLES.includes(role)) as AppRole[],
-  };
+  const roles = (claims.roles ?? []).filter((role): role is AppRole =>
+    Object.hasOwn(ROLE_LABEL_KEYS, role),
+  );
+  return { username, displayName: claims.name ?? username, roles };
 }
 
+interface TokenResponse {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+}
+
+const STORAGE_KEY = 'care.auth';
+
 /**
- * Hop dong chung cho moi cach dang nhap. Guard, interceptor va man hinh chi phu thuoc lop nay,
- * khong biet ben duoi la LocalAuthService (JWT tu backend) hay OidcAuthService (Keycloak).
+ * Dang nhap bang JWT do backend phat: POST /api/auth/login -> access + refresh token.
+ * Token luu trong sessionStorage (mat khi dong tab). Buoi 5 se ban ve noi luu token va lam refresh token.
  */
-export abstract class AuthService {
-  protected readonly user = signal<AuthUser | null>(null);
+@Injectable({ providedIn: 'root' })
+export class AuthService {
+  private readonly http = inject(HttpClient);
+  private readonly router = inject(Router);
+  private readonly apiUrl = inject(APP_CONFIG).apiUrl;
+
+  private tokens: TokenResponse | null = null;
+  private readonly user = signal<AuthUser | null>(null);
 
   readonly isAuthenticated = computed(() => this.user() !== null);
   readonly username = computed(() => this.user()?.username ?? '');
@@ -55,13 +68,80 @@ export abstract class AuthService {
     return roles.some((role) => this.roles().includes(role));
   }
 
-  /** Chay trong provideAppInitializer, truoc khi app render. */
-  abstract init(): Promise<void>;
+  /** Chay trong provideAppInitializer, truoc khi app render: khoi phuc phien tu sessionStorage. */
+  async init(): Promise<void> {
+    const saved = readStorage();
+    if (saved && !isExpired(saved.accessToken)) {
+      this.setTokens(saved);
+    } else {
+      this.clear();
+    }
+  }
 
-  abstract accessToken(): string | null;
+  loginWithPassword(username: string, password: string): Observable<void> {
+    return this.http
+      .post<TokenResponse>(`${this.apiUrl}/api/auth/login`, {
+        username,
+        password,
+      })
+      .pipe(
+        tap((tokens) => this.setTokens(tokens)),
+        map(() => undefined),
+      );
+  }
 
-  /** Dua nguoi dung toi buoc dang nhap; sau khi xong quay lai returnUrl. */
-  abstract login(returnUrl?: string): void;
+  accessToken(): string | null {
+    return this.tokens && !isExpired(this.tokens.accessToken)
+      ? this.tokens.accessToken
+      : null;
+  }
 
-  abstract logout(): void;
+  /** Dua nguoi dung toi trang dang nhap; sau khi xong quay lai returnUrl. */
+  login(returnUrl = this.router.url): void {
+    this.clear();
+    const queryParams =
+      returnUrl && !returnUrl.startsWith('/login') ? { returnUrl } : {};
+    this.router.navigate(['/login'], { queryParams });
+  }
+
+  logout(): void {
+    this.clear();
+    this.router.navigate(['/login']);
+  }
+
+  private setTokens(tokens: TokenResponse): void {
+    this.tokens = tokens;
+    writeStorage(tokens);
+    this.user.set(
+      userFromClaims(decodeJwtPayload<AccessTokenClaims>(tokens.accessToken)),
+    );
+  }
+
+  private clear(): void {
+    this.tokens = null;
+    writeStorage(null);
+    this.user.set(null);
+  }
+}
+
+// sessionStorage co the bi chan (che do rieng tu, chinh sach trinh duyet) -> khong de app vo vi no.
+function readStorage(): TokenResponse | null {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as TokenResponse) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStorage(tokens: TokenResponse | null): void {
+  try {
+    if (tokens) {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(tokens));
+    } else {
+      sessionStorage.removeItem(STORAGE_KEY);
+    }
+  } catch {
+    // bo qua
+  }
 }

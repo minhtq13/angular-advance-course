@@ -19,7 +19,7 @@ Quy ước git tag: `sessionXX-start` (điểm học viên bắt đầu lab) và
 | 02 | State management (Signals, RxJS, NgRx) | signal/computed/linkedSignal/rxResource ở trang danh sách; NgRx SignalStore cho phiếu yêu cầu |
 | 03 | Tối ưu hiệu năng, dữ liệu lớn | Seed 1–5 triệu thuê bao, phân trang server, virtual scroll, index/trigram, bundle budget (CSS ng-zorro 577 kB) |
 | 04 | Màn hình nghiệp vụ phức tạp (form, bảng) | Wizard đăng ký thuê bao (typed reactive forms, async validator SĐT), tạo/cập nhật phiếu |
-| 05 | Bảo mật: auth, JWT, SSO | Phần 1: JWT do backend phát, refresh token, nơi lưu token, interceptor xử lý 401. Phần 2: chuyển sang Keycloak (OIDC + PKCE), SSO portal/admin chỉ bằng đổi `config.json` |
+| 05 | Bảo mật: auth, JWT, SSO | JWT do backend phát (`/api/auth/login`), refresh token, nơi lưu token, interceptor xử lý 401, guard theo role, RBAC phía backend; SSO trình bày ở mức khái niệm |
 | 06 | Testing và code quality | Vitest, Testing Library, Playwright, Testcontainers, ESLint, Sonar |
 | 07 | Build, CI/CD, triển khai | Docker multi-stage + Nginx, GitLab CI, `nx affected`, cấu hình theo môi trường |
 | 08 | Nâng cấp và hiện đại hóa Angular | Branch `legacy` (NgModule, *ngIf, BehaviorSubject) → standalone, control flow, signals |

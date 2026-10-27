@@ -58,7 +58,7 @@ Hệ thống CSKH & quản lý thuê bao viễn thông
 - **admin**: quản trị, thống kê
 - 200.000 thuê bao, 50.000 phiếu (có thể tăng lên hàng triệu)
 - 3 vai trò: AGENT, SUPERVISOR, ADMIN
-- Đăng nhập bằng JWT; buổi 5 chuyển sang SSO (Keycloak)
+- Đăng nhập bằng JWT do backend phát
 
 </div>
 <div>
@@ -82,7 +82,6 @@ Hệ thống CSKH & quản lý thuê bao viễn thông
      Spring Boot API :8081  ───►  PostgreSQL 16 :5433   Adminer :8088
                                   200k thuê bao, có sẵn từ dump
   ────────────────────────────────────────────────────────────────
-        Buổi 5 (--profile sso): thêm Keycloak :8180 → SSO portal ↔ admin
 ```
 
 Học viên chỉ cần **Node + Docker**. Mỗi buổi học sẽ đào sâu một phần trong sơ đồ này.
@@ -371,13 +370,8 @@ loadAppConfig()                                   // fetch('/config.json')
 `libs/shared/util-config/src/lib/app-config.ts`
 
 ```ts
-export type AuthConfig =
-  | { mode: 'local' }                                      // JWT do backend phát
-  | { mode: 'oidc'; issuer: string; clientId: string };    // Keycloak (buổi 5)
-
 export interface AppConfig {
-  apiUrl: string;
-  auth: AuthConfig;
+  apiUrl: string;     // địa chỉ backend, đổi theo môi trường mà không cần build lại
 }
 
 export const APP_CONFIG = new InjectionToken<AppConfig>('APP_CONFIG');

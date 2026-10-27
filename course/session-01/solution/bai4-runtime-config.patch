@@ -1,13 +1,12 @@
 diff --git a/frontend/apps/portal/public/config.json b/frontend/apps/portal/public/config.json
-index 6d8ef99..c27d411 100644
+index 863d2bc..38aa980 100644
 --- a/frontend/apps/portal/public/config.json
 +++ b/frontend/apps/portal/public/config.json
-@@ -1,4 +1,5 @@
+@@ -1,3 +1,4 @@
  {
 +  "environmentName": "DEV",
-   "apiUrl": "http://localhost:8081",
-   "auth": {
-     "mode": "local"
+   "apiUrl": "http://localhost:8081"
+ }
 diff --git a/frontend/apps/portal/src/app/app.html b/frontend/apps/portal/src/app/app.html
 index 440a5f3..b914a0f 100644
 --- a/frontend/apps/portal/src/app/app.html
@@ -21,7 +20,7 @@ index 440a5f3..b914a0f 100644
  >
    <router-outlet />
 diff --git a/frontend/apps/portal/src/app/app.spec.ts b/frontend/apps/portal/src/app/app.spec.ts
-index f969465..5a5de55 100644
+index f969465..0ed6d36 100644
 --- a/frontend/apps/portal/src/app/app.spec.ts
 +++ b/frontend/apps/portal/src/app/app.spec.ts
 @@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
@@ -32,7 +31,7 @@ index f969465..5a5de55 100644
  import { provideI18nTesting } from '@care/shared-util-i18n/testing';
  import { App } from './app';
  
-@@ -14,6 +15,14 @@ describe('App', () => {
+@@ -14,6 +15,13 @@ describe('App', () => {
          provideRouter([]),
          provideUi(),
          provideI18nTesting(),
@@ -41,7 +40,6 @@ index f969465..5a5de55 100644
 +          useValue: {
 +            environmentName: 'TEST',
 +            apiUrl: '',
-+            auth: { mode: 'local' },
 +          },
 +        },
          {
@@ -134,15 +132,15 @@ index 78996fa..ecba38c 100644
  
    protected readonly isDesktop = toSignal(
 diff --git a/frontend/libs/shared/util-config/src/lib/app-config.ts b/frontend/libs/shared/util-config/src/lib/app-config.ts
-index 81ddd79..2e21f05 100644
+index b060c3e..ec706be 100644
 --- a/frontend/libs/shared/util-config/src/lib/app-config.ts
 +++ b/frontend/libs/shared/util-config/src/lib/app-config.ts
-@@ -9,6 +9,8 @@ export type AuthConfig =
+@@ -2,6 +2,8 @@ import { InjectionToken, Provider } from '@angular/core';
  
  /** Cau hinh runtime, doc tu /config.json luc khoi dong -> 1 ban build chay duoc moi moi truong (buoi 7). */
  export interface AppConfig {
 +  /** Ten moi truong hien tren header, vd "DEV", "TEST". Bo trong o production. */
 +  environmentName?: string;
    apiUrl: string;
-   auth: AuthConfig;
  }
+ 

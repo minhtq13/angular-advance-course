@@ -19,7 +19,7 @@ export function appConfig(config: AppConfig): ApplicationConfig {
         withInterceptors([acceptLanguageInterceptor, authInterceptor]),
       ),
       provideRouter(appRoutes, withComponentInputBinding()),
-      provideAuth(config.auth),
+      provideAuth(),
       provideI18n(),
       provideUi(),
     ],

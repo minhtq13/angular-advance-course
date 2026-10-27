@@ -3,7 +3,6 @@ package com.careportal.api.auth;
 import java.time.Instant;
 import javax.crypto.SecretKey;
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
@@ -22,7 +21,6 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-@ConditionalOnProperty(prefix = "care.auth", name = "mode", havingValue = "local", matchIfMissing = true)
 public class TokenService {
 
     /** Claim phan biet access token va refresh token: refresh token khong dung de goi API duoc. */
@@ -40,7 +38,7 @@ public class TokenService {
     public TokenResponse issue(AppUser user) {
         Instant now = Instant.now();
         String access = encode(JwtClaimsSet.builder()
-                .issuer(LocalAuthConfig.ISSUER)
+                .issuer(JwtConfig.ISSUER)
                 .subject(user.getUsername())
                 .issuedAt(now)
                 .expiresAt(now.plus(props.accessTokenTtl()))
@@ -51,7 +49,7 @@ public class TokenService {
                 .claim("roles", user.roleList())
                 .build());
         String refresh = encode(JwtClaimsSet.builder()
-                .issuer(LocalAuthConfig.ISSUER)
+                .issuer(JwtConfig.ISSUER)
                 .subject(user.getUsername())
                 .issuedAt(now)
                 .expiresAt(now.plus(props.refreshTokenTtl()))
@@ -71,12 +69,12 @@ public class TokenService {
     }
 
     static JwtDecoder decoder(SecretKey key, String expectedUse) {
-        NimbusJwtDecoder decoder = LocalAuthConfig.baseDecoder(key);
+        NimbusJwtDecoder decoder = JwtConfig.baseDecoder(key);
         OAuth2TokenValidator<Jwt> tokenUse = jwt -> expectedUse.equals(jwt.getClaimAsString(TOKEN_USE))
                 ? OAuth2TokenValidatorResult.success()
                 : OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_token", "Sai loai token", null));
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
-                JwtValidators.createDefaultWithIssuer(LocalAuthConfig.ISSUER), tokenUse));
+                JwtValidators.createDefaultWithIssuer(JwtConfig.ISSUER), tokenUse));
         return decoder;
     }
 
