@@ -1,0 +1,82 @@
+<main class="login-wrapper">
+  <div class="login-card">
+    <div class="card-top">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">C</span>
+        <span>Care Portal</span>
+      </div>
+      <div class="prefs">
+        <care-language-switcher />
+        <care-theme-switcher />
+      </div>
+    </div>
+    <h1>{{ 'auth.title' | transloco }}</h1>
+    <p class="muted">{{ 'auth.subtitle' | transloco }}</p>
+
+    <div aria-live="assertive">
+      @if (error(); as message) {
+      <nz-alert
+        nzType="error"
+        [nzMessage]="message"
+        nzShowIcon
+        class="error"
+        role="alert"
+      />
+      }
+    </div>
+
+    <form
+      nz-form
+      nzLayout="vertical"
+      [formGroup]="form"
+      (ngSubmit)="submit()"
+      novalidate
+    >
+      <nz-form-item>
+        <nz-form-label nzFor="username" nzRequired
+          >{{ 'auth.username' | transloco }}</nz-form-label
+        >
+        <nz-form-control [nzErrorTip]="'auth.usernameRequired' | transloco">
+          <input
+            #usernameInput
+            nz-input
+            nzSize="large"
+            id="username"
+            formControlName="username"
+            autocomplete="username"
+            autocapitalize="none"
+            spellcheck="false"
+          />
+        </nz-form-control>
+      </nz-form-item>
+      <nz-form-item>
+        <nz-form-label nzFor="password" nzRequired
+          >{{ 'auth.password' | transloco }}</nz-form-label
+        >
+        <nz-form-control [nzErrorTip]="'auth.passwordRequired' | transloco">
+          <!-- Co nut hien/an mat khau; van cho dan va trinh quan ly mat khau tu dien. -->
+          <nz-input-password nzSize="large">
+            <input
+              nz-input
+              id="password"
+              formControlName="password"
+              autocomplete="current-password"
+            />
+          </nz-input-password>
+        </nz-form-control>
+      </nz-form-item>
+      <button
+        nz-button
+        nzType="primary"
+        nzSize="large"
+        nzBlock
+        [nzLoading]="submitting()"
+        type="submit"
+      >
+        {{ 'auth.submit' | transloco }}
+      </button>
+    </form>
+
+    <p class="hint muted">{{ 'auth.demoAccounts' | transloco }}</p>
+  </div>
+</main>

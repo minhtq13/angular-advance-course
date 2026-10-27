@@ -1,0 +1,151 @@
+<div class="page-header">
+  <h1>{{ 'nav.subscribers' | transloco }}</h1>
+  <span class="muted tabular" role="status"
+    >{{ 'subscriber.count' | transloco: { count: (total() | translocoDecimal) }
+    }}</span
+  >
+</div>
+
+<div
+  class="filters"
+  role="search"
+  [attr.aria-label]="'subscriber.filters' | transloco"
+>
+  <div class="filter-field grow">
+    <label for="sub-keyword">{{ 'subscriber.search' | transloco }}</label>
+    <nz-input-wrapper>
+      <nz-icon nzInputPrefix nzType="search" aria-hidden="true" />
+      <input
+        nz-input
+        id="sub-keyword"
+        type="search"
+        autocomplete="off"
+        [placeholder]="'subscriber.searchPlaceholder' | transloco"
+        [ngModel]="keyword()"
+        (ngModelChange)="keyword.set($event)"
+      />
+    </nz-input-wrapper>
+  </div>
+  <div class="filter-field">
+    <label for="sub-status">{{ 'subscriber.status' | transloco }}</label>
+    <nz-select
+      nzId="sub-status"
+      nzAllowClear
+      [nzPlaceHolder]="'common.all' | transloco"
+      [ngModel]="status()"
+      (ngModelChange)="status.set($event)"
+    >
+      @for (o of statusOptions; track o.value) {
+      <nz-option [nzValue]="o.value" [nzLabel]="o.labelKey | transloco" />
+      }
+    </nz-select>
+  </div>
+  <div class="filter-field">
+    <label for="sub-type">{{ 'subscriber.type' | transloco }}</label>
+    <nz-select
+      nzId="sub-type"
+      nzAllowClear
+      [nzPlaceHolder]="'common.all' | transloco"
+      [ngModel]="type()"
+      (ngModelChange)="type.set($event)"
+    >
+      @for (o of typeOptions; track o.value) {
+      <nz-option [nzValue]="o.value" [nzLabel]="o.labelKey | transloco" />
+      }
+    </nz-select>
+  </div>
+  @if (hasFilters()) {
+  <div class="filters-actions">
+    <button nz-button nzType="link" (click)="clearFilters()">
+      {{ 'common.clearFilters' | transloco }}
+    </button>
+  </div>
+  }
+</div>
+
+@if (result.error()) {
+<nz-alert
+  nzType="error"
+  nzShowIcon
+  [nzMessage]="'subscriber.loadError' | transloco"
+  [nzDescription]="'common.checkConnection' | transloco"
+  [nzAction]="retryTpl"
+  class="mb"
+  role="alert"
+/>
+<ng-template #retryTpl>
+  <button nz-button nzSize="small" (click)="result.reload()">
+    <nz-icon nzType="reload" aria-hidden="true" /> {{ 'common.retry' | transloco
+    }}
+  </button>
+</ng-template>
+}
+
+<div class="panel">
+  <nz-table
+    nzSize="middle"
+    nzShowSizeChanger
+    [nzPageSizeOptions]="[20, 50, 100]"
+    [nzFrontPagination]="false"
+    [nzData]="rows()"
+    [nzTotal]="total()"
+    [nzPageIndex]="page().page + 1"
+    [nzPageSize]="page().size"
+    [nzLoading]="result.isLoading()"
+    [nzScroll]="{ x: '1000px' }"
+    [nzNoResult]="emptyTpl"
+    (nzQueryParams)="onQueryParams($event)"
+  >
+    <thead>
+      <tr>
+        <th nzColumnKey="msisdn" [nzSortFn]="true" nzWidth="140px">
+          {{ 'subscriber.col.msisdn' | transloco }}
+        </th>
+        <th nzColumnKey="fullName" [nzSortFn]="true">
+          {{ 'subscriber.col.fullName' | transloco }}
+        </th>
+        <th nzWidth="140px">{{ 'subscriber.col.idNumber' | transloco }}</th>
+        <th>{{ 'subscriber.col.province' | transloco }}</th>
+        <th nzWidth="100px">{{ 'subscriber.col.type' | transloco }}</th>
+        <th nzWidth="100px">{{ 'subscriber.col.plan' | transloco }}</th>
+        <th nzWidth="120px">{{ 'subscriber.col.status' | transloco }}</th>
+        <th nzColumnKey="activatedAt" [nzSortFn]="true" nzWidth="150px">
+          {{ 'subscriber.col.activatedAt' | transloco }}
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (s of rows(); track s.id) {
+      <tr class="clickable" (click)="open(s, $event)">
+        <td>
+          <a class="cell-link" [routerLink]="['/subscribers', s.id]"
+            >{{ s.msisdn }}</a
+          >
+        </td>
+        <td>{{ s.fullName }}</td>
+        <td>{{ s.idNumber }}</td>
+        <td>{{ s.province }}</td>
+        <td>{{ typeLabels[s.type] | transloco }}</td>
+        <td>{{ s.planCode }}</td>
+        <td>
+          <nz-tag [nzColor]="statusLabels[s.status].color"
+            >{{ statusLabels[s.status].labelKey | transloco }}</nz-tag
+          >
+        </td>
+        <td>{{ s.activatedAt | translocoDate: dateFormat }}</td>
+      </tr>
+      }
+    </tbody>
+  </nz-table>
+</div>
+
+<ng-template #emptyTpl>
+  <div class="empty-state">
+    <p>{{ 'subscriber.empty' | transloco }}</p>
+    @if (hasFilters()) {
+    <button nz-button (click)="clearFilters()">
+      {{ 'common.clearFilters' | transloco }}
+    </button>
+    }
+  </div>
+</ng-template>

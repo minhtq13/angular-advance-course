@@ -1,0 +1,48 @@
+.stat-card {
+  padding: var(--care-space-4) var(--care-space-5);
+
+  &.total {
+    background: var(--care-brand);
+    color: var(--care-on-brand);
+
+    .stat-label {
+      color: inherit;
+      opacity: 0.9;
+    }
+  }
+}
+
+.stat-label {
+  display: flex;
+  gap: var(--care-space-2);
+  align-items: center;
+  color: var(--care-text-muted);
+  font-weight: 500;
+}
+
+.stat-value {
+  margin: var(--care-space-1) 0;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #8c8c8c;
+
+  &[data-color='success'] {
+    background: #389e0d;
+  }
+  &[data-color='warning'] {
+    background: #d48806;
+  }
+  &[data-color='error'] {
+    background: #cf1322;
+  }
+  &[data-color='processing'] {
+    background: #1677ff;
+  }
+}

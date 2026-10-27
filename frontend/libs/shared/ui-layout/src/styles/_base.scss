@@ -1,0 +1,362 @@
+// ===== Design tokens (Minimalism / Swiss, mat do cao cho dashboard noi bo) =====
+:root {
+  --care-font:
+    'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  // Mau: nen sang cho nhan vien lam viec ca ngay; navy cho thuong hieu, xanh ng-zorro cho thao tac.
+  --care-brand: #0b3a75;
+  --care-on-brand: #ffffff;
+  --care-primary: #0958d9;
+  --care-bg: #f4f6f9;
+  --care-surface: #ffffff;
+  --care-text: #1f2937; // 14.7:1 tren trang
+  --care-text-muted: #4b5563; // 7.0:1 tren trang, 6.5:1 tren --care-bg
+  --care-border: #e5e7eb;
+  --care-focus: #0958d9;
+  --care-placeholder: #6b7280; // 4.8:1 (mac dinh ng-zorro #bfbfbf chi 1.8:1)
+
+  // Khoang cach theo nhip 4px
+  --care-space-1: 4px;
+  --care-space-2: 8px;
+  --care-space-3: 12px;
+  --care-space-4: 16px;
+  --care-space-5: 24px;
+  --care-space-6: 32px;
+
+  --care-radius: 8px;
+  --care-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.1);
+  --care-header-height: 56px;
+}
+
+body {
+  margin: 0;
+  background: var(--care-bg);
+  color: var(--care-text);
+  font-family: var(--care-font);
+}
+
+// ng-zorro tu dat font-family cho tung component -> ep ve font chung.
+[class^='ant-'],
+[class*=' ant-'] {
+  font-family: var(--care-font);
+}
+
+// So lieu thang cot: so thue bao, ngay thang, so luong.
+.ant-table,
+.ant-statistic-content,
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+// Mau chu tag preset cua ng-zorro chi dat ~1.6-3:1 -> lam dam de dat >= 4.5:1 (do bang cong cu).
+// Chi ap dung cho theme sang; theme toi co bo mau rieng ben duoi.
+html:not([data-theme='dark']) {
+  .ant-tag-success {
+    color: #237804; // 5.4:1
+  }
+  .ant-tag-warning {
+    color: #ad4e00; // 5.2:1
+  }
+  .ant-tag-error {
+    color: #a8071a; // 7.1:1
+  }
+  .ant-tag-processing {
+    color: #0050b3; // 6.8:1
+  }
+  // Do nguy hiem mac dinh #ff4d4f chi 3.3:1 tren trang (ca chu tren nen trang lan chu trang tren nen do).
+  .ant-btn-dangerous:not([disabled]):not(.ant-btn-primary),
+  .ant-menu-item-danger.ant-menu-item {
+    border-color: #cf1322;
+    color: #cf1322; // 5.6:1
+  }
+  .ant-btn-dangerous.ant-btn-primary:not([disabled]) {
+    border-color: #cf1322;
+    background: #cf1322;
+  }
+}
+
+// Placeholder van la chu nguoi dung can doc -> phai dat 4.5:1 o ca hai theme.
+input::placeholder,
+textarea::placeholder,
+.ant-select-selection-placeholder {
+  color: var(--care-placeholder) !important;
+  opacity: 1;
+}
+
+// Focus ro rang cho ban phim (khong hien khi click chuot).
+a:focus-visible,
+button:focus-visible,
+[tabindex]:focus-visible,
+.ant-menu-item:focus-visible {
+  outline: 2px solid var(--care-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+// ===== Theme toi =====
+// Khong dao nguoc mau: nen xam rat toi (khong den tuyet doi), be mat nang hon mot bac,
+// chu sang da giam do sang; moi cap mau duoi day da do >= 4.5:1.
+html[data-theme='dark'] {
+  color-scheme: dark;
+  --care-brand: #0e2a4d; // header: chu trang 14.4:1
+  --care-primary: #69b1ff; // link/nhan dang chon tren nen toi: 8.2:1
+  --care-bg: #0b0b0c;
+  --care-surface: #141414; // trung nen component cua ng-zorro dark
+  --care-text: #e6e6e6; // 14.8:1
+  --care-text-muted: #a6a6a6; // 7.6:1 tren be mat, 6.8:1 tren bang
+  --care-border: #303030;
+  --care-focus: #69b1ff;
+  --care-placeholder: #8c8c8c; // 5.5:1
+  // Toi thi bong do khong thay -> dung vien mo de tach lop.
+  --care-shadow: 0 0 0 1px #262626;
+
+  // CSS dark cua ng-zorro dat body #000 va duoc nap SAU -> can selector cu the hon de giu token.
+  body {
+    background: var(--care-bg);
+    color: var(--care-text);
+  }
+
+  // ng-zorro dark: link #177ddc chi 3.9:1, tag do 2.4:1, tag xanh 4.1:1 -> thay bang sac sang hon.
+  a,
+  .ant-menu-item-selected,
+  .ant-menu-item-selected a,
+  .ant-pagination-item-active a {
+    color: var(--care-primary);
+  }
+  .ant-tag-success {
+    color: #95de64; // 10.1:1
+  }
+  .ant-tag-warning {
+    color: #ffc53d; // 10.3:1
+  }
+  .ant-tag-error {
+    color: #ff7875; // 6.9:1
+  }
+  .ant-tag-processing {
+    color: #69b1ff; // 7.7:1
+  }
+  // Do nguy hiem cua ng-zorro dark (#a61d24) chi 2.5:1 -> #ff7875 (7.2:1).
+  .ant-btn-dangerous:not([disabled]):not(.ant-btn-primary),
+  .ant-menu-item-danger.ant-menu-item {
+    border-color: #ff7875;
+    color: #ff7875;
+  }
+  // ng-zorro dark van de sider "light" nen trang.
+  .ant-layout-sider-light {
+    background: var(--care-surface);
+  }
+  // Nut primary van dung #0958d9 nhu theme sang (chu trang 6.2:1).
+  .ant-btn-primary:not([disabled]):not(.ant-btn-dangerous) {
+    border-color: #0958d9;
+    background: #0958d9;
+    color: #fff;
+  }
+}
+
+// ===== Bo cuc trang =====
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--care-space-2) var(--care-space-4);
+  align-items: baseline;
+  margin-bottom: var(--care-space-4);
+
+  h1 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+}
+
+.section-title {
+  margin: var(--care-space-6) 0 var(--care-space-3);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.muted {
+  color: var(--care-text-muted);
+  font-size: 13px;
+}
+
+// Bo loc: nhan hien thi (khong chi placeholder), xuong dong tren man hinh hep.
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--care-space-3) var(--care-space-4);
+  align-items: flex-end;
+  margin-bottom: var(--care-space-4);
+  padding: var(--care-space-4);
+  background: var(--care-surface);
+  border-radius: var(--care-radius);
+  box-shadow: var(--care-shadow);
+}
+
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--care-space-1);
+  min-width: 180px;
+
+  > label,
+  > .filter-label {
+    color: var(--care-text-muted);
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  &.grow {
+    flex: 1 1 280px;
+    max-width: 420px;
+  }
+}
+
+.filters-actions {
+  display: flex;
+  gap: var(--care-space-2);
+  align-items: center;
+  min-height: 32px;
+}
+
+.panel {
+  background: var(--care-surface);
+  border-radius: var(--care-radius);
+  box-shadow: var(--care-shadow);
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+// Link trong o bang: dam hon mac dinh de dat 4.5:1, gach chan khi hover/focus.
+.cell-link {
+  font-weight: 500;
+
+  &:hover,
+  &:focus-visible {
+    text-decoration: underline;
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--care-space-2);
+  margin-top: var(--care-space-5);
+}
+
+.empty-state {
+  padding: var(--care-space-5) var(--care-space-4);
+  color: var(--care-text-muted);
+  text-align: center;
+
+  p {
+    margin: 0 0 var(--care-space-3);
+  }
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--care-space-4);
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (max-width: 575px) {
+  .filter-field,
+  .filter-field.grow {
+    flex: 1 1 100%;
+    max-width: none;
+  }
+}
+
+// Selector cu the hon de khong bi rule margin:0 cua component ng-zorro (nap sau) ghi de.
+.mb,
+nz-breadcrumb.mb,
+nz-alert.mb {
+  margin-bottom: var(--care-space-4);
+}
+
+.detail-panel {
+  padding: var(--care-space-5);
+}
+
+// Thao tac nguy hiem tach xa cac nut thuong.
+.danger-action {
+  margin-left: auto;
+}
+
+// Link breadcrumb mac dinh rgba(0,0,0,.45) chi ~4:1 tren nen xam -> dung mau chu phu (6.5:1).
+.ant-breadcrumb a {
+  color: var(--care-text-muted);
+
+  &:hover,
+  &:focus-visible {
+    color: var(--care-primary);
+    text-decoration: underline;
+  }
+}
+
+// Nhom nut chon (ngon ngu, theme): nut that + aria-pressed.
+.segmented {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--care-border);
+  border-radius: 6px;
+  background: var(--care-surface);
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    min-height: 28px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--care-text-muted);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  button[aria-pressed='true'] {
+    background: #0958d9;
+    color: #fff;
+  }
+
+  &.on-dark {
+    border-color: rgba(255, 255, 255, 0.35);
+    background: transparent;
+
+    button {
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    button[aria-pressed='true'] {
+      background: #fff;
+      color: #0b3a75;
+    }
+  }
+}

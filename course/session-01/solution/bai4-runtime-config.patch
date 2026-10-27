@@ -1,0 +1,148 @@
+diff --git a/frontend/apps/portal/public/config.json b/frontend/apps/portal/public/config.json
+index 6d8ef99..c27d411 100644
+--- a/frontend/apps/portal/public/config.json
++++ b/frontend/apps/portal/public/config.json
+@@ -1,4 +1,5 @@
+ {
++  "environmentName": "DEV",
+   "apiUrl": "http://localhost:8081",
+   "auth": {
+     "mode": "local"
+diff --git a/frontend/apps/portal/src/app/app.html b/frontend/apps/portal/src/app/app.html
+index 440a5f3..b914a0f 100644
+--- a/frontend/apps/portal/src/app/app.html
++++ b/frontend/apps/portal/src/app/app.html
+@@ -5,6 +5,7 @@
+   [navItems]="navItems"
+   [userName]="auth.displayName()"
+   [roles]="auth.roleLabelKeys()"
++  [environmentName]="config.environmentName"
+   (logout)="auth.logout()"
+ >
+   <router-outlet />
+diff --git a/frontend/apps/portal/src/app/app.spec.ts b/frontend/apps/portal/src/app/app.spec.ts
+index f969465..5a5de55 100644
+--- a/frontend/apps/portal/src/app/app.spec.ts
++++ b/frontend/apps/portal/src/app/app.spec.ts
+@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
+ import { provideRouter } from '@angular/router';
+ import { AuthService } from '@care/shared-data-access-auth';
+ import { provideUi } from '@care/shared-ui-layout';
++import { APP_CONFIG } from '@care/shared-util-config';
+ import { provideI18nTesting } from '@care/shared-util-i18n/testing';
+ import { App } from './app';
+ 
+@@ -14,6 +15,14 @@ describe('App', () => {
+         provideRouter([]),
+         provideUi(),
+         provideI18nTesting(),
++        {
++          provide: APP_CONFIG,
++          useValue: {
++            environmentName: 'TEST',
++            apiUrl: '',
++            auth: { mode: 'local' },
++          },
++        },
+         {
+           provide: AuthService,
+           useValue: {
+diff --git a/frontend/apps/portal/src/app/app.ts b/frontend/apps/portal/src/app/app.ts
+index c63fed4..fa53652 100644
+--- a/frontend/apps/portal/src/app/app.ts
++++ b/frontend/apps/portal/src/app/app.ts
+@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+ import { RouterOutlet } from '@angular/router';
+ import { AuthService } from '@care/shared-data-access-auth';
+ import { NavItem, Shell } from '@care/shared-ui-layout';
++import { APP_CONFIG } from '@care/shared-util-config';
+ 
+ @Component({
+   selector: 'care-root',
+@@ -11,6 +12,7 @@ import { NavItem, Shell } from '@care/shared-ui-layout';
+ })
+ export class App {
+   protected readonly auth = inject(AuthService);
++  protected readonly config = inject(APP_CONFIG);
+   protected readonly appName = 'Care Portal';
+   protected readonly navItems: NavItem[] = [
+     { label: 'nav.subscribers', icon: 'team', route: '/subscribers' },
+diff --git a/frontend/libs/shared/ui-layout/src/lib/shell.html b/frontend/libs/shared/ui-layout/src/lib/shell.html
+index 5645863..eea4744 100644
+--- a/frontend/libs/shared/ui-layout/src/lib/shell.html
++++ b/frontend/libs/shared/ui-layout/src/lib/shell.html
+@@ -21,6 +21,9 @@
+       <nz-icon nzType="customer-service" aria-hidden="true" />
+       <span>{{ appName() }}</span>
+     </a>
++    @if (environmentName(); as env) {
++    <nz-tag class="env-tag">{{ env }}</nz-tag>
++    }
+ 
+     <div class="header-prefs">
+       <care-language-switcher [onDark]="true" />
+diff --git a/frontend/libs/shared/ui-layout/src/lib/shell.scss b/frontend/libs/shared/ui-layout/src/lib/shell.scss
+index 7caf0c3..68e1687 100644
+--- a/frontend/libs/shared/ui-layout/src/lib/shell.scss
++++ b/frontend/libs/shared/ui-layout/src/lib/shell.scss
+@@ -55,6 +55,19 @@
+   }
+ }
+ 
++// Nhan moi truong (Bai 4): dat sat ten app; mau dam de dat >= 4.5:1.
++.brand:has(+ .env-tag) {
++  margin-right: 0;
++}
++
++.env-tag {
++  margin-right: auto;
++  border-color: #ffd591;
++  background: #fff7e6;
++  color: #ad4e00;
++  font-weight: 600;
++}
++
+ .header-prefs {
+   display: flex;
+   gap: var(--care-space-2);
+diff --git a/frontend/libs/shared/ui-layout/src/lib/shell.ts b/frontend/libs/shared/ui-layout/src/lib/shell.ts
+index 78996fa..ecba38c 100644
+--- a/frontend/libs/shared/ui-layout/src/lib/shell.ts
++++ b/frontend/libs/shared/ui-layout/src/lib/shell.ts
+@@ -41,6 +41,7 @@ import {
+   NzMenuDividerDirective,
+   NzMenuItemComponent,
+ } from 'ng-zorro-antd/menu';
++import { NzTagComponent } from 'ng-zorro-antd/tag';
+ import { filter, map, skip } from 'rxjs';
+ import { LanguageSwitcher } from './language-switcher';
+ import { ThemeSwitcher } from './theme-switcher';
+@@ -80,6 +81,7 @@ const DRAWER_CLOSE_MS = 350;
+     NzDrawerContentDirective,
+     NzDropdownDirective,
+     NzDropdownMenuComponent,
++    NzTagComponent,
+   ],
+   templateUrl: './shell.html',
+   styleUrl: './shell.scss',
+@@ -91,6 +93,7 @@ export class Shell {
+   readonly userName = input('');
+   /** Key dich cua vai tro, vd 'roles.AGENT'. */
+   readonly roles = input<string[]>([]);
++  readonly environmentName = input<string>();
+   readonly logout = output<void>();
+ 
+   protected readonly isDesktop = toSignal(
+diff --git a/frontend/libs/shared/util-config/src/lib/app-config.ts b/frontend/libs/shared/util-config/src/lib/app-config.ts
+index 81ddd79..2e21f05 100644
+--- a/frontend/libs/shared/util-config/src/lib/app-config.ts
++++ b/frontend/libs/shared/util-config/src/lib/app-config.ts
+@@ -9,6 +9,8 @@ export type AuthConfig =
+ 
+ /** Cau hinh runtime, doc tu /config.json luc khoi dong -> 1 ban build chay duoc moi moi truong (buoi 7). */
+ export interface AppConfig {
++  /** Ten moi truong hien tren header, vd "DEV", "TEST". Bo trong o production. */
++  environmentName?: string;
+   apiUrl: string;
+   auth: AuthConfig;
+ }

@@ -1,0 +1,155 @@
+{
+  "common": {
+    "retry": "Thử lại",
+    "clearFilters": "Xóa bộ lọc",
+    "all": "Tất cả",
+    "checkConnection": "Kiểm tra kết nối rồi thử lại.",
+    "genericError": "Đã xảy ra lỗi, vui lòng thử lại",
+    "backToHome": "Về trang chủ",
+    "unassigned": "Chưa giao"
+  },
+  "language": {
+    "label": "Ngôn ngữ",
+    "vi": "Tiếng Việt",
+    "en": "English"
+  },
+  "shell": {
+    "skipToMain": "Bỏ qua đến nội dung chính",
+    "openNav": "Mở menu điều hướng",
+    "mainNav": "Điều hướng chính",
+    "account": "Tài khoản {{name}}",
+    "logout": "Đăng xuất",
+    "settings": "Tùy chỉnh"
+  },
+  "roles": {
+    "AGENT": "Nhân viên CSKH",
+    "SUPERVISOR": "Giám sát viên",
+    "ADMIN": "Quản trị"
+  },
+  "nav": {
+    "subscribers": "Thuê bao",
+    "tickets": "Phiếu yêu cầu",
+    "dashboard": "Tổng quan"
+  },
+  "title": {
+    "login": "Đăng nhập",
+    "subscribers": "Thuê bao",
+    "subscriberDetail": "Chi tiết thuê bao",
+    "tickets": "Phiếu yêu cầu",
+    "dashboard": "Tổng quan",
+    "forbidden": "Không có quyền truy cập",
+    "notFound": "Không tìm thấy trang"
+  },
+  "status": {
+    "forbidden": "Bạn không có quyền truy cập chức năng này.",
+    "notFound": "Không tìm thấy trang."
+  },
+  "auth": {
+    "title": "Đăng nhập",
+    "subtitle": "Hệ thống chăm sóc khách hàng",
+    "username": "Tên đăng nhập",
+    "password": "Mật khẩu",
+    "usernameRequired": "Vui lòng nhập tên đăng nhập",
+    "passwordRequired": "Vui lòng nhập mật khẩu",
+    "submit": "Đăng nhập",
+    "failed": "Không đăng nhập được, vui lòng thử lại",
+    "demoAccounts": "Tài khoản mẫu (mật khẩu trùng tên đăng nhập): agent1 · supervisor1 · admin1"
+  },
+  "subscriber": {
+    "count": "{{count}} kết quả",
+    "filters": "Lọc thuê bao",
+    "search": "Tìm kiếm",
+    "searchPlaceholder": "Số thuê bao, CCCD hoặc họ tên",
+    "status": "Trạng thái",
+    "type": "Loại thuê bao",
+    "loadError": "Không tải được danh sách thuê bao.",
+    "empty": "Không có thuê bao phù hợp với bộ lọc.",
+    "col": {
+      "msisdn": "Số thuê bao",
+      "fullName": "Họ tên",
+      "idNumber": "CCCD",
+      "province": "Tỉnh/TP",
+      "type": "Loại",
+      "plan": "Gói cước",
+      "status": "Trạng thái",
+      "activatedAt": "Ngày kích hoạt",
+      "dateOfBirth": "Ngày sinh"
+    },
+    "detail": {
+      "breadcrumb": "Chi tiết",
+      "notFound": "Không tìm thấy thuê bao.",
+      "notFoundHint": "Thuê bao có thể đã bị xóa hoặc đường dẫn không đúng.",
+      "backToList": "Về danh sách",
+      "suspend": "Tạm khóa",
+      "suspendConfirm": "Tạm khóa thuê bao? Khách hàng sẽ không dùng được dịch vụ cho đến khi mở khóa.",
+      "activate": "Mở khóa",
+      "terminate": "Chấm dứt",
+      "terminateConfirm": "Chấm dứt thuê bao? Thao tác không thể hoàn tác.",
+      "statusChanged": "Đã chuyển sang \"{{status}}\"",
+      "recentTickets": "Phiếu yêu cầu gần đây",
+      "noTickets": "Thuê bao này chưa có phiếu yêu cầu nào."
+    }
+  },
+  "ticket": {
+    "count": "{{count}} phiếu",
+    "filters": "Lọc phiếu yêu cầu",
+    "status": "Trạng thái",
+    "priority": "Mức ưu tiên",
+    "onlyMine": "Chỉ phiếu giao cho tôi",
+    "loadError": "Không tải được danh sách phiếu.",
+    "empty": "Không có phiếu phù hợp với bộ lọc.",
+    "col": {
+      "code": "Mã phiếu",
+      "subscriber": "Thuê bao",
+      "title": "Tiêu đề",
+      "category": "Phân loại",
+      "priority": "Ưu tiên",
+      "status": "Trạng thái",
+      "assignee": "Người xử lý",
+      "createdAt": "Ngày tạo"
+    }
+  },
+  "dashboard": {
+    "loadError": "Không tải được số liệu.",
+    "subscribersTitle": "Thuê bao theo trạng thái",
+    "ticketsTitle": "Phiếu yêu cầu theo trạng thái",
+    "subscribersTotal": "Tổng thuê bao",
+    "ticketsTotal": "Tổng phiếu yêu cầu",
+    "share": "{{percent}} tổng số"
+  },
+  "enum": {
+    "subscriberStatus": {
+      "ACTIVE": "Hoạt động",
+      "SUSPENDED": "Tạm khóa",
+      "TERMINATED": "Đã hủy"
+    },
+    "subscriberType": {
+      "PREPAID": "Trả trước",
+      "POSTPAID": "Trả sau"
+    },
+    "ticketStatus": {
+      "NEW": "Mới",
+      "IN_PROGRESS": "Đang xử lý",
+      "RESOLVED": "Đã xử lý",
+      "CLOSED": "Đã đóng"
+    },
+    "ticketPriority": {
+      "LOW": "Thấp",
+      "MEDIUM": "Trung bình",
+      "HIGH": "Cao",
+      "URGENT": "Khẩn cấp"
+    },
+    "ticketCategory": {
+      "BILLING": "Cước phí",
+      "NETWORK": "Mạng/sóng",
+      "SERVICE": "Dịch vụ",
+      "OTHER": "Khác"
+    }
+  },
+  "theme": {
+    "label": "Giao diện",
+    "light": "Sáng",
+    "dark": "Tối",
+    "system": "Theo hệ thống"
+  }
+}

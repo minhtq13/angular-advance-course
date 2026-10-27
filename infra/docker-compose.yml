@@ -1,0 +1,79 @@
+name: care
+
+# Mac dinh (hoc vien chi can lenh nay):   docker compose -f infra/docker-compose.yml up -d
+#   -> postgres (co san du lieu) + api :8081 + adminer :8088
+# Buoi 5 - SSO voi Keycloak:               docker compose -f infra/docker-compose.yml --profile sso up -d
+# Them Redis cache (tuy chon):             docker compose -f infra/docker-compose.yml --profile cache up -d
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: care
+      POSTGRES_USER: care
+      POSTGRES_PASSWORD: care
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Lan dau tao volume: tu dong restore dump (200k thue bao, 50k phieu, tai khoan mau).
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # Kiem tra qua TCP: trong luc restore dump, Postgres chua mo TCP -> api se doi den khi xong.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U care -d care"]
+      interval: 3s
+      retries: 40
+
+  api:
+    build: ../backend
+    image: care-api:dev
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      AUTH_MODE: ${AUTH_MODE:-local}
+      # Chi dung khi AUTH_MODE=keycloak
+      OIDC_ISSUER: http://localhost:8180/realms/care
+      OIDC_JWKS: http://keycloak:8180/realms/care/protocol/openid-connect/certs
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/actuator/health | grep -q UP"]
+      interval: 5s
+      retries: 30
+
+  # Xem/truy van DB tren trinh duyet: http://localhost:8088
+  adminer:
+    image: adminer:5
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    ports:
+      - "8088:8080"
+    depends_on:
+      - postgres
+
+  keycloak:
+    profiles: ["sso"]
+    image: quay.io/keycloak/keycloak:26.8.1
+    command: start-dev --import-realm --http-port=8180
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      # Issuer co dinh = URL trinh duyet thay, de token hop le ca khi backend chay trong docker.
+      KC_HOSTNAME: http://localhost:8180
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+    ports:
+      - "8180:8180"
+    volumes:
+      - ./keycloak/care-realm.json:/opt/keycloak/data/import/care-realm.json:ro
+
+  redis:
+    profiles: ["cache"]
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  pgdata:

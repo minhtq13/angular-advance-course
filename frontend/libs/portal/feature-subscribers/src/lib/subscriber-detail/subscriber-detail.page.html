@@ -1,0 +1,158 @@
+<nz-breadcrumb class="mb">
+  <nz-breadcrumb-item
+    ><a routerLink="/subscribers"
+      >{{ 'nav.subscribers' | transloco }}</a
+    ></nz-breadcrumb-item
+  >
+  <nz-breadcrumb-item
+    >{{ subscriber.hasValue() ? subscriber.value().msisdn :
+    ('subscriber.detail.breadcrumb' | transloco) }}</nz-breadcrumb-item
+  >
+</nz-breadcrumb>
+
+@if (subscriber.isLoading()) {
+<div class="panel detail-panel">
+  <nz-skeleton [nzActive]="true" [nzParagraph]="{ rows: 4 }" />
+</div>
+} @else if (subscriber.error()) {
+<nz-alert
+  nzType="error"
+  nzShowIcon
+  [nzMessage]="'subscriber.detail.notFound' | transloco"
+  [nzDescription]="'subscriber.detail.notFoundHint' | transloco"
+  [nzAction]="backTpl"
+  role="alert"
+/>
+<ng-template #backTpl>
+  <a nz-button nzSize="small" routerLink="/subscribers"
+    >{{ 'subscriber.detail.backToList' | transloco }}</a
+  >
+</ng-template>
+} @else if (subscriber.hasValue()) { @let s = subscriber.value();
+<div class="page-header">
+  <h1 class="tabular">{{ s.msisdn }} — {{ s.fullName }}</h1>
+  <nz-tag [nzColor]="statusLabels[s.status].color"
+    >{{ statusLabels[s.status].labelKey | transloco }}</nz-tag
+  >
+</div>
+
+<div class="panel detail-panel">
+  <nz-descriptions [nzColumn]="{ xxl: 3, xl: 3, lg: 2, md: 2, sm: 1, xs: 1 }">
+    <nz-descriptions-item [nzTitle]="'subscriber.col.idNumber' | transloco">
+      <span class="tabular">{{ s.idNumber }}</span>
+    </nz-descriptions-item>
+    <nz-descriptions-item [nzTitle]="'subscriber.col.dateOfBirth' | transloco">
+      {{ s.dateOfBirth | translocoDate: dateFormat }}
+    </nz-descriptions-item>
+    <nz-descriptions-item [nzTitle]="'subscriber.col.province' | transloco"
+      >{{ s.province }}</nz-descriptions-item
+    >
+    <nz-descriptions-item [nzTitle]="'subscriber.type' | transloco"
+      >{{ typeLabels[s.type] | transloco }}</nz-descriptions-item
+    >
+    <nz-descriptions-item [nzTitle]="'subscriber.col.plan' | transloco"
+      >{{ s.planCode }}</nz-descriptions-item
+    >
+    <nz-descriptions-item [nzTitle]="'subscriber.col.activatedAt' | transloco">
+      {{ s.activatedAt | translocoDate: dateFormat }} {{ s.activatedAt |
+      translocoDate: timeFormat }}
+    </nz-descriptions-item>
+  </nz-descriptions>
+
+  @if (canChangeStatus()) {
+  <div class="actions">
+    @if (s.status === 'ACTIVE') {
+    <button
+      nz-button
+      nz-popconfirm
+      [nzPopconfirmTitle]="'subscriber.detail.suspendConfirm' | transloco"
+      [nzLoading]="pendingStatus() === 'SUSPENDED'"
+      [disabled]="pendingStatus() !== null"
+      (nzOnConfirm)="changeStatus('SUSPENDED')"
+    >
+      <nz-icon nzType="lock" aria-hidden="true" /> {{
+      'subscriber.detail.suspend' | transloco }}
+    </button>
+    } @else {
+    <button
+      nz-button
+      nzType="primary"
+      [nzLoading]="pendingStatus() === 'ACTIVE'"
+      [disabled]="pendingStatus() !== null"
+      (click)="changeStatus('ACTIVE')"
+    >
+      <nz-icon nzType="unlock" aria-hidden="true" /> {{
+      'subscriber.detail.activate' | transloco }}
+    </button>
+    }
+    <!-- Thao tac khong hoan tac duoc: mau do, tach xa cac nut con lai, bat buoc xac nhan. -->
+    <button
+      nz-button
+      nzDanger
+      class="danger-action"
+      nz-popconfirm
+      [nzPopconfirmTitle]="'subscriber.detail.terminateConfirm' | transloco"
+      [nzOkText]="'subscriber.detail.terminate' | transloco"
+      nzOkDanger
+      [nzLoading]="pendingStatus() === 'TERMINATED'"
+      [disabled]="pendingStatus() !== null"
+      (nzOnConfirm)="changeStatus('TERMINATED')"
+    >
+      <nz-icon nzType="stop" aria-hidden="true" /> {{
+      'subscriber.detail.terminate' | transloco }}
+    </button>
+  </div>
+  }
+</div>
+
+<h2 class="section-title">
+  {{ 'subscriber.detail.recentTickets' | transloco }}
+</h2>
+<div class="panel">
+  <nz-table
+    nzSize="middle"
+    [nzData]="recentTickets()"
+    [nzLoading]="tickets.isLoading()"
+    [nzShowPagination]="false"
+    [nzScroll]="{ x: '720px' }"
+    [nzNoResult]="noTicketsTpl"
+  >
+    <thead>
+      <tr>
+        <th nzWidth="130px">{{ 'ticket.col.code' | transloco }}</th>
+        <th>{{ 'ticket.col.title' | transloco }}</th>
+        <th nzWidth="120px">{{ 'ticket.col.priority' | transloco }}</th>
+        <th nzWidth="130px">{{ 'ticket.col.status' | transloco }}</th>
+        <th nzWidth="150px">{{ 'ticket.col.createdAt' | transloco }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (t of recentTickets(); track t.id) {
+      <tr>
+        <td>{{ t.code }}</td>
+        <td>{{ t.title }}</td>
+        <td>
+          <nz-tag [nzColor]="priorityLabels[t.priority].color"
+            >{{ priorityLabels[t.priority].labelKey | transloco }}</nz-tag
+          >
+        </td>
+        <td>
+          <nz-tag [nzColor]="ticketStatusLabels[t.status].color"
+            >{{ ticketStatusLabels[t.status].labelKey | transloco }}</nz-tag
+          >
+        </td>
+        <td>
+          {{ t.createdAt | translocoDate: dateFormat }} {{ t.createdAt |
+          translocoDate: timeFormat }}
+        </td>
+      </tr>
+      }
+    </tbody>
+  </nz-table>
+</div>
+<ng-template #noTicketsTpl>
+  <div class="empty-state">
+    <p>{{ 'subscriber.detail.noTickets' | transloco }}</p>
+  </div>
+</ng-template>
+}

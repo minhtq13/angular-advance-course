@@ -1,0 +1,62 @@
+<div class="page-header">
+  <h1>{{ 'nav.dashboard' | transloco }}</h1>
+</div>
+
+@if (stats.error()) {
+<nz-alert
+  nzType="error"
+  nzShowIcon
+  [nzMessage]="'dashboard.loadError' | transloco"
+  [nzAction]="retryTpl"
+  class="mb"
+  role="alert"
+/>
+<ng-template #retryTpl>
+  <button nz-button nzSize="small" (click)="stats.reload()">
+    <nz-icon nzType="reload" aria-hidden="true" /> {{ 'common.retry' | transloco
+    }}
+  </button>
+</ng-template>
+} @if (stats.isLoading()) {
+<div class="stat-grid">
+  @for (i of [1, 2, 3, 4]; track i) {
+  <div class="panel stat-card">
+    <nz-skeleton
+      [nzActive]="true"
+      [nzTitle]="false"
+      [nzParagraph]="{ rows: 2 }"
+    />
+  </div>
+  }
+</div>
+} @for (group of groups(); track group.titleKey) {
+<section [attr.aria-labelledby]="'group-' + $index">
+  <h2 class="section-title" [id]="'group-' + $index">
+    {{ group.titleKey | transloco }}
+  </h2>
+  <div class="stat-grid">
+    <div class="panel stat-card total">
+      <div class="stat-label">{{ group.totalKey | transloco }}</div>
+      <div class="stat-value tabular">{{ group.total | translocoDecimal }}</div>
+    </div>
+    @for (item of group.items; track item.key) {
+    <div class="panel stat-card">
+      <div class="stat-label">
+        <span
+          class="dot"
+          [attr.data-color]="item.color"
+          aria-hidden="true"
+        ></span>
+        {{ item.labelKey | transloco }}
+      </div>
+      <div class="stat-value tabular">{{ item.value | translocoDecimal }}</div>
+      <div class="muted tabular">
+        {{ 'dashboard.share' | transloco: { percent: (item.share |
+        translocoPercent: { maximumFractionDigits: 1, minimumFractionDigits: 1
+        }) } }}
+      </div>
+    </div>
+    }
+  </div>
+</section>
+}

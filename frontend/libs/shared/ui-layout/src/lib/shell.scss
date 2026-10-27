@@ -1,0 +1,171 @@
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: var(--care-space-4);
+  z-index: 1000;
+  padding: var(--care-space-2) var(--care-space-4);
+  border-radius: var(--care-radius);
+  background: var(--care-surface);
+  color: var(--care-text);
+  font-weight: 600;
+  box-shadow: var(--care-shadow);
+
+  &:focus {
+    top: var(--care-space-2);
+  }
+}
+
+.shell,
+.shell nz-layout {
+  background: var(--care-bg);
+}
+
+.shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  gap: var(--care-space-2);
+  align-items: center;
+  height: var(--care-header-height);
+  padding: 0 var(--care-space-4);
+  background: var(--care-brand);
+  color: var(--care-on-brand);
+  line-height: normal;
+}
+
+.brand {
+  display: flex;
+  gap: var(--care-space-2);
+  align-items: center;
+  min-height: 40px;
+  margin-right: auto;
+  color: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &:hover {
+    color: inherit;
+  }
+}
+
+.header-prefs {
+  display: flex;
+  gap: var(--care-space-2);
+  margin-right: var(--care-space-2);
+}
+
+// Tuy chon trong menu tai khoan: chi hien tren man hinh hep (header khong du cho).
+.menu-prefs {
+  display: none;
+  flex-wrap: wrap;
+  gap: var(--care-space-2);
+  align-items: center;
+  padding: var(--care-space-2) var(--care-space-3);
+}
+
+.menu-prefs-label {
+  width: 100%;
+  color: var(--care-text-muted);
+  font-size: 12px;
+}
+
+.icon-btn,
+.user-btn {
+  color: inherit;
+
+  &:hover,
+  &:focus-visible {
+    background: rgba(255, 255, 255, 0.12);
+    color: inherit;
+  }
+}
+
+.icon-btn {
+  width: 40px;
+  height: 40px;
+}
+
+.user-btn {
+  display: flex;
+  gap: var(--care-space-2);
+  align-items: center;
+  height: 44px;
+  padding: 0 var(--care-space-2);
+
+  nz-avatar {
+    background: rgba(255, 255, 255, 0.2);
+    color: var(--care-on-brand);
+  }
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.25;
+
+  small {
+    opacity: 0.85;
+    font-size: 12px;
+  }
+}
+
+.user-menu {
+  min-width: 220px;
+}
+
+.user-menu-header {
+  display: flex;
+  flex-direction: column;
+  padding: var(--care-space-2) var(--care-space-3);
+  line-height: 1.4;
+
+  small {
+    color: var(--care-text-muted);
+  }
+}
+
+.sider {
+  border-right: 1px solid var(--care-border);
+}
+
+.nav-menu {
+  padding-top: var(--care-space-2);
+  border-inline-end: none !important;
+}
+
+.content {
+  min-width: 0;
+  padding: var(--care-space-5);
+  outline: none;
+}
+
+@media (max-width: 991px) {
+  .content {
+    padding: var(--care-space-4);
+  }
+}
+
+// Man hinh hep: chi giu avatar, ten va vai tro xem trong menu tai khoan.
+@media (max-width: 575px) {
+  .user-info,
+  .header-prefs {
+    display: none;
+  }
+
+  .menu-prefs {
+    display: flex;
+  }
+}
+
+// Ten vai tro ngan cach bang dau cham giua (khong dua dau vao chuoi dich).
+.roles span + span::before {
+  content: ' · ';
+}

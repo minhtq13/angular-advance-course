@@ -1,0 +1,14 @@
+<!-- Chua dang nhap: chi hien trang /login, khong co khung menu. -->
+@if (auth.isAuthenticated()) {
+<care-shell
+  [appName]="appName"
+  [navItems]="navItems"
+  [userName]="auth.displayName()"
+  [roles]="auth.roleLabelKeys()"
+  (logout)="auth.logout()"
+>
+  <router-outlet />
+</care-shell>
+} @else {
+<router-outlet />
+}

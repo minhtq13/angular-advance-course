@@ -1,0 +1,6 @@
+{
+  "apiUrl": "http://localhost:8081",
+  "auth": {
+    "mode": "local"
+  }
+}

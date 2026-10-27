@@ -1,0 +1,551 @@
+diff --git a/frontend/apps/portal/src/app/app.routes.ts b/frontend/apps/portal/src/app/app.routes.ts
+index 105d82a..ecb6a01 100644
+--- a/frontend/apps/portal/src/app/app.routes.ts
++++ b/frontend/apps/portal/src/app/app.routes.ts
+@@ -27,6 +27,14 @@ export const appRoutes: Route[] = [
+         loadChildren: () =>
+           import('@care/portal-feature-tickets').then((m) => m.ticketRoutes),
+       },
++      {
++        path: 'service-plans',
++        title: 'title.servicePlans',
++        loadChildren: () =>
++          import('@care/portal-feature-service-plans').then(
++            (m) => m.servicePlanRoutes,
++          ),
++      },
+       {
+         path: 'forbidden',
+         title: 'title.forbidden',
+diff --git a/frontend/apps/portal/src/app/app.ts b/frontend/apps/portal/src/app/app.ts
+index 535fa88..c63fed4 100644
+--- a/frontend/apps/portal/src/app/app.ts
++++ b/frontend/apps/portal/src/app/app.ts
+@@ -15,5 +15,6 @@ export class App {
+   protected readonly navItems: NavItem[] = [
+     { label: 'nav.subscribers', icon: 'team', route: '/subscribers' },
+     { label: 'nav.tickets', icon: 'file-text', route: '/tickets' },
++    { label: 'nav.servicePlans', icon: 'appstore', route: '/service-plans' },
+   ];
+ }
+diff --git a/frontend/libs/portal/feature-service-plans/README.md b/frontend/libs/portal/feature-service-plans/README.md
+new file mode 100644
+index 0000000..743a92e
+--- /dev/null
++++ b/frontend/libs/portal/feature-service-plans/README.md
+@@ -0,0 +1,7 @@
++# portal-feature-service-plans
++
++This library was generated with [Nx](https://nx.dev).
++
++## Running unit tests
++
++Run `nx test portal-feature-service-plans` to execute the unit tests.
+diff --git a/frontend/libs/portal/feature-service-plans/eslint.config.mjs b/frontend/libs/portal/feature-service-plans/eslint.config.mjs
+new file mode 100644
+index 0000000..349ee7e
+--- /dev/null
++++ b/frontend/libs/portal/feature-service-plans/eslint.config.mjs
+@@ -0,0 +1,34 @@
++import nx from '@nx/eslint-plugin';
++import baseConfig from '../../../eslint.config.mjs';
++
++export default [
++  ...nx.configs['flat/angular'],
++  ...nx.configs['flat/angular-template'],
++  ...baseConfig,
++  {
++    files: ['**/*.ts'],
++    rules: {
++      '@angular-eslint/directive-selector': [
++        'error',
++        {
++          type: 'attribute',
++          prefix: 'care',
++          style: 'camelCase',
++        },
++      ],
++      '@angular-eslint/component-selector': [
++        'error',
++        {
++          type: 'element',
++          prefix: 'care',
++          style: 'kebab-case',
++        },
++      ],
++    },
++  },
++  {
++    files: ['**/*.html'],
++    // Override or add rules here
++    rules: {},
++  },
++];
+diff --git a/frontend/libs/portal/feature-service-plans/project.json b/frontend/libs/portal/feature-service-plans/project.json
+new file mode 100644
+index 0000000..e1dd0a2
+--- /dev/null
++++ b/frontend/libs/portal/feature-service-plans/project.json
+@@ -0,0 +1,10 @@
++{
++  "name": "portal-feature-service-plans",
++  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
++  "sourceRoot": "libs/portal/feature-service-plans/src",
++  "prefix": "care",
++  "projectType": "library",
++  "tags": ["scope:portal", "type:feature"],
++  "// targets": "to see all targets run: nx show project portal-feature-service-plans --web",
++  "targets": {}
++}
+diff --git a/frontend/libs/portal/feature-service-plans/src/index.ts b/frontend/libs/portal/feature-service-plans/src/index.ts
+new file mode 100644
+index 0000000..0f2f8f5
+--- /dev/null
++++ b/frontend/libs/portal/feature-service-plans/src/index.ts
+@@ -0,0 +1 @@
++export * from './lib/service-plan.routes';
+diff --git a/frontend/libs/portal/feature-service-plans/src/lib/service-plan-list/service-plan-list.page.html b/frontend/libs/portal/feature-service-plans/src/lib/service-plan-list/service-plan-list.page.html
+new file mode 100644
+index 0000000..9fc423c
+--- /dev/null
++++ b/frontend/libs/portal/feature-service-plans/src/lib/service-plan-list/service-plan-list.page.html
+@@ -0,0 +1,87 @@
++<div class="page-header">
++  <h1>{{ 'nav.servicePlans' | transloco }}</h1>
++  <span class="muted tabular" role="status"
++    >{{ 'servicePlan.count' | transloco: { count: rows().length } }}</span
++  >
++</div>
++
++<div
++  class="filters"
++  role="search"
++  [attr.aria-label]="'servicePlan.filters' | transloco"
++>
++  <div class="filter-field">
++    <span id="plan-type-label" class="filter-label"
++      >{{ 'servicePlan.type' | transloco }}</span
++    >
++    <nz-radio-group
++      aria-labelledby="plan-type-label"
++      [ngModel]="type()"
++      (ngModelChange)="type.set($event)"
++    >
++      <label nz-radio-button [nzValue]="null"
++        >{{ 'common.all' | transloco }}</label
++      >
++      <label nz-radio-button nzValue="PREPAID"
++        >{{ typeLabels.PREPAID | transloco }}</label
++      >
++      <label nz-radio-button nzValue="POSTPAID"
++        >{{ typeLabels.POSTPAID | transloco }}</label
++      >
++    </nz-radio-group>
++  </div>
++</div>
++
++@if (plans.error()) {
++<nz-alert
++  nzType="error"
++  nzShowIcon
++  [nzMessage]="'servicePlan.loadError' | transloco"
++  [nzAction]="retryTpl"
++  class="mb"
++  role="alert"
++/>
++<ng-template #retryTpl>
++  <button nz-button nzSize="small" (click)="plans.reload()">
++    {{ 'common.retry' | transloco }}
++  </button>
++</ng-template>
++}
++
++<!-- Du lieu nho (vai chuc dong) -> phan trang phia client la du. -->
++<div class="panel">
++  <nz-table
++    nzSize="middle"
++    [nzData]="rows()"
++    [nzLoading]="plans.isLoading()"
++    [nzShowPagination]="false"
++    [nzScroll]="{ x: '640px' }"
++  >
++    <thead>
++      <tr>
++        <th nzWidth="110px">{{ 'servicePlan.col.code' | transloco }}</th>
++        <th>{{ 'servicePlan.col.name' | transloco }}</th>
++        <th nzWidth="120px">{{ 'servicePlan.col.type' | transloco }}</th>
++        <th nzAlign="right" nzWidth="140px">
++          {{ 'servicePlan.col.monthlyFee' | transloco }}
++        </th>
++        <th nzAlign="right" nzWidth="110px">
++          {{ 'servicePlan.col.dataGb' | transloco }}
++        </th>
++      </tr>
++    </thead>
++    <tbody>
++      @for (p of rows(); track p.code) {
++      <tr>
++        <td><nz-tag>{{ p.code }}</nz-tag></td>
++        <td>{{ p.name }}</td>
++        <td>{{ typeLabels[p.type] | transloco }}</td>
++        <td nzAlign="right">
++          {{ p.monthlyFee | translocoCurrency: 'symbol' : {} : 'VND' }}
++        </td>
++        <td nzAlign="right">{{ p.dataGb | translocoDecimal }}</td>
++      </tr>
++      }
++    </tbody>
++  </nz-table>
++</div>
+diff --git a/frontend/libs/portal/feature-service-plans/src/lib/service-plan-list/service-plan-list.page.ts b/frontend/libs/portal/feature-service-plans/src/lib/service-plan-list/service-plan-list.page.ts
+new file mode 100644
+index 0000000..b9b0041
+--- /dev/null
++++ b/frontend/libs/portal/feature-service-plans/src/lib/service-plan-list/service-plan-list.page.ts
+@@ -0,0 +1,61 @@
++import {
++  ChangeDetectionStrategy,
++  Component,
++  computed,
++  inject,
++  signal,
++} from '@angular/core';
++import { rxResource } from '@angular/core/rxjs-interop';
++import { FormsModule } from '@angular/forms';
++import {
++  ServicePlanApi,
++  SUBSCRIBER_TYPE,
++  SubscriberType,
++} from '@care/shared-data-access-api';
++import { TranslocoPipe } from '@jsverse/transloco';
++import {
++  TranslocoCurrencyPipe,
++  TranslocoDecimalPipe,
++} from '@jsverse/transloco-locale';
++import { NzAlertComponent } from 'ng-zorro-antd/alert';
++import { NzButtonComponent } from 'ng-zorro-antd/button';
++import { NzRadioComponent, NzRadioGroupComponent } from 'ng-zorro-antd/radio';
++import { NzTableModule } from 'ng-zorro-antd/table';
++import { NzTagComponent } from 'ng-zorro-antd/tag';
++
++@Component({
++  selector: 'care-service-plan-list-page',
++  imports: [
++    FormsModule,
++    TranslocoPipe,
++    TranslocoCurrencyPipe,
++    TranslocoDecimalPipe,
++    NzAlertComponent,
++    NzButtonComponent,
++    NzRadioGroupComponent,
++    NzRadioComponent,
++    NzTableModule,
++    NzTagComponent,
++  ],
++  templateUrl: './service-plan-list.page.html',
++  changeDetection: ChangeDetectionStrategy.OnPush,
++})
++export class ServicePlanListPage {
++  private readonly api = inject(ServicePlanApi);
++
++  protected readonly typeLabels = SUBSCRIBER_TYPE;
++
++  /** null = tat ca loai. */
++  protected readonly type = signal<SubscriberType | null>(null);
++
++  // Luu y: params() tra ve undefined => resource o trang thai idle, KHONG goi API.
++  // Vi vay boc trong object thay vi tra ve this.type() ?? undefined.
++  protected readonly plans = rxResource({
++    params: () => ({ type: this.type() }),
++    stream: ({ params }) => this.api.list(params.type ?? undefined),
++  });
++
++  protected readonly rows = computed(() =>
++    this.plans.hasValue() ? this.plans.value() : [],
++  );
++}
+diff --git a/frontend/libs/portal/feature-service-plans/src/lib/service-plan.routes.ts b/frontend/libs/portal/feature-service-plans/src/lib/service-plan.routes.ts
+new file mode 100644
+index 0000000..6d2dc7e
+--- /dev/null
++++ b/frontend/libs/portal/feature-service-plans/src/lib/service-plan.routes.ts
+@@ -0,0 +1,11 @@
++import { Route } from '@angular/router';
++
++export const servicePlanRoutes: Route[] = [
++  {
++    path: '',
++    loadComponent: () =>
++      import('./service-plan-list/service-plan-list.page').then(
++        (m) => m.ServicePlanListPage,
++      ),
++  },
++];
+diff --git a/frontend/libs/portal/feature-service-plans/src/test-setup.ts b/frontend/libs/portal/feature-service-plans/src/test-setup.ts
+new file mode 100644
+index 0000000..17b7965
+--- /dev/null
++++ b/frontend/libs/portal/feature-service-plans/src/test-setup.ts
+@@ -0,0 +1,5 @@
++import '@angular/compiler';
++import '@analogjs/vitest-angular/setup-snapshots';
++import { setupTestBed } from '@analogjs/vitest-angular/setup-testbed';
++
++setupTestBed();
+diff --git a/frontend/libs/portal/feature-service-plans/tsconfig.json b/frontend/libs/portal/feature-service-plans/tsconfig.json
+new file mode 100644
+index 0000000..bb320af
+--- /dev/null
++++ b/frontend/libs/portal/feature-service-plans/tsconfig.json
+@@ -0,0 +1,28 @@
++{
++  "extends": "../../../tsconfig.base.json",
++  "compilerOptions": {
++    "isolatedModules": true,
++    "strict": true,
++    "noImplicitOverride": true,
++    "noPropertyAccessFromIndexSignature": true,
++    "noImplicitReturns": true,
++    "noFallthroughCasesInSwitch": true,
++    "module": "preserve"
++  },
++  "angularCompilerOptions": {
++    "enableI18nLegacyMessageIdFormat": false,
++    "strictInjectionParameters": true,
++    "strictInputAccessModifiers": true,
++    "strictTemplates": true
++  },
++  "files": [],
++  "include": [],
++  "references": [
++    {
++      "path": "./tsconfig.lib.json"
++    },
++    {
++      "path": "./tsconfig.spec.json"
++    }
++  ]
++}
+diff --git a/frontend/libs/portal/feature-service-plans/tsconfig.lib.json b/frontend/libs/portal/feature-service-plans/tsconfig.lib.json
+new file mode 100644
+index 0000000..a9b98ba
+--- /dev/null
++++ b/frontend/libs/portal/feature-service-plans/tsconfig.lib.json
+@@ -0,0 +1,26 @@
++{
++  "extends": "./tsconfig.json",
++  "compilerOptions": {
++    "outDir": "../../../dist/out-tsc",
++    "declaration": true,
++    "declarationMap": true,
++    "inlineSources": true,
++    "types": []
++  },
++  "include": ["src/**/*.ts"],
++  "exclude": [
++    "src/**/*.spec.ts",
++    "src/**/*.test.ts",
++    "vite.config.ts",
++    "vite.config.mts",
++    "vitest.config.ts",
++    "vitest.config.mts",
++    "src/**/*.test.tsx",
++    "src/**/*.spec.tsx",
++    "src/**/*.test.js",
++    "src/**/*.spec.js",
++    "src/**/*.test.jsx",
++    "src/**/*.spec.jsx",
++    "src/test-setup.ts"
++  ]
++}
+diff --git a/frontend/libs/portal/feature-service-plans/tsconfig.spec.json b/frontend/libs/portal/feature-service-plans/tsconfig.spec.json
+new file mode 100644
+index 0000000..5785a8a
+--- /dev/null
++++ b/frontend/libs/portal/feature-service-plans/tsconfig.spec.json
+@@ -0,0 +1,29 @@
++{
++  "extends": "./tsconfig.json",
++  "compilerOptions": {
++    "outDir": "../../../dist/out-tsc",
++    "types": [
++      "vitest/globals",
++      "vitest/importMeta",
++      "vite/client",
++      "node",
++      "vitest"
++    ]
++  },
++  "include": [
++    "vite.config.ts",
++    "vite.config.mts",
++    "vitest.config.ts",
++    "vitest.config.mts",
++    "src/**/*.test.ts",
++    "src/**/*.spec.ts",
++    "src/**/*.test.tsx",
++    "src/**/*.spec.tsx",
++    "src/**/*.test.js",
++    "src/**/*.spec.js",
++    "src/**/*.test.jsx",
++    "src/**/*.spec.jsx",
++    "src/**/*.d.ts"
++  ],
++  "files": ["src/test-setup.ts"]
++}
+diff --git a/frontend/libs/portal/feature-service-plans/vite.config.mts b/frontend/libs/portal/feature-service-plans/vite.config.mts
+new file mode 100644
+index 0000000..d45a43e
+--- /dev/null
++++ b/frontend/libs/portal/feature-service-plans/vite.config.mts
+@@ -0,0 +1,30 @@
++/// <reference types='vitest' />
++import { defineConfig } from 'vite';
++import angular from '@analogjs/vite-plugin-angular';
++
++export default defineConfig(() => ({
++  root: import.meta.dirname,
++  cacheDir: '../../../node_modules/.vite/libs/portal/feature-service-plans',
++  resolve: {
++    tsconfigPaths: true,
++  },
++  plugins: [angular()],
++  // Uncomment this if you are using workers.
++  // worker: {
++  //  plugins: [],
++  // },
++  test: {
++    name: 'portal-feature-service-plans',
++    watch: false,
++    passWithNoTests: true,
++    globals: true,
++    environment: 'jsdom',
++    include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
++    setupFiles: ['src/test-setup.ts'],
++    reporters: ['default'],
++    coverage: {
++      reportsDirectory: '../../../coverage/libs/portal/feature-service-plans',
++      provider: 'v8' as const,
++    },
++  },
++}));
+diff --git a/frontend/libs/shared/ui-layout/src/lib/provide-ui.ts b/frontend/libs/shared/ui-layout/src/lib/provide-ui.ts
+index 889dbc2..cd76555 100644
+--- a/frontend/libs/shared/ui-layout/src/lib/provide-ui.ts
++++ b/frontend/libs/shared/ui-layout/src/lib/provide-ui.ts
+@@ -6,6 +6,7 @@ import {
+ } from '@angular/core';
+ import { TitleStrategy } from '@angular/router';
+ import {
++  AppstoreOutline,
+   ArrowLeftOutline,
+   BarChartOutline,
+   CustomerServiceOutline,
+@@ -38,6 +39,7 @@ const PRIMARY_COLOR = '#0958d9';
+ 
+ /** Chi dang ky icon thuc su dung -> khong keo ca bo icon vao bundle (buoi 3). */
+ const ICONS = [
++  AppstoreOutline,
+   ArrowLeftOutline,
+   BarChartOutline,
+   CustomerServiceOutline,
+diff --git a/frontend/libs/shared/util-i18n/src/assets/i18n/en.json b/frontend/libs/shared/util-i18n/src/assets/i18n/en.json
+index f170644..f7bc3ee 100644
+--- a/frontend/libs/shared/util-i18n/src/assets/i18n/en.json
++++ b/frontend/libs/shared/util-i18n/src/assets/i18n/en.json
+@@ -29,7 +29,8 @@
+   "nav": {
+     "subscribers": "Subscribers",
+     "tickets": "Tickets",
+-    "dashboard": "Overview"
++    "dashboard": "Overview",
++    "servicePlans": "Service plans"
+   },
+   "title": {
+     "login": "Sign in",
+@@ -38,7 +39,8 @@
+     "tickets": "Tickets",
+     "dashboard": "Overview",
+     "forbidden": "Access denied",
+-    "notFound": "Page not found"
++    "notFound": "Page not found",
++    "servicePlans": "Service plans"
+   },
+   "status": {
+     "forbidden": "You do not have permission to access this feature.",
+@@ -151,5 +153,18 @@
+     "light": "Light",
+     "dark": "Dark",
+     "system": "System"
++  },
++  "servicePlan": {
++    "count": "Total: {{count}}",
++    "filters": "Filter service plans",
++    "type": "Subscriber type",
++    "loadError": "Could not load service plans.",
++    "col": {
++      "code": "Code",
++      "name": "Name",
++      "type": "Type",
++      "monthlyFee": "Monthly fee",
++      "dataGb": "Data (GB)"
++    }
+   }
+ }
+diff --git a/frontend/libs/shared/util-i18n/src/assets/i18n/vi.json b/frontend/libs/shared/util-i18n/src/assets/i18n/vi.json
+index 69c1f58..a33306e 100644
+--- a/frontend/libs/shared/util-i18n/src/assets/i18n/vi.json
++++ b/frontend/libs/shared/util-i18n/src/assets/i18n/vi.json
+@@ -29,7 +29,8 @@
+   "nav": {
+     "subscribers": "Thuê bao",
+     "tickets": "Phiếu yêu cầu",
+-    "dashboard": "Tổng quan"
++    "dashboard": "Tổng quan",
++    "servicePlans": "Gói cước"
+   },
+   "title": {
+     "login": "Đăng nhập",
+@@ -38,7 +39,8 @@
+     "tickets": "Phiếu yêu cầu",
+     "dashboard": "Tổng quan",
+     "forbidden": "Không có quyền truy cập",
+-    "notFound": "Không tìm thấy trang"
++    "notFound": "Không tìm thấy trang",
++    "servicePlans": "Gói cước"
+   },
+   "status": {
+     "forbidden": "Bạn không có quyền truy cập chức năng này.",
+@@ -151,5 +153,18 @@
+     "light": "Sáng",
+     "dark": "Tối",
+     "system": "Theo hệ thống"
++  },
++  "servicePlan": {
++    "count": "{{count}} gói",
++    "filters": "Lọc gói cước",
++    "type": "Loại thuê bao",
++    "loadError": "Không tải được danh sách gói cước.",
++    "col": {
++      "code": "Mã gói",
++      "name": "Tên gói",
++      "type": "Loại",
++      "monthlyFee": "Cước tháng",
++      "dataGb": "Data (GB)"
++    }
+   }
+ }
+diff --git a/frontend/tsconfig.base.json b/frontend/tsconfig.base.json
+index 9a3f928..4f1007e 100644
+--- a/frontend/tsconfig.base.json
++++ b/frontend/tsconfig.base.json
+@@ -23,6 +23,9 @@
+         "./libs/shared/data-access-api/src/index.ts"
+       ],
+       "@care/shared-ui-layout": ["./libs/shared/ui-layout/src/index.ts"],
++      "@care/portal-feature-service-plans": [
++        "./libs/portal/feature-service-plans/src/index.ts"
++      ],
+       "@care/portal-feature-subscribers": [
+         "./libs/portal/feature-subscribers/src/index.ts"
+       ],

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <title>Care Portal</title>
+    <base href="/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <script>
+      // Dat theme TRUOC khi Angular chay -> khong nhay nen trang khi mo app o che do toi.
+      // CSS dark cua ng-zorro duoc ThemeService gan sau stylesheet chinh (thu tu quyet dinh ghi de).
+      (function () {
+        try {
+          var p = localStorage.getItem('care.theme');
+          var dark =
+            p === 'dark' ||
+            (p !== 'light' &&
+              matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+          document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <care-root></care-root>
+  </body>
+</html>

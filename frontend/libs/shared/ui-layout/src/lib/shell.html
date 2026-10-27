@@ -1,0 +1,134 @@
+<a class="skip-link" href="#main-content" (click)="skipToMain($event)"
+  >{{ 'shell.skipToMain' | transloco }}</a
+>
+
+<nz-layout class="shell">
+  <nz-header class="topbar">
+    @if (!isDesktop()) {
+    <button
+      nz-button
+      nzType="text"
+      class="icon-btn"
+      [attr.aria-label]="'shell.openNav' | transloco"
+      aria-controls="mobile-nav"
+      [attr.aria-expanded]="navOpen()"
+      (click)="navOpen.set(true)"
+    >
+      <nz-icon nzType="menu" aria-hidden="true" />
+    </button>
+    }
+    <a class="brand" routerLink="/">
+      <nz-icon nzType="customer-service" aria-hidden="true" />
+      <span>{{ appName() }}</span>
+    </a>
+
+    <div class="header-prefs">
+      <care-language-switcher [onDark]="true" />
+      <care-theme-switcher [onDark]="true" />
+    </div>
+
+    <button
+      nz-button
+      nzType="text"
+      class="user-btn"
+      nz-dropdown
+      nzTrigger="click"
+      [nzClickHide]="false"
+      nzPlacement="bottomRight"
+      [nzDropdownMenu]="userMenu"
+      [attr.aria-label]="'shell.account' | transloco: { name: userName() }"
+    >
+      <nz-avatar
+        [nzText]="userName().charAt(0).toUpperCase()"
+        nzSize="small"
+        aria-hidden="true"
+      />
+      <span class="user-info">
+        <strong>{{ userName() }}</strong>
+        <small class="roles"
+          >@for (role of roles(); track role) {
+          <span>{{ role | transloco }}</span>
+          }</small
+        >
+      </span>
+      <nz-icon nzType="down" aria-hidden="true" />
+    </button>
+    <nz-dropdown-menu #userMenu="nzDropdownMenu">
+      <ul nz-menu class="user-menu">
+        <li class="user-menu-header" role="presentation">
+          <strong>{{ userName() }}</strong>
+          <small class="roles"
+            >@for (role of roles(); track role) {
+            <span>{{ role | transloco }}</span>
+            }</small
+          >
+        </li>
+        <li class="menu-prefs" role="presentation">
+          <span class="menu-prefs-label"
+            >{{ 'shell.settings' | transloco }}</span
+          >
+          <care-language-switcher />
+          <care-theme-switcher />
+        </li>
+        <li nz-menu-divider></li>
+        <li
+          nz-menu-item
+          nzDanger
+          role="menuitem"
+          tabindex="0"
+          (click)="logout.emit()"
+          (keydown.enter)="logout.emit()"
+          (keydown.space)="$event.preventDefault(); logout.emit()"
+        >
+          <nz-icon nzType="logout" aria-hidden="true" />
+          {{ 'shell.logout' | transloco }}
+        </li>
+      </ul>
+    </nz-dropdown-menu>
+  </nz-header>
+
+  <nz-layout>
+    @if (isDesktop()) {
+    <nz-sider nzTheme="light" [nzWidth]="220" class="sider">
+      <ng-container [ngTemplateOutlet]="nav" />
+    </nz-sider>
+    }
+    <nz-content id="main-content" #main tabindex="-1" class="content">
+      <ng-content />
+    </nz-content>
+  </nz-layout>
+</nz-layout>
+
+<nz-drawer
+  [nzVisible]="navOpen() && !isDesktop()"
+  nzPlacement="left"
+  [nzWidth]="260"
+  [nzTitle]="appName()"
+  [nzBodyStyle]="{ padding: '0' }"
+  (nzOnClose)="navOpen.set(false)"
+>
+  <ng-container *nzDrawerContent>
+    <div id="mobile-nav">
+      <ng-container [ngTemplateOutlet]="nav" />
+    </div>
+  </ng-container>
+</nz-drawer>
+
+<ng-template #nav>
+  <nav [attr.aria-label]="'shell.mainNav' | transloco">
+    <ul nz-menu nzMode="inline" class="nav-menu">
+      @for (item of navItems(); track item.route) {
+      <li nz-menu-item nzMatchRouter>
+        <a
+          [routerLink]="item.route"
+          routerLinkActive
+          ariaCurrentWhenActive="page"
+        >
+          <nz-icon [nzType]="item.icon" aria-hidden="true" />
+          <span>{{ item.label | transloco }}</span>
+        </a>
+      </li>
+      }
+    </ul>
+  </nav>
+</ng-template>

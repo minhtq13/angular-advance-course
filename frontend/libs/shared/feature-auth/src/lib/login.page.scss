@@ -1,0 +1,86 @@
+.login-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: var(--care-space-4);
+  background:
+    radial-gradient(
+      circle at 20% 20%,
+      rgba(22, 119, 255, 0.35),
+      transparent 45%
+    ),
+    var(--care-brand);
+}
+
+.login-card {
+  width: 400px;
+  max-width: 100%;
+  padding: var(--care-space-6);
+  border-radius: 12px;
+  background: var(--care-surface);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.25);
+
+  h1 {
+    margin: var(--care-space-5) 0 var(--care-space-1);
+    font-size: 24px;
+    font-weight: 600;
+  }
+
+  p.muted {
+    margin: 0 0 var(--care-space-5);
+  }
+}
+
+.card-top {
+  display: flex;
+  gap: var(--care-space-3);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.prefs {
+  display: flex;
+  gap: var(--care-space-2);
+}
+
+.brand {
+  display: flex;
+  gap: var(--care-space-2);
+  align-items: center;
+  color: var(--care-brand);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.brand-mark {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--care-brand);
+  color: var(--care-on-brand);
+  place-items: center;
+}
+
+.error {
+  margin-bottom: var(--care-space-4);
+}
+
+.hint {
+  margin: var(--care-space-5) 0 0;
+  text-align: center;
+}
+
+@media (max-width: 575px) {
+  .login-card {
+    padding: var(--care-space-5);
+  }
+}
+
+// Navy cua thuong hieu khong doc duoc tren be mat toi -> dung mau chu thuong.
+:host-context(html[data-theme='dark']) .brand,
+:host-context(html[data-theme='dark']) .login-card h1 {
+  color: var(--care-text);
+}

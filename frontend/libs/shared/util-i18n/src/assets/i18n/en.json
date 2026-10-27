@@ -1,0 +1,155 @@
+{
+  "common": {
+    "retry": "Retry",
+    "clearFilters": "Clear filters",
+    "all": "All",
+    "checkConnection": "Check your connection and try again.",
+    "genericError": "Something went wrong, please try again",
+    "backToHome": "Back to home",
+    "unassigned": "Unassigned"
+  },
+  "language": {
+    "label": "Language",
+    "vi": "Tiếng Việt",
+    "en": "English"
+  },
+  "shell": {
+    "skipToMain": "Skip to main content",
+    "openNav": "Open navigation menu",
+    "mainNav": "Main navigation",
+    "account": "Account {{name}}",
+    "logout": "Sign out",
+    "settings": "Preferences"
+  },
+  "roles": {
+    "AGENT": "Care agent",
+    "SUPERVISOR": "Supervisor",
+    "ADMIN": "Administrator"
+  },
+  "nav": {
+    "subscribers": "Subscribers",
+    "tickets": "Tickets",
+    "dashboard": "Overview"
+  },
+  "title": {
+    "login": "Sign in",
+    "subscribers": "Subscribers",
+    "subscriberDetail": "Subscriber details",
+    "tickets": "Tickets",
+    "dashboard": "Overview",
+    "forbidden": "Access denied",
+    "notFound": "Page not found"
+  },
+  "status": {
+    "forbidden": "You do not have permission to access this feature.",
+    "notFound": "The page you are looking for does not exist."
+  },
+  "auth": {
+    "title": "Sign in",
+    "subtitle": "Customer care system",
+    "username": "Username",
+    "password": "Password",
+    "usernameRequired": "Please enter your username",
+    "passwordRequired": "Please enter your password",
+    "submit": "Sign in",
+    "failed": "Could not sign in, please try again",
+    "demoAccounts": "Demo accounts (password = username): agent1 · supervisor1 · admin1"
+  },
+  "subscriber": {
+    "count": "Total: {{count}}",
+    "filters": "Filter subscribers",
+    "search": "Search",
+    "searchPlaceholder": "Phone number, ID number or name",
+    "status": "Status",
+    "type": "Subscriber type",
+    "loadError": "Could not load subscribers.",
+    "empty": "No subscribers match the filters.",
+    "col": {
+      "msisdn": "Phone number",
+      "fullName": "Full name",
+      "idNumber": "ID number",
+      "province": "Province",
+      "type": "Type",
+      "plan": "Plan",
+      "status": "Status",
+      "activatedAt": "Activated on",
+      "dateOfBirth": "Date of birth"
+    },
+    "detail": {
+      "breadcrumb": "Details",
+      "notFound": "Subscriber not found.",
+      "notFoundHint": "The subscriber may have been removed or the link is incorrect.",
+      "backToList": "Back to list",
+      "suspend": "Suspend",
+      "suspendConfirm": "Suspend this subscriber? The customer cannot use the service until it is reactivated.",
+      "activate": "Reactivate",
+      "terminate": "Terminate",
+      "terminateConfirm": "Terminate this subscriber? This cannot be undone.",
+      "statusChanged": "Status changed to \"{{status}}\"",
+      "recentTickets": "Recent tickets",
+      "noTickets": "This subscriber has no tickets yet."
+    }
+  },
+  "ticket": {
+    "count": "Total: {{count}}",
+    "filters": "Filter tickets",
+    "status": "Status",
+    "priority": "Priority",
+    "onlyMine": "Only tickets assigned to me",
+    "loadError": "Could not load tickets.",
+    "empty": "No tickets match the filters.",
+    "col": {
+      "code": "Ticket",
+      "subscriber": "Subscriber",
+      "title": "Title",
+      "category": "Category",
+      "priority": "Priority",
+      "status": "Status",
+      "assignee": "Assignee",
+      "createdAt": "Created on"
+    }
+  },
+  "dashboard": {
+    "loadError": "Could not load statistics.",
+    "subscribersTitle": "Subscribers by status",
+    "ticketsTitle": "Tickets by status",
+    "subscribersTotal": "Total subscribers",
+    "ticketsTotal": "Total tickets",
+    "share": "{{percent}} of total"
+  },
+  "enum": {
+    "subscriberStatus": {
+      "ACTIVE": "Active",
+      "SUSPENDED": "Suspended",
+      "TERMINATED": "Terminated"
+    },
+    "subscriberType": {
+      "PREPAID": "Prepaid",
+      "POSTPAID": "Postpaid"
+    },
+    "ticketStatus": {
+      "NEW": "New",
+      "IN_PROGRESS": "In progress",
+      "RESOLVED": "Resolved",
+      "CLOSED": "Closed"
+    },
+    "ticketPriority": {
+      "LOW": "Low",
+      "MEDIUM": "Medium",
+      "HIGH": "High",
+      "URGENT": "Urgent"
+    },
+    "ticketCategory": {
+      "BILLING": "Billing",
+      "NETWORK": "Network",
+      "SERVICE": "Service",
+      "OTHER": "Other"
+    }
+  },
+  "theme": {
+    "label": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  }
+}

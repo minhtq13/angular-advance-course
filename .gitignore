@@ -1,0 +1,14 @@
+.DS_Store
+.idea/
+*.log
+
+# backend
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+
+# frontend (chi tiet trong frontend/.gitignore)
+frontend/test-output/
+frontend/playwright-report/
+
+# file khoa cua Office khi dang mo pptx/docx
+~$*

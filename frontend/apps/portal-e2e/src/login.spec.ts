@@ -1,0 +1,86 @@
+import { expect, test } from '@playwright/test';
+
+test.describe('Dang nhap va tra cuu thue bao', () => {
+  test('sai mat khau thi bao loi, khong vao duoc', async ({ page }) => {
+    await page.goto('/subscribers');
+    await expect(page).toHaveURL(/\/login\?returnUrl=%2Fsubscribers/);
+
+    await page.getByLabel('Tên đăng nhập').fill('agent1');
+    await page.getByLabel('Mật khẩu').fill('sai-mat-khau');
+    await page.getByRole('button', { name: 'Đăng nhập' }).click();
+
+    await expect(
+      page.getByText('Sai tên đăng nhập hoặc mật khẩu'),
+    ).toBeVisible();
+    await expect(page).toHaveURL(/\/login/);
+  });
+
+  test('agent dang nhap, tim thue bao va mo chi tiet', async ({ page }) => {
+    await page.goto('/subscribers');
+    await page.getByLabel('Tên đăng nhập').fill('agent1');
+    await page.getByLabel('Mật khẩu').fill('agent1');
+    await page.getByRole('button', { name: 'Đăng nhập' }).click();
+
+    // Quay lai dung trang dang mo truoc khi dang nhap.
+    await expect(page).toHaveURL(/\/subscribers$/);
+    await expect(page.locator('.user-info')).toContainText('Agent One');
+    await expect(page).toHaveTitle('Thuê bao · Care Portal');
+    await expect(
+      page.locator('nz-table tbody tr.ant-table-row').first(),
+    ).toBeVisible();
+
+    await page
+      .getByPlaceholder('Số thuê bao, CCCD hoặc họ tên')
+      .fill('0900000017');
+    await expect(page.locator('nz-table tbody tr.ant-table-row')).toHaveCount(
+      1,
+    );
+    await page.locator('nz-table tbody tr.ant-table-row').first().click();
+
+    await expect(page).toHaveURL(/\/subscribers\/17$/);
+    await expect(page.locator('h1')).toContainText('0900000017');
+    // agent khong co quyen doi trang thai.
+    await expect(page.getByRole('button', { name: 'Tạm khóa' })).toHaveCount(0);
+
+    // Tai lai trang van con dang nhap (token trong sessionStorage).
+    await page.reload();
+    await expect(page.locator('h1')).toContainText('0900000017');
+
+    // Dang xuat nam trong menu tai khoan.
+    await page.getByRole('button', { name: 'Tài khoản Agent One' }).click();
+    await page.getByText('Đăng xuất').click();
+    await expect(page).toHaveURL(/\/login$/);
+  });
+
+  test('dang nhap xong quay lai dung trang dang mo (returnUrl)', async ({
+    page,
+  }) => {
+    // Khong dung /subscribers: do la trang mac dinh nen khong chung minh duoc returnUrl.
+    await page.goto('/tickets');
+    await expect(page).toHaveURL(/\/login\?returnUrl=%2Ftickets/);
+    await page.getByLabel('Tên đăng nhập').fill('agent1');
+    await page.getByLabel('Mật khẩu').fill('agent1');
+    await page.getByRole('button', { name: 'Đăng nhập' }).click();
+
+    await expect(page).toHaveURL(/\/tickets$/);
+    await expect(page).toHaveTitle('Phiếu yêu cầu · Care Portal');
+  });
+
+  test('da dang nhap ma mo lai trang dang nhap kem returnUrl -> di tiep toi trang do', async ({
+    page,
+  }) => {
+    await page.goto('/login');
+    await page.getByLabel('Tên đăng nhập').fill('agent1');
+    await page.getByLabel('Mật khẩu').fill('agent1');
+    await page.getByRole('button', { name: 'Đăng nhập' }).click();
+    await expect(page).toHaveURL(/\/subscribers$/);
+
+    // Vd: tai lai trang ngay sau khi dang nhap, hoac mo lai link cu trong tab moi.
+    await page.goto('/login?returnUrl=%2Ftickets');
+    await expect(page).toHaveURL(/\/tickets$/);
+
+    // returnUrl tro ra ngoai -> bi chan, ve trang chu.
+    await page.goto('/login?returnUrl=%2F%2Fevil.com');
+    await expect(page).toHaveURL(/\/subscribers$/);
+  });
+});

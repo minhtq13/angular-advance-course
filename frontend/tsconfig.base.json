@@ -1,0 +1,43 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "rootDir": ".",
+    "sourceMap": true,
+    "declaration": false,
+    "moduleResolution": "bundler",
+    "emitDecoratorMetadata": false,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "resolveJsonModule": true,
+    "target": "es2022",
+    "module": "esnext",
+    "lib": ["es2022", "dom"],
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "paths": {
+      "@care/shared-util-config": ["./libs/shared/util-config/src/index.ts"],
+      "@care/shared-data-access-auth": [
+        "./libs/shared/data-access-auth/src/index.ts"
+      ],
+      "@care/shared-data-access-api": [
+        "./libs/shared/data-access-api/src/index.ts"
+      ],
+      "@care/shared-ui-layout": ["./libs/shared/ui-layout/src/index.ts"],
+      "@care/portal-feature-subscribers": [
+        "./libs/portal/feature-subscribers/src/index.ts"
+      ],
+      "@care/portal-feature-tickets": [
+        "./libs/portal/feature-tickets/src/index.ts"
+      ],
+      "@care/admin-feature-dashboard": [
+        "./libs/admin/feature-dashboard/src/index.ts"
+      ],
+      "@care/shared-feature-auth": ["./libs/shared/feature-auth/src/index.ts"],
+      "@care/shared-util-i18n": ["./libs/shared/util-i18n/src/index.ts"],
+      "@care/shared-util-i18n/testing": [
+        "./libs/shared/util-i18n/src/testing.ts"
+      ]
+    }
+  },
+  "exclude": ["node_modules", "tmp"]
+}

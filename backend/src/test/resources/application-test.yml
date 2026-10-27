@@ -1,0 +1,7 @@
+spring:
+  flyway:
+    placeholders:
+      seed_subscribers: 1000
+      seed_tickets: 200
+  cache:
+    type: simple
