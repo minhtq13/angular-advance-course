@@ -73,7 +73,11 @@ npm config set https-proxy http://proxy.cong-ty:8080
 
 Với Docker, cấu hình proxy trong Docker Desktop: *Settings → Resources → Proxies*. Nếu công ty có registry npm nội bộ (Nexus/Artifactory), các bạn hỏi bộ phận IT địa chỉ rồi chạy `npm config set registry <địa chỉ>`.
 
-## 6. Mang theo buổi học
+## 6. Sau mỗi buổi học
+
+Mỗi buổi có một **bài tập về nhà** khoảng 30 phút trong thư mục `course/bai-tap-ve-nha/`. Các bạn mở file `.html` của buổi bằng trình duyệt (từ repo đã clone, không xem trên GitHub) và nộp trước buổi kế tiếp.
+
+## 7. Mang theo buổi học
 
 - Laptop đã cài sẵn như trên, **sạc đầy pin** và mang theo dây sạc.
 - Docker Desktop đã khởi động và chạy thử thành công.

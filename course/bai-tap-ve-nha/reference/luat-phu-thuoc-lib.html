@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tra cứu · Loại lib và luật phụ thuộc</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600&display=swap" />
+    <link rel="stylesheet" href="../assets/lesson.css" />
+  </head>
+  <body>
+    <main>
+      <p class="kicker">Tra cứu · Bài tập về nhà · Care Portal</p>
+      <h1>Loại lib và luật phụ thuộc</h1>
+      <p class="meta">Một trang, in được. Dùng cùng <a href="../buoi-01-bon-loai-lib-va-luat-phu-thuoc.html">bài tập về nhà buổi 1</a>.</p>
+
+      <h2>Bốn loại lib</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Loại</th><th>Chứa</th><th>Không được</th></tr></thead>
+          <tbody>
+            <tr><td><strong>feature</strong></td><td>Màn hình + route của một nghiệp vụ</td><td>Import feature khác</td></tr>
+            <tr><td><strong>ui</strong></td><td>Component trình bày, dữ liệu qua <code>input()</code>/<code>output()</code></td><td>Gọi API, import data-access</td></tr>
+            <tr><td><strong>data-access</strong></td><td>Service gọi API, model, state phía client</td><td>Import ui, feature</td></tr>
+            <tr><td><strong>util</strong></td><td>Hàm thuần, type, hằng số</td><td>Import bất kỳ loại nào ngoài util</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Ai được import ai</h2>
+      <pre><code>app ──► feature ──► ui ─────────► util
+                 └──► data-access ──► util
+(ui ↛ data-access · feature ↛ feature · util chỉ ↛ util)</code></pre>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Tag nguồn</th><th>Chỉ được import tag</th></tr></thead>
+          <tbody>
+            <tr><td><code>type:app</code></td><td>feature, ui, data-access, util</td></tr>
+            <tr><td><code>type:feature</code></td><td>ui, data-access, util</td></tr>
+            <tr><td><code>type:ui</code></td><td>ui, util</td></tr>
+            <tr><td><code>type:data-access</code></td><td>data-access, util</td></tr>
+            <tr><td><code>type:util</code></td><td>util</td></tr>
+            <tr><td><code>scope:portal</code> / <code>scope:admin</code></td><td>chính scope đó, <code>scope:shared</code></td></tr>
+            <tr><td><code>scope:shared</code></td><td><code>scope:shared</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Import phải thỏa <strong>mọi</strong> luật khớp với tag của project nguồn. Project không có tag thì không được import project nào.</p>
+
+      <h2>Đặt tên</h2>
+      <p><code>&lt;scope&gt;-&lt;type&gt;-&lt;tên&gt;</code> → import <code>@care/&lt;scope&gt;-&lt;type&gt;-&lt;tên&gt;</code>. Ví dụ <code>portal-feature-subscribers</code>.</p>
+      <pre><code>npx nx g @nx/angular:library libs/portal/feature-service-plans \
+  --name=portal-feature-service-plans --tags=scope:portal,type:feature</code></pre>
+
+      <h2>Lệnh</h2>
+      <div class="table-wrap">
+        <table>
+          <tbody>
+            <tr><td><code>npx nx graph</code></td><td>Xem đồ thị phụ thuộc</td></tr>
+            <tr><td><code>npx nx show project &lt;tên&gt;</code></td><td>Xem tag, target của một project</td></tr>
+            <tr><td><code>npx nx lint &lt;tên&gt;</code></td><td>Kiểm luật phụ thuộc của một project</td></tr>
+            <tr><td><code>npx nx run-many -t lint</code></td><td>Kiểm toàn workspace</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Hai thông báo lỗi hay gặp</h2>
+      <pre><code>A project tagged with "type:feature" can only depend on libs tagged with
+"type:ui", "type:data-access", "type:util"</code></pre>
+      <p>→ Import sai tầng. Tách phần dùng chung ra lib ui / data-access / util.</p>
+      <pre><code>Projects cannot be imported by a relative or absolute path, and must begin with a npm scope</code></pre>
+      <p>→ Import vòng vào file bên trong lib. Export thứ cần dùng ở <code>src/index.ts</code> rồi import qua <code>@care/…</code>.</p>
+
+      <footer>
+        Luật lấy từ <code>frontend/eslint.config.mjs</code>. Nguồn: <a href="https://nx.dev/docs/features/enforce-module-boundaries">Nx — Enforce Module
+        Boundaries</a>, <a href="https://nx.dev/docs/kb/folder-structure">Nx — Monorepo Folder Structure</a>.
+      </footer>
+    </main>
+  </body>
+</html>

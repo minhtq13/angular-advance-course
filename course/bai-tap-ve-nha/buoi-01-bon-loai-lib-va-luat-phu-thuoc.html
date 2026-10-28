@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BTVN Buổi 1 · Bốn loại lib và luật phụ thuộc</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600&display=swap" />
+    <link rel="stylesheet" href="assets/lesson.css" />
+  </head>
+  <body>
+    <main>
+      <p class="kicker">Bài tập về nhà · Buổi 1 · Kiến trúc dự án lớn</p>
+      <h1>Bốn loại lib và luật phụ thuộc</h1>
+      <dl class="homework-meta">
+        <dt>Làm sau</dt>
+        <dd>Buổi 1 (<a href="../session-01/slides/buoi-01-kien-truc.pdf">slide</a> · <a href="../session-01/lab/README.md">lab</a>)</dd>
+        <dt>Hạn nộp</dt>
+        <dd>Trước buổi 2</dd>
+        <dt>Thời gian</dt>
+        <dd>Khoảng 30 phút</dd>
+        <dt>Cần</dt>
+        <dd>Trình duyệt (phần 0–4). Dự án Care Portal chạy được chỉ cần cho phần tùy chọn.</dd>
+      </dl>
+
+      <div class="goal">
+        <p><strong>Mục tiêu:</strong> nhớ lâu luật phụ thuộc đã học trên lớp, và dùng được nó cho một nghiệp vụ <em>mới</em> chưa có trong dự án.</p>
+        <p>Đừng xem lại slide trước khi làm phần 0 và phần 1. Cố nhớ lại (kể cả khi nhớ sai) giúp nhớ lâu hơn nhiều so với đọc lại.</p>
+      </div>
+
+      <h2>Phần 0 · Khởi động: viết ra giấy (3 phút)</h2>
+      <p>Không mở tài liệu. Viết ra:</p>
+      <ol>
+        <li>Tên bốn loại lib, mỗi loại chứa gì (một dòng).</li>
+        <li>Mỗi loại được import những loại nào.</li>
+        <li>Tên rule ESLint của Nx kiểm tra luật này.</li>
+      </ol>
+      <details>
+        <summary>Ôn lại sau khi đã viết xong (đối chiếu câu trả lời của bạn)</summary>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Loại</th><th>Chứa gì</th><th>Chỉ được import</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><strong>feature</strong></td><td>Màn hình và route của một nghiệp vụ; được gọi data-access</td><td>ui, data-access, util</td></tr>
+              <tr><td><strong>ui</strong></td><td>Component trình bày, dữ liệu qua <code>input()</code>/<code>output()</code>, không gọi API</td><td>ui, util</td></tr>
+              <tr><td><strong>data-access</strong></td><td>Service gọi API, model, state phía client</td><td>data-access, util</td></tr>
+              <tr><td><strong>util</strong></td><td>Hàm thuần, type, hằng số</td><td>util</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          App (<code>type:app</code>) import được cả bốn loại. Luật <code>scope</code>: <code>portal</code>/<code>admin</code> chỉ import chính scope đó và
+          <code>shared</code>; <code>shared</code> chỉ import <code>shared</code>. Import phải thỏa <strong>mọi</strong> luật khớp với project nguồn.
+          Rule: <code>@nx/enforce-module-boundaries</code>.
+        </p>
+        <p class="cite">
+          Luật lấy từ <code>frontend/eslint.config.mjs</code> của Care Portal. Nx gọi bảng loại lib của họ là “starting-point policy” và cho feature import
+          “Any type” (<a href="https://nx.dev/docs/kb/folder-structure">Monorepo Folder Structure</a>); Care Portal chọn bản chặt hơn, giống ví dụ
+          “<code>feature</code> cannot depend on app or another feature” trong
+          <a href="https://nx.dev/docs/guides/enforce-module-boundaries/tag-multiple-dimensions">Tag in Multiple Dimensions</a>.
+        </p>
+      </details>
+
+      <h2>Phần 1 · Code này thuộc lib nào? (6 câu)</h2>
+      <p>Mỗi câu chỉ chọn được một lần. Ghi lại điểm cuối cùng để nộp.</p>
+      <div class="quiz" id="quiz-loai-lib" data-quiz>
+        <script type="application/json">
+          {
+            "questions": [
+              {
+                "prompt": "Component thẻ trạng thái thuê bao: nhận status qua input(), hiển thị tag màu. Không gọi API.",
+                "options": ["feature", "ui", "data-access", "util"],
+                "answer": 1,
+                "explain": "Chỉ trình bày dữ liệu được truyền vào, không tự lấy dữ liệu → ui."
+              },
+              {
+                "prompt": "SubscriberApi: gọi GET /api/subscribers và trả về một trang kết quả.",
+                "options": ["feature", "ui", "data-access", "util"],
+                "answer": 2,
+                "explain": "Service nói chuyện với backend → data-access (trong repo: shared-data-access-api)."
+              },
+              {
+                "prompt": "Hàm formatMsisdn('0900000017') trả về '0900 000 017'. Không dùng Angular, không gọi API.",
+                "options": ["feature", "ui", "data-access", "util"],
+                "answer": 3,
+                "explain": "Hàm thuần, ai cũng dùng được → util."
+              },
+              {
+                "prompt": "Trang Phiếu yêu cầu: có route riêng, bộ lọc, bảng, gọi TicketApi.",
+                "options": ["feature", "ui", "data-access", "util"],
+                "answer": 0,
+                "explain": "Một màn hình nghiệp vụ có route và lấy dữ liệu → feature (trong repo: portal-feature-tickets)."
+              },
+              {
+                "prompt": "authInterceptor: gắn header Authorization: Bearer <token> vào request gửi tới API.",
+                "options": ["feature", "ui", "data-access", "util"],
+                "answer": 2,
+                "explain": "Thuộc tầng giao tiếp với backend → data-access (trong repo: shared-data-access-auth)."
+              },
+              {
+                "prompt": "Trang đăng nhập dùng chung cho cả app portal và app admin.",
+                "options": ["feature", "ui", "data-access", "util"],
+                "answer": 0,
+                "explain": "Vẫn là màn hình nghiệp vụ có route → feature; dùng cho hai app nên scope là shared (shared-feature-auth)."
+              }
+            ]
+          }
+        </script>
+      </div>
+
+      <h2>Phần 2 · Import này có qua được lint không? (8 cặp)</h2>
+      <p>Project bên trái muốn import project bên phải. Nhìn tag, đoán trước rồi mới bấm. Ghi lại điểm để nộp.</p>
+      <div id="checker-1" data-boundary-checker>
+        <script type="application/json">
+          {
+            "projects": [
+              { "name": "portal", "tags": ["scope:portal", "type:app"] },
+              { "name": "admin", "tags": ["scope:admin", "type:app"] },
+              { "name": "portal-feature-subscribers", "tags": ["scope:portal", "type:feature"] },
+              { "name": "portal-feature-tickets", "tags": ["scope:portal", "type:feature"] },
+              { "name": "admin-feature-dashboard", "tags": ["scope:admin", "type:feature"] },
+              { "name": "shared-feature-auth", "tags": ["scope:shared", "type:feature"] },
+              { "name": "shared-ui-layout", "tags": ["scope:shared", "type:ui"] },
+              { "name": "shared-data-access-api", "tags": ["scope:shared", "type:data-access"] },
+              { "name": "shared-data-access-auth", "tags": ["scope:shared", "type:data-access"] },
+              { "name": "shared-util-config", "tags": ["scope:shared", "type:util"] }
+            ],
+            "constraints": [
+              { "sourceTag": "type:app", "onlyDependOnLibsWithTags": ["type:feature", "type:ui", "type:data-access", "type:util"] },
+              { "sourceTag": "type:feature", "onlyDependOnLibsWithTags": ["type:ui", "type:data-access", "type:util"] },
+              { "sourceTag": "type:ui", "onlyDependOnLibsWithTags": ["type:ui", "type:util"] },
+              { "sourceTag": "type:data-access", "onlyDependOnLibsWithTags": ["type:data-access", "type:util"] },
+              { "sourceTag": "type:util", "onlyDependOnLibsWithTags": ["type:util"] },
+              { "sourceTag": "scope:portal", "onlyDependOnLibsWithTags": ["scope:portal", "scope:shared"] },
+              { "sourceTag": "scope:admin", "onlyDependOnLibsWithTags": ["scope:admin", "scope:shared"] },
+              { "sourceTag": "scope:shared", "onlyDependOnLibsWithTags": ["scope:shared"] }
+            ],
+            "exercises": [
+              { "from": "portal-feature-tickets", "to": "portal-feature-subscribers" },
+              { "from": "admin-feature-dashboard", "to": "shared-data-access-api" },
+              { "from": "shared-ui-layout", "to": "shared-data-access-api" },
+              { "from": "shared-data-access-api", "to": "shared-util-config" },
+              { "from": "admin-feature-dashboard", "to": "portal-feature-subscribers" },
+              { "from": "shared-util-config", "to": "shared-data-access-api" },
+              { "from": "portal", "to": "shared-feature-auth" },
+              { "from": "shared-feature-auth", "to": "shared-ui-layout" }
+            ]
+          }
+        </script>
+      </div>
+
+      <h2>Phần 3 · Thiết kế lib cho nghiệp vụ mới (15 phút)</h2>
+      <p>VNPT cần thêm vào <strong>app admin</strong> chức năng <strong>Quản lý hợp đồng doanh nghiệp</strong>:</p>
+      <ul>
+        <li>Màn hình <em>Danh sách hợp đồng</em> và màn hình <em>Chi tiết hợp đồng</em>, mỗi màn hình có route riêng.</li>
+        <li>Dữ liệu lấy từ API <code>GET /api/contracts</code> và <code>GET /api/contracts/{id}</code>.</li>
+        <li>Một <em>thẻ trạng thái hợp đồng</em> (Hiệu lực / Sắp hết hạn / Đã hết hạn) dùng ở cả hai màn hình.</li>
+        <li>Một hàm tính “còn bao nhiêu ngày đến ngày hết hạn”.</li>
+        <li>Chỉ app admin dùng chức năng này.</li>
+      </ul>
+      <p><strong>Việc cần làm:</strong></p>
+      <ol class="steps">
+        <li>Viết ra danh sách lib theo dạng <code>tên [scope, type]</code>, đặt tên theo quy ước <code>&lt;scope&gt;-&lt;type&gt;-&lt;tên&gt;</code>.</li>
+        <li>Thêm từng lib vào ô bên dưới, rồi kiểm tra các import mà thiết kế của bạn cần. Ít nhất phải thử:
+          <ul>
+            <li>app <code>admin</code> → lib màn hình hợp đồng;</li>
+            <li>lib màn hình → lib thẻ trạng thái;</li>
+            <li>lib màn hình → lib gọi API;</li>
+            <li>lib thẻ trạng thái → lib gọi API (giả sử thẻ muốn tự lấy trạng thái).</li>
+          </ul>
+        </li>
+        <li>Nếu có import bị chặn: sửa <em>thiết kế</em> (không sửa luật) cho đến khi mọi import cần thiết đều được phép.</li>
+      </ol>
+      <div id="checker-2" data-boundary-checker data-allow-add>
+        <script type="application/json">
+          {
+            "projects": [
+              { "name": "admin", "tags": ["scope:admin", "type:app"] },
+              { "name": "admin-feature-dashboard", "tags": ["scope:admin", "type:feature"] },
+              { "name": "portal-feature-subscribers", "tags": ["scope:portal", "type:feature"] },
+              { "name": "shared-ui-layout", "tags": ["scope:shared", "type:ui"] },
+              { "name": "shared-data-access-api", "tags": ["scope:shared", "type:data-access"] },
+              { "name": "shared-data-access-auth", "tags": ["scope:shared", "type:data-access"] },
+              { "name": "shared-util-config", "tags": ["scope:shared", "type:util"] }
+            ],
+            "constraints": [
+              { "sourceTag": "type:app", "onlyDependOnLibsWithTags": ["type:feature", "type:ui", "type:data-access", "type:util"] },
+              { "sourceTag": "type:feature", "onlyDependOnLibsWithTags": ["type:ui", "type:data-access", "type:util"] },
+              { "sourceTag": "type:ui", "onlyDependOnLibsWithTags": ["type:ui", "type:util"] },
+              { "sourceTag": "type:data-access", "onlyDependOnLibsWithTags": ["type:data-access", "type:util"] },
+              { "sourceTag": "type:util", "onlyDependOnLibsWithTags": ["type:util"] },
+              { "sourceTag": "scope:portal", "onlyDependOnLibsWithTags": ["scope:portal", "scope:shared"] },
+              { "sourceTag": "scope:admin", "onlyDependOnLibsWithTags": ["scope:admin", "scope:shared"] },
+              { "sourceTag": "scope:shared", "onlyDependOnLibsWithTags": ["scope:shared"] }
+            ],
+            "exercises": []
+          }
+        </script>
+      </div>
+      <details>
+        <summary>Đáp án tham khảo (chỉ mở sau khi đã nộp thiết kế của mình)</summary>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Lib</th><th>Tag</th><th>Chứa</th></tr></thead>
+            <tbody>
+              <tr><td><code>admin-feature-contracts</code></td><td>scope:admin, type:feature</td><td>Cả hai màn hình (danh sách, chi tiết) và route</td></tr>
+              <tr><td><code>admin-ui-contract-status</code></td><td>scope:admin, type:ui</td><td>Thẻ trạng thái, nhận trạng thái qua <code>input()</code></td></tr>
+              <tr><td><code>admin-data-access-contracts</code></td><td>scope:admin, type:data-access</td><td><code>ContractApi</code> và model hợp đồng</td></tr>
+              <tr><td><code>admin-util-contracts</code></td><td>scope:admin, type:util</td><td>Hàm tính số ngày còn lại</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><strong>Ba điểm hay sai:</strong></p>
+        <ol>
+          <li>
+            <strong>Tách hai màn hình thành hai feature lib.</strong> Chuyển từ danh sách sang chi tiết bằng URL thì vẫn được, nhưng hai màn hình cùng
+            nghiệp vụ thường dùng chung code (model hiển thị, bộ lọc, hằng số). Feature không import được feature khác, nên phần dùng chung đó sẽ phải tách
+            tiếp ra lib khác. Đặt cả hai màn hình chung một feature lib, mỗi màn hình một route, gọn hơn.
+          </li>
+          <li>
+            <strong>Để thẻ trạng thái tự gọi API.</strong> <code>type:ui</code> → <code>type:data-access</code> bị chặn. Feature lấy dữ liệu rồi truyền
+            trạng thái vào thẻ qua <code>input()</code>.
+          </li>
+          <li>
+            <strong>Đặt scope <code>shared</code> “cho chắc”.</strong> Chỉ app admin dùng nên scope là <code>admin</code>; <code>shared</code> dành cho thứ ít
+            nhất hai scope cùng dùng. Nếu sau này portal cũng cần hàm tính ngày, lúc đó mới chuyển nó sang <code>shared</code>.
+          </li>
+        </ol>
+      </details>
+
+      <h2>Phần 4 · Câu hỏi thảo luận (viết 3–5 câu)</h2>
+      <p>
+        Trong Care Portal, <code>shared-ui-layout</code> (type:ui) đang chứa <code>ThemeService</code> — service giữ trạng thái sáng/tối của cả ứng dụng.
+        Theo định nghĩa UI lib, cách đặt này có ổn không? Nếu không, bạn sẽ chuyển nó đi đâu, và cái giá phải trả là gì?
+      </p>
+      <p class="meta">Không có đáp án duy nhất. Lớp sẽ thảo luận các câu trả lời ở đầu buổi 2.</p>
+
+      <h2>Phần tùy chọn · Kiểm chứng trên máy</h2>
+      <p>Nếu dự án đã chạy được (<a href="../setup/environment.md">hướng dẫn cài môi trường</a>), trong thư mục <code>frontend/</code>:</p>
+      <ol class="steps">
+        <li>Chạy <code>npx nx graph</code>, tìm <code>shared-ui-layout</code>. Đối chiếu các mũi tên đi ra từ nó với bảng luật ở phần 0.</li>
+        <li>Chạy <code>npx nx show project admin-feature-dashboard</code> và tìm hai tag của nó.</li>
+      </ol>
+
+      <h2>Nộp bài</h2>
+      <p>Gửi giảng viên qua kênh của lớp, <strong>trước buổi 2</strong>:</p>
+      <ol>
+        <li>Điểm phần 1 và phần 2 (chụp màn hình dòng kết quả cuối mỗi phần).</li>
+        <li>Danh sách lib phần 3 theo dạng <code>tên [scope, type]</code>, kèm một câu giải thích vì sao bạn chia như vậy.</li>
+        <li>Câu trả lời phần 4.</li>
+      </ol>
+      <p class="meta">Một ngày trước buổi 2, làm lại phần 2 (tải lại trang) mà không mở phần ôn tập. Nhớ lại sau vài ngày là lúc trí nhớ được củng cố.</p>
+
+      <h2>Đọc thêm</h2>
+      <p>
+        <strong>Nguồn chính:</strong> <a href="https://nx.dev/docs/features/enforce-module-boundaries">Nx docs — Enforce Module Boundaries</a>
+        (khoảng 10 phút). Sau đó: <a href="https://nx.dev/docs/guides/enforce-module-boundaries/tag-multiple-dimensions">Tag in Multiple Dimensions</a>.
+      </p>
+      <p>
+        Tra cứu nhanh: <a href="reference/luat-phu-thuoc-lib.html">bảng tóm tắt loại lib và luật phụ thuộc</a> (in được) ·
+        <a href="GLOSSARY.md">từ vựng của khóa</a>.
+      </p>
+
+      <div class="callout">
+        <p><strong>Còn chỗ nào chưa rõ?</strong> Hỏi giảng viên, hoặc hỏi trợ lý AI (Claude Code) ngay trong repo này — ví dụ:
+          “vì sao <code>shared-ui-layout</code> không được import <code>shared-data-access-api</code>?”. Muốn nghe cách các team khác chia lib:
+          <a href="https://nx.dev/community">cộng đồng Nx</a>.</p>
+      </div>
+
+      <footer>Khóa Angular nâng cao · Bài tập về nhà buổi 1 · Dự án mẫu Care Portal</footer>
+    </main>
+    <script src="assets/quiz.js"></script>
+    <script src="assets/boundary-checker.js"></script>
+  </body>
+</html>

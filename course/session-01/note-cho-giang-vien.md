@@ -14,6 +14,8 @@ Toàn bộ tài liệu của buổi nằm trong thư mục `course/session-01/`.
 | 4 | `solution/README.md` | Đáp án từng bài và điểm chấm | 15 phút |
 | 5 | `instructor-notes.md` | Timeline cả buổi, kịch bản 2 demo, câu hỏi học viên hay hỏi, lỗi thường gặp khi làm lab | 15 phút |
 
+**Bài tập về nhà** giao cuối buổi: `course/bai-tap-ve-nha/buoi-01-bon-loai-lib-va-luat-phu-thuoc.html` (học viên mở bằng trình duyệt, khoảng 30 phút, nộp trước buổi 2). Bài không lặp lại lab trên lớp: có quiz tự chấm, bài kiểm tra import và một bài thiết kế lib cho nghiệp vụ mới (Quản lý hợp đồng doanh nghiệp). Câu hỏi thảo luận ở phần 4 dùng để mở đầu buổi 2.
+
 Ngoài ra còn một file ở thư mục khác: `course/setup/environment.md`. Đây là hướng dẫn cài môi trường, **gửi cho học viên trước buổi học** (cần Node 24 và Docker, không cần cài Java).
 
 ## 2. Nội dung 4 bài lab

@@ -9,6 +9,10 @@ session-XX/
   lab/                    Đề bài lab và hướng dẫn
   solution/               Đáp án lab (hoặc trỏ tới git tag)
   instructor-notes.md     Ghi chú giảng viên: timeline, câu hỏi hay gặp, lỗi thường gặp
+
+bai-tap-ve-nha/
+  buoi-XX-<chu-de>.html   Bài tập về nhà giao cuối mỗi buổi (~30 phút, nộp trước buổi sau), mở bằng trình duyệt
+  reference/              Bảng tra cứu in được
 ```
 
 Quy ước git tag: `sessionXX-start` (điểm học viên bắt đầu lab) và `sessionXX-end` (đáp án đầy đủ, build và test đều pass).

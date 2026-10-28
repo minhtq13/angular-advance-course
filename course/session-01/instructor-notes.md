@@ -26,7 +26,7 @@
 | 1:15–1:30 | **Nghỉ giải lao** | | |
 | 1:30–3:00 | **Lab** | 23–25 | Đi vòng quanh lớp; sau 30 phút nhắc mọi người đã sang Bài 2 |
 | 3:00–3:25 | Chữa lab | | Áp patch đáp án lên máy chiếu, giải thích Bài 3 |
-| 3:25–3:30 | Tổng kết, giới thiệu buổi 2 | 26 | |
+| 3:25–3:30 | Tổng kết, giới thiệu buổi 2 | 26 | Giao bài tập về nhà |
 
 ## Kịch bản demo
 
@@ -91,5 +91,6 @@ Sau đó chạy `npx nx build portal`, chỉ vào bảng "Lazy chunk files" (`su
 
 ## Sau buổi học
 
-- Thu kết quả Bài 3 (câu hỏi thảo luận) để mở đầu buổi 2.
+- Giao bài tập về nhà: [../bai-tap-ve-nha/buoi-01-bon-loai-lib-va-luat-phu-thuoc.html](../bai-tap-ve-nha/buoi-01-bon-loai-lib-va-luat-phu-thuoc.html) (khoảng 30 phút, nộp trước buổi 2). Nhắc học viên mở file bằng trình duyệt từ repo đã clone.
+- Thu kết quả Bài 3 (câu hỏi thảo luận) và bài tập về nhà để mở đầu buổi 2. Phần 4 của bài tập (`ThemeService` có nên nằm trong lib ui?) là chủ đề thảo luận đầu buổi 2.
 - Gắn tag `session01-end` sau khi áp đáp án. Đây cũng là điểm xuất phát `session02-start`.

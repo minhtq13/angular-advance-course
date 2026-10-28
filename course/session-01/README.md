@@ -17,6 +17,7 @@ Sau buổi học, học viên có thể:
 |---|---|
 | Slide | [slides/slides.md](slides/slides.md) (nguồn Marp) · `buoi-01-kien-truc.pptx` · `buoi-01-kien-truc.pdf` |
 | Lab | [lab/README.md](lab/README.md) |
+| Bài tập về nhà (giao cuối buổi) | [../bai-tap-ve-nha/buoi-01-bon-loai-lib-va-luat-phu-thuoc.html](../bai-tap-ve-nha/buoi-01-bon-loai-lib-va-luat-phu-thuoc.html) |
 | Đáp án | [solution/README.md](solution/README.md) + 2 file `.patch` |
 | Ghi chú giảng viên | [instructor-notes.md](instructor-notes.md) |
 | Chuẩn bị môi trường (gửi học viên **trước** buổi 1) | [../setup/environment.md](../setup/environment.md) |
