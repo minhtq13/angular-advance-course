@@ -39,13 +39,16 @@ Dùng JWT do chính backend phát, không cần máy chủ đăng nhập riêng:
 
 Hai app `portal` và `admin` đăng nhập riêng (token lưu trong `sessionStorage` của từng app).
 
+Buổi 7 (SSO) bổ sung Keycloak chạy cục bộ dưới Docker profile tùy chọn `sso`; các buổi khác không cần Keycloak.
+
 ## Cấu trúc repo
 
 ```
 frontend/   Nx workspace (xem frontend/README.md)
 backend/    Spring Boot API (Dockerfile build sẵn, học viên không cần cài JDK)
 infra/      docker-compose, dump dữ liệu mẫu
-course/     Tài liệu khóa học: slide, lab, đáp án, ghi chú giảng viên theo từng buổi
+course/     Tài liệu khóa học: slide, lab, đáp án, ghi chú giảng viên theo từng buổi (xem course/README.md)
+docs/adr/   Architecture Decision Records của dự án
 ```
 
 ## Dành cho người phát triển dự án
@@ -63,7 +66,7 @@ cd backend && ./mvnw spring-boot:run
 
 Sau khi build lại code backend: `docker compose -f infra/docker-compose.yml up -d --build api`.
 
-Tăng lượng dữ liệu (buổi 3): tạm bỏ dump để Flyway tự seed với số lượng lớn hơn.
+Tăng lượng dữ liệu (buổi 5): tạm bỏ dump để Flyway tự seed với số lượng lớn hơn.
 
 ```bash
 docker compose -f infra/docker-compose.yml down -v

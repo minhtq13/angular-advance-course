@@ -16,7 +16,7 @@ final class SubscriberSpecs {
                 !StringUtils.hasText(search.province()) ? null : (root, q, cb) -> cb.equal(root.get("province"), search.province()));
     }
 
-    /** So dien thoai -> tim theo tien to; 12 chu so -> CCCD; con lai tim theo ten (ILIKE, cham tren bang lon - xem buoi 3). */
+    /** So dien thoai -> tim theo tien to; 12 chu so -> CCCD; con lai tim theo ten (ILIKE, cham tren bang lon - xem buoi 5). */
     private static Specification<Subscriber> keyword(String q) {
         if (!StringUtils.hasText(q)) {
             return null;

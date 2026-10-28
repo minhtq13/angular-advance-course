@@ -33,7 +33,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
         token &&
         !isAuthEndpoint
       ) {
-        // Token het han/khong hop le. Buoi 5: thu refresh token truoc khi bat dang nhap lai.
+        // Token het han/khong hop le. Buoi 6: thu refresh token truoc khi bat dang nhap lai.
         auth.login(router.url);
       }
       return throwError(() => error);

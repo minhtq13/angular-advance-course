@@ -20,7 +20,7 @@ spring:
         default_batch_fetch_size: 50
   flyway:
     placeholders:
-      # So thue bao seed san. Buoi 3 tang len 1_000_000 - 5_000_000 de demo du lieu lon.
+      # So thue bao seed san. Buoi 5 tang len 1_000_000 - 5_000_000 de demo du lieu lon.
       seed_subscribers: ${SEED_SUBSCRIBERS:200000}
       seed_tickets: ${SEED_TICKETS:50000}
   data:

@@ -443,7 +443,7 @@ index 889dbc2..cd76555 100644
    CustomerServiceOutline,
 @@ -38,6 +39,7 @@ const PRIMARY_COLOR = '#0958d9';
  
- /** Chi dang ky icon thuc su dung -> khong keo ca bo icon vao bundle (buoi 3). */
+ /** Chi dang ky icon thuc su dung -> khong keo ca bo icon vao bundle (buoi 5). */
  const ICONS = [
 +  AppstoreOutline,
    ArrowLeftOutline,

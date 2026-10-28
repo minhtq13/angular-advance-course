@@ -3,7 +3,7 @@ marp: true
 theme: default
 paginate: true
 size: 16:9
-header: 'Angular nâng cao · Buổi 1 — Kiến trúc dự án lớn'
+header: 'Angular nâng cao · Buổi 1 — Kiến trúc Angular cho dự án lớn'
 style: |
   section { font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size: 26px; padding: 50px 64px; }
   h1 { color: #0050b3; }
@@ -27,7 +27,7 @@ style: |
 <!-- _paginate: false -->
 
 # Buổi 1
-## Kiến trúc dự án lớn & khởi tạo dự án mẫu
+## Kiến trúc Angular cho dự án lớn
 
 Angular 22 · Nx 24 · ng-zorro · Spring Boot 3.5
 
@@ -37,13 +37,26 @@ Angular 22 · Nx 24 · ng-zorro · Spring Boot 3.5
 
 Sau buổi này, học viên có thể:
 
-1. Giải thích **vì sao** dự án lớn cần tổ chức lại code, và khi nào nên dùng monorepo
-2. Đọc và mở rộng một **Nx workspace**: apps, libs, tags, đồ thị phụ thuộc
-3. Áp dụng **4 loại lib** (feature / ui / data-access / util) và **module boundaries**
-4. Dùng **lazy loading** để tách bundle theo nghiệp vụ
-5. Dùng **runtime config**: build một lần, deploy nhiều môi trường
+1. Giải thích **Clean Architecture** và chiều phụ thuộc; chia domain, application, data access, UI ở mức vừa đủ
+2. Đặt **feature boundary**: lib, tag, public API, lazy route, phạm vi DI
+3. Tách màn hình gọi API trực tiếp thành **port + adapter**, thay bằng fake để test độc lập
+4. Biến quy tắc kiến trúc thành **luật import chạy trên CI**
+5. Ghi quyết định bằng **ADR**; biết khi nào cần monorepo, khi nào tách thư viện
 
-<p class="small">Lab: thêm màn hình "Gói cước" đúng kiến trúc, phá luật phụ thuộc rồi sửa, làm nhãn môi trường</p>
+<p class="small">Sản phẩm đầu ra: sơ đồ phụ thuộc · ADR kiến trúc · quy tắc kiểm tra import trên CI</p>
+
+---
+
+## Lịch buổi học (4 giờ)
+
+| Thời gian | Hoạt động |
+|---|---|
+| 20' | Giới thiệu khóa, dự án, phân tích use case |
+| 40' | Khái niệm gắn với code: monorepo, lib, Clean Architecture, DI |
+| 30' | Live demo: phá luật phụ thuộc, đọc lỗi; màn hình gọi HTTP trực tiếp |
+| 10' | Nghỉ |
+| 120' | Lab 5 bài |
+| 20' | Review chéo, chốt ADR |
 
 ---
 
@@ -52,13 +65,13 @@ Sau buổi này, học viên có thể:
 <div class="cols">
 <div>
 
-Hệ thống CSKH & quản lý thuê bao viễn thông
+Cổng xử lý **yêu cầu dịch vụ** (đề cương gọi là Service Portal)
 
-- **portal**: nhân viên CSKH tra cứu thuê bao, phiếu yêu cầu
+- **portal**: Agent tạo, xử lý phiếu yêu cầu; Manager (`supervisor1`) phê duyệt
 - **admin**: quản trị, thống kê
-- 200.000 thuê bao, 50.000 phiếu (có thể tăng lên hàng triệu)
-- 3 vai trò: AGENT, SUPERVISOR, ADMIN
-- Đăng nhập bằng JWT do backend phát
+- 200.000 thuê bao, 50.000 phiếu: đủ cho bài tìm kiếm, phân trang trên 100.000+ bản ghi
+- Vai trò: AGENT, SUPERVISOR (= Manager), ADMIN
+- Đăng nhập bằng JWT do backend phát; SSO Keycloak ở buổi 7
 
 </div>
 <div>
@@ -86,6 +99,8 @@ Hệ thống CSKH & quản lý thuê bao viễn thông
 
 Học viên chỉ cần **Node + Docker**. Mỗi buổi học sẽ đào sâu một phần trong sơ đồ này.
 
+<p class="small">Các tình huống sẽ gặp trong khóa: phản hồi API sai thứ tự, token hết hạn đồng thời, sai quyền, xung đột cập nhật (409), lỗi triển khai.</p>
+
 ---
 
 ## Dự án "nhỏ" trở thành "lớn" khi nào?
@@ -96,6 +111,7 @@ Học viên chỉ cần **Node + Docker**. Mỗi buổi học sẽ đào sâu m�
 | Nhiều app dùng chung logic (auth, API, UI) | Copy-paste, mỗi app một phiên bản |
 | Hàng trăm màn hình | Bundle phình to, tải trang chậm |
 | CI chạy toàn bộ test mỗi lần commit | Pipeline 30–60 phút |
+| Component gọi thẳng `HttpClient` | Không test được màn hình nếu không giả lập cả HTTP |
 | Nhiều môi trường (DEV/TEST/UAT/PROD) | Mỗi môi trường build riêng → "chạy ở TEST, lỗi ở PROD" |
 
 <div class="tip">Kiến trúc là đặt <b>ranh giới</b> để code tăng thêm mà độ phức tạp không tăng theo cấp số nhân.</div>
@@ -142,7 +158,7 @@ Học viên chỉ cần **Node + Docker**. Mỗi buổi học sẽ đào sâu m�
 ```bash
 npx nx graph                       # xem đồ thị
 npx nx run-many -t lint test build # chạy cho mọi project
-npx nx affected -t test            # chỉ project bị ảnh hưởng (buổi 7)
+npx nx affected -t test            # chỉ project bị ảnh hưởng (buổi 9)
 ```
 
 ---
@@ -202,6 +218,8 @@ Chiều phụ thuộc **chỉ đi xuống**:
 ```
 app ──► feature ──► ui / data-access ──► util
 ```
+
+<p class="small">Đây là điểm xuất phát. Trong lab, ta thêm tầng thứ 5 <code>type:domain</code> nằm giữa data-access và util.</p>
 
 ---
 
@@ -307,7 +325,7 @@ chunk-B8En6oCa.js   | ticket-list-page       |   7.09 kB |                 2.59 
 - Mỗi màn hình là **một chunk riêng**, chỉ tải khi người dùng vào màn hình đó
 - Thêm 100 màn hình thì bundle ban đầu **không tăng**
 
-<div class="bad">Initial bundle 1,29 MB, trong đó riêng CSS (toàn bộ ng-zorro) đã 577 kB → bài tập tối ưu ở <b>buổi 3</b>.</div>
+<div class="bad">Initial bundle 1,29 MB, trong đó riêng CSS (toàn bộ ng-zorro) đã 577 kB → bài tập tối ưu ở <b>buổi 5</b>.</div>
 
 ---
 
@@ -332,6 +350,151 @@ export function appConfig(config: AppConfig): ApplicationConfig {
 
 - Mỗi lib cung cấp một hàm `provideXxx()` → app chỉ việc **ghép** lại
 - Standalone component, **zoneless**, signals là mặc định từ Angular 20+
+
+---
+
+## Clean Architecture: chiều phụ thuộc hướng vào nghiệp vụ
+
+```
+        ┌─────────────── UI (feature, ui) ───────────────┐
+        │    ┌──────── application (use case) ───────┐    │
+        │    │     ┌──── domain (model, port) ───┐    │    │
+        │    │     │  TicketSummary, TicketPort  │    │    │
+        │    │     └─────────────────────────────┘    │    │
+        │    └────────────────────────────────────────┘    │
+        └── data access (adapter: HttpTicketAdapter) ──────┘
+```
+
+- Vòng trong **không biết** vòng ngoài: domain không import Angular, HTTP, ng-zorro
+- Adapter (vòng ngoài) **implement** hợp đồng do vòng trong định nghĩa → đảo chiều phụ thuộc
+- Ai nối port với adapter? **Composition root**: route/app config
+
+<div class="tip">"Mức phù hợp": không cần 4 lib cho mỗi màn hình. Tách port khi có lý do: cần test độc lập, nhiều nguồn dữ liệu, backend hay đổi.</div>
+
+---
+
+## Ánh xạ sang Nx: thêm tầng `type:domain`
+
+| Vòng Clean Architecture | Ở Angular / Nx | Ví dụ sau lab |
+|---|---|---|
+| domain | lib `type:domain`: type + abstract class port, **không** import Angular | `portal-domain-tickets` |
+| application | signal/computed trong feature, hoặc store (buổi 4) | `TicketListPage` (lọc, phân trang) |
+| data access | lib `type:data-access`: adapter HTTP, interceptor | `portal-data-access-tickets` |
+| UI | lib `type:feature` (màn hình), `type:ui` (component trình bày) | `feature-tickets`, `ui-layout` |
+
+```
+app ──► feature ──► ui / data-access ──► domain ──► util
+```
+
+---
+
+## Phạm vi DI: provider đặt ở đâu thì sống ở đó
+
+| Nơi khai báo | Phạm vi, vòng đời | Dùng khi |
+|---|---|---|
+| `@Injectable({ providedIn: 'root' })` | Một instance cho cả app | Service không trạng thái, `TicketApi`, `AuthService` |
+| `providers` trong `app.config.ts` | Cả app, do app chọn cách cấu hình | `provideHttpClient`, `provideAuth()` |
+| `providers` trên **route** | Injector riêng của route và con; tạo khi vào route lazy | Nối port với adapter cho một feature |
+| `providers` trên **component** | Mỗi instance component một bản | State cục bộ của màn hình (buổi 4) |
+
+```ts
+// apps/portal/src/app/app.routes.ts (composition root)
+{ path: 'tickets', providers: [provideHttpTicketPort()],
+  loadChildren: () => import('@care/portal-feature-tickets').then((m) => m.ticketRoutes) }
+```
+
+<div class="tip">Feature chỉ <code>inject(TicketPort)</code>. Đổi sang fake: thay một dòng provider, không sửa màn hình.</div>
+
+---
+
+## Port và adapter trong code
+
+<div class="cols">
+<div>
+
+```ts
+// libs/portal/domain-tickets
+export abstract class TicketPort {
+  abstract search(
+    query: TicketQuery,
+    page: PageQuery,
+  ): Observable<TicketPage>;
+}
+```
+
+```ts
+// libs/portal/feature-tickets
+private readonly tickets = inject(TicketPort);
+result = rxResource({
+  params: () => ({ search: this.filters(), page: this.page() }),
+  stream: ({ params }) =>
+    this.tickets.search(params.search, params.page),
+});
+```
+
+</div>
+<div>
+
+```ts
+// libs/portal/data-access-tickets
+@Injectable()
+export class HttpTicketAdapter extends TicketPort {
+  private readonly api = inject(TicketApi);
+  search(query, page) {
+    return this.api.search(query, page).pipe(
+      map((res) => ({
+        items: res.content.map(toSummary),
+        total: res.totalElements,
+      })));
+  }
+}
+```
+
+<p class="small">Abstract class vừa là kiểu vừa là DI token. Interface thì biến mất khi biên dịch, nên phải tạo thêm <code>InjectionToken</code>.</p>
+
+</div>
+</div>
+
+---
+
+## Fake adapter: test màn hình không cần HTTP
+
+```ts
+port = new InMemoryTicketAdapter().seed([
+  aTicket({ code: 'TK-A', assignee: 'agent1' }),
+  aTicket({ code: 'TK-B', assignee: 'agent2' }),
+]);
+TestBed.configureTestingModule({ imports: [TicketListPage], providers: [
+  { provide: TicketPort, useValue: port },
+  { provide: AuthService, useValue: { username: signal('agent1') } }, ...] });
+
+checkbox('Chỉ phiếu của tôi').click();
+expect(port.calls.at(-1)?.query.assignee).toBe('agent1');
+expect(codes()).toEqual(['TK-A']);
+```
+
+- Test nói về **hành vi nghiệp vụ** (lọc theo người xử lý), không về URL hay JSON
+- Adapter HTTP có test riêng: đúng URL, query param, chuyển `content/totalElements` → `items/total`
+---
+
+## Luật import trên CI
+
+Ngoài tag, chặn luôn **package** và **tên export** cụ thể:
+
+```js
+{ sourceTag: 'type:feature', ..., bannedExternalImports: ['@angular/common/http'] },
+{ sourceTag: 'type:domain', onlyDependOnLibsWithTags: ['type:domain','type:util'],
+  bannedExternalImports: ['@angular/core*', '@angular/common*', 'ng-zorro-antd*'] },
+// libs/portal/feature-tickets/eslint.config.mjs
+'no-restricted-imports': ['error', { paths: [{ name: '@care/shared-data-access-api',
+  importNames: ['TicketApi'], message: 'Inject TicketPort ... (ADR-0002)' }] }]
+```
+
+```yaml
+# .github/workflows/ci.yml (GitLab: job tương tự trong .gitlab-ci.yml)
+- run: npm ci
+- run: npx nx run-many -t lint        # buổi 9: nx affected + test + build + budget
+```
 
 ---
 
@@ -412,9 +575,10 @@ npx nx g @nx/angular:library libs/portal/feature-service-plans \
 
 ## Quyết định kiến trúc: ghi lại bằng ADR
 
-**ADR (Architecture Decision Record)**: vài đoạn văn trả lời *bối cảnh, quyết định, hệ quả*.
+**ADR (Architecture Decision Record)**: vài đoạn văn trả lời *bối cảnh, phương án, quyết định, hệ quả, cách kiểm chứng*.
+Mẫu: `course/_templates/adr.md` · ADR của dự án: `docs/adr/`
 
-Ví dụ thật từ dự án này: **chọn thư viện UI**
+Ví dụ thật từ dự án này, `docs/adr/0001`: **chọn thư viện UI**
 
 | | PrimeNG 22 | ng-zorro-antd 22 |
 |---|---|---|
@@ -424,7 +588,20 @@ Ví dụ thật từ dự án này: **chọn thư viện UI**
 
 → Quyết định: **ng-zorro-antd**. Tổ chức lớn mà dùng PrimeNG thì phải mua license theo số dev.
 
-<div class="tip">Trước khi chọn thư viện, luôn kiểm tra <b>license</b>, không chỉ kiểm tra tính năng.</div>
+<div class="tip">Trước khi chọn thư viện, luôn kiểm tra <b>license</b>, không chỉ kiểm tra tính năng. ADR tốt ghi luôn <b>cách giữ quyết định</b>: lint rule, test, gate trên CI.</div>
+
+---
+
+## Khi nào monorepo, khi nào tách thư viện?
+
+| Tình huống | Lựa chọn |
+|---|---|
+| Vài app cùng team, cùng nhịp release, dùng chung auth/API/UI | **Monorepo + lib nội bộ** (dự án này) |
+| Thư viện UI dùng cho nhiều dự án, nhiều team, release riêng | Tách repo, **publish npm** (Nexus nội bộ), semver |
+| Một lib được 1 nơi dùng | Chưa cần tách lib, để thư mục trong feature |
+| Nhiều team cần deploy độc lập | Cân nhắc micro-frontend (slide sau) |
+
+<div class="tip">Tách thư viện ra repo riêng có chi phí: version, changelog, nâng cấp đồng bộ. Chỉ trả chi phí đó khi có người dùng ngoài repo.</div>
 
 ---
 
@@ -466,20 +643,23 @@ Hợp đồng ổn định giữa FE và BE:
 
 ---
 
-## Lab (90 phút)
+## Lab (120 phút)
 
 | Bài | Nội dung | Thời gian |
 |---|---|---|
-| 1 | Khám phá workspace: `nx graph`, tags, lazy chunk | 15' |
-| 2 | Thêm màn hình **Gói cước**: generator → page → route → menu | 45' |
-| 3 | Phá luật phụ thuộc, đọc lỗi, thảo luận cách tách lib | 15' |
-| 4 | Nhãn môi trường từ `config.json`, đổi mà không build lại | 15' |
+| 1 | Khám phá workspace, **vẽ sơ đồ phụ thuộc** hiện tại | 15' |
+| 2 | Thêm màn hình **Gói cước**: generator → page → lazy route → menu | 30' |
+| 3 | Tách `TicketListPage`: **TicketPort** + **HttpTicketAdapter** | 40' |
+| 4 | **Fake adapter**, test màn hình không cần HTTP | 20' |
+| 5 | Luật import mới, phá luật, chạy gate như CI | 15' |
+| Mở rộng | Nhãn môi trường từ `config.json` (làm ở nhà nếu chưa kịp) | |
 
+Review chéo 20': mỗi nhóm trình bày sơ đồ phụ thuộc trước/sau và **ADR-0002**.
 Đề bài: `course/session-01/lab/README.md`
 
 ---
 
-## Kết quả mong đợi của Bài 2 + 4
+## Kết quả mong đợi của Bài 2
 
 ![h:500](assets/goi-cuoc.png)
 
@@ -509,11 +689,11 @@ Thêm 2 lưu ý:
 
 ## Tổng kết
 
-1. Dự án lớn cần **ranh giới**: apps mỏng, logic nằm trong libs
-2. **4 loại lib × scope**: tag hóa và để ESLint kiểm tra
+1. Dự án lớn cần **ranh giới**: apps mỏng, logic nằm trong libs, phụ thuộc hướng vào domain
+2. **Loại lib × scope**: tag hóa và để ESLint kiểm tra; thêm `type:domain` khi cần port
 3. **Public API** (`index.ts`): không import xuyên vào file nội bộ của lib khác
-4. **Lazy loading** theo nghiệp vụ, kiểm chứng bằng output build
-5. **Runtime config**: một bản build cho mọi môi trường
-6. Quyết định kiến trúc → ghi lại bằng **ADR** (kể cả license)
+4. **Port + adapter + composition root**: UI test được với fake, đổi backend chỉ sửa adapter
+5. **Lazy loading** theo nghiệp vụ, kiểm chứng bằng output build
+6. Quyết định kiến trúc → **ADR**, giữ quyết định bằng **luật import trên CI**
 
-**Buổi 2:** State management: Signals, RxJS, NgRx. Khi nào dùng cái nào?
+**Buổi 2:** Component dùng lại và màn hình nghiệp vụ phức tạp: `ticket-row`, typed Reactive Forms, xử lý HTTP 409.

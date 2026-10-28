@@ -10,7 +10,7 @@ Học viên là dev Angular ở VNPT, làm các hệ thống nhiều team, nhi�
 - Áp dụng cách tổ chức này vào một dự án Angular thật ở công ty.
 
 ## Constraints
-- Mỗi buổi học 3–4 giờ, 10 buổi; buổi 1 là kiến trúc dự án lớn. Sau mỗi buổi có bài tập về nhà khoảng 30 phút, nộp trước buổi kế tiếp.
+- Mỗi buổi học 4 giờ, 10 buổi theo đề cương 40 giờ; buổi 1 là kiến trúc Angular cho dự án lớn. Sau mỗi buổi có bài tập về nhà khoảng 30 phút, nộp trước buổi kế tiếp.
 - Thực hành trên dự án mẫu Care Portal trong repo này (Angular 22, Nx 24). Học viên chỉ cài Node 24 + Docker.
 - Tài liệu bằng tiếng Việt có dấu. Học viên có thể đang quen Angular bản cũ (NgModule) ở dự án hiện tại (chưa xác nhận).
 

@@ -1,0 +1,1054 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+new file mode 100644
+index 0000000..266eac7
+--- /dev/null
++++ b/.github/workflows/ci.yml
+@@ -0,0 +1,24 @@
++# Buoi 1: kiem tra luat phu thuoc (ESLint module boundaries) moi lan push/PR.
++# Buoi 9 mo rong thanh pipeline day du (test, build, budget, Docker).
++name: ci
++
++on:
++  push:
++    branches: [main]
++  pull_request:
++
++jobs:
++  architecture:
++    runs-on: ubuntu-latest
++    defaults:
++      run:
++        working-directory: frontend
++    steps:
++      - uses: actions/checkout@v4
++      - uses: actions/setup-node@v4
++        with:
++          node-version-file: frontend/.nvmrc
++          cache: npm
++          cache-dependency-path: frontend/package-lock.json
++      - run: npm ci
++      - run: npx nx run-many -t lint
+diff --git a/docs/adr/0002-tach-ticket-port.md b/docs/adr/0002-tach-ticket-port.md
+new file mode 100644
+index 0000000..03cc90d
+--- /dev/null
++++ b/docs/adr/0002-tach-ticket-port.md
+@@ -0,0 +1,48 @@
++# ADR-0002: Màn hình phiếu yêu cầu gọi dữ liệu qua TicketPort
++
++- **Trạng thái:** Đã chấp nhận
++- **Ngày:** <ngày học buổi 1>
++- **Người quyết định:** <nhóm>
++
++## Bối cảnh
++
++`TicketListPage` inject trực tiếp `TicketApi` (HttpClient) và đọc `content`, `totalElements` của Spring Page.
++Hệ quả quan sát được:
++- Muốn test màn hình phải dựng `HttpTestingController` và giả lập đúng JSON của backend.
++- Đổi hình dạng response (ví dụ backend chuyển sang cursor paging) phải sửa cả component.
++- Không có gì ngăn feature khác gọi `HttpClient` trực tiếp.
++
++## Các phương án đã xem xét
++
++| Phương án | Ưu điểm | Nhược điểm |
++|---|---|---|
++| Giữ nguyên, mock `TicketApi` bằng `vi.fn()` | Không phải thêm lib | Test vẫn gắn với hình dạng JSON; không có ranh giới được kiểm tra |
++| Facade service trong feature lib | Ít file | Adapter HTTP vẫn nằm cùng UI; data-access không thể phụ thuộc vào hợp đồng nằm trong feature |
++| **Port trong lib `type:domain`, adapter HTTP trong lib `type:data-access`, app chọn adapter** | Chiều phụ thuộc hướng vào domain; thay adapter bằng fake mà không dựng HTTP; lint kiểm tra được | Thêm 2 lib và một lớp chuyển đổi DTO → domain |
++
++## Quyết định
++
++- `@care/portal-domain-tickets` (`type:domain`): `TicketPort`, `TicketSummary`, `TicketQuery`, `TicketPage`. Không import Angular.
++- `@care/portal-data-access-tickets` (`type:data-access`): `HttpTicketAdapter` gọi `TicketApi`, chuyển Spring Page → `TicketPage`.
++- Route `tickets` trong `apps/portal` (composition root) gọi `provideHttpTicketPort()`.
++- Test dùng `InMemoryTicketAdapter` từ `@care/portal-domain-tickets/testing`.
++
++```mermaid
++flowchart LR
++  app[apps/portal] --> feature[portal-feature-tickets]
++  app --> da[portal-data-access-tickets]
++  feature --> domain[portal-domain-tickets]
++  da --> domain
++  da --> api[shared-data-access-api]
++```
++
++## Hệ quả
++
++- **Tốt:** test màn hình chạy không cần HTTP (`ticket-list.page.spec.ts`); đổi backend chỉ sửa adapter.
++- **Phải chấp nhận:** khi thêm thao tác (tạo, duyệt phiếu ở buổi 2) phải bổ sung vào port và cả hai adapter.
++- **Cách kiểm chứng:** ESLint chặn `type:feature` import `@angular/common/http`, chặn `feature-tickets` import `TicketApi`,
++  chặn `type:domain` import Angular; CI chạy `nx run-many -t lint` cho mỗi push.
++
++## Khi nào xem lại
++
++Nếu số feature dùng port tăng mà port chỉ còn là lớp chuyển tiếp không có chuyển đổi nào, cân nhắc gộp lại.
+diff --git a/docs/adr/README.md b/docs/adr/README.md
+index 5181830..e18f953 100644
+--- a/docs/adr/README.md
++++ b/docs/adr/README.md
+@@ -7,3 +7,4 @@ viết ADR mới và ghi "Thay thế bởi ADR-MMMM" vào ADR cũ.
+ | # | Quyết định | Trạng thái |
+ |---|---|---|
+ | [0001](0001-dung-ng-zorro-thay-primeng.md) | Dùng ng-zorro-antd thay PrimeNG | Đã chấp nhận |
++| [0002](0002-tach-ticket-port.md) | Màn hình phiếu yêu cầu gọi dữ liệu qua TicketPort | Đã chấp nhận |
+diff --git a/frontend/apps/portal/src/app/app.routes.ts b/frontend/apps/portal/src/app/app.routes.ts
+index ecb6a01..aac0c41 100644
+--- a/frontend/apps/portal/src/app/app.routes.ts
++++ b/frontend/apps/portal/src/app/app.routes.ts
+@@ -1,4 +1,5 @@
+ import { Route } from '@angular/router';
++import { provideHttpTicketPort } from '@care/portal-data-access-tickets';
+ import { authGuard, guestGuard } from '@care/shared-data-access-auth';
+ import { ForbiddenPage, NotFoundPage } from '@care/shared-ui-layout';
+ 
+@@ -24,6 +25,8 @@ export const appRoutes: Route[] = [
+       },
+       {
+         path: 'tickets',
++        // Composition root: chon adapter cho TicketPort tai day, feature khong biet HTTP.
++        providers: [provideHttpTicketPort()],
+         loadChildren: () =>
+           import('@care/portal-feature-tickets').then((m) => m.ticketRoutes),
+       },
+diff --git a/frontend/eslint.config.mjs b/frontend/eslint.config.mjs
+index dc42669..59c1857 100644
+--- a/frontend/eslint.config.mjs
++++ b/frontend/eslint.config.mjs
+@@ -15,7 +15,8 @@ export default [
+         {
+           enforceBuildableLibDependency: true,
+           allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
+-          // Quy tac phu thuoc (buoi 1): app -> feature -> ui/data-access -> util; scope chi dung chinh no + shared.
++          // Quy tac phu thuoc (buoi 1): app -> feature -> ui/data-access -> domain -> util; scope chi dung chinh no + shared.
++          // domain (port + mo hinh nghiep vu) nam duoi data-access: adapter phu thuoc hop dong, khong nguoc lai.
+           depConstraints: [
+             {
+               sourceTag: 'type:app',
+@@ -23,6 +24,7 @@ export default [
+                 'type:feature',
+                 'type:ui',
+                 'type:data-access',
++                'type:domain',
+                 'type:util',
+               ],
+             },
+@@ -31,8 +33,11 @@ export default [
+               onlyDependOnLibsWithTags: [
+                 'type:ui',
+                 'type:data-access',
++                'type:domain',
+                 'type:util',
+               ],
++              // Feature lay du lieu qua port/API service, khong tu dung HttpClient.
++              bannedExternalImports: ['@angular/common/http'],
+             },
+             {
+               sourceTag: 'type:ui',
+@@ -40,7 +45,24 @@ export default [
+             },
+             {
+               sourceTag: 'type:data-access',
+-              onlyDependOnLibsWithTags: ['type:data-access', 'type:util'],
++              onlyDependOnLibsWithTags: [
++                'type:data-access',
++                'type:domain',
++                'type:util',
++              ],
++            },
++            {
++              sourceTag: 'type:domain',
++              onlyDependOnLibsWithTags: ['type:domain', 'type:util'],
++              // Domain khong biet Angular, HTTP hay UI: chi TypeScript thuan + rxjs.
++              // (@angular/compiler van duoc dung trong test-setup.ts do generator sinh ra.)
++              bannedExternalImports: [
++                '@angular/core*',
++                '@angular/common*',
++                '@angular/router*',
++                '@angular/forms*',
++                'ng-zorro-antd*',
++              ],
+             },
+             { sourceTag: 'type:util', onlyDependOnLibsWithTags: ['type:util'] },
+             {
+diff --git a/frontend/libs/portal/data-access-tickets/README.md b/frontend/libs/portal/data-access-tickets/README.md
+new file mode 100644
+index 0000000..7d4caf0
+--- /dev/null
++++ b/frontend/libs/portal/data-access-tickets/README.md
+@@ -0,0 +1,7 @@
++# portal-data-access-tickets
++
++This library was generated with [Nx](https://nx.dev).
++
++## Running unit tests
++
++Run `nx test portal-data-access-tickets` to execute the unit tests.
+diff --git a/frontend/libs/portal/data-access-tickets/eslint.config.mjs b/frontend/libs/portal/data-access-tickets/eslint.config.mjs
+new file mode 100644
+index 0000000..349ee7e
+--- /dev/null
++++ b/frontend/libs/portal/data-access-tickets/eslint.config.mjs
+@@ -0,0 +1,34 @@
++import nx from '@nx/eslint-plugin';
++import baseConfig from '../../../eslint.config.mjs';
++
++export default [
++  ...nx.configs['flat/angular'],
++  ...nx.configs['flat/angular-template'],
++  ...baseConfig,
++  {
++    files: ['**/*.ts'],
++    rules: {
++      '@angular-eslint/directive-selector': [
++        'error',
++        {
++          type: 'attribute',
++          prefix: 'care',
++          style: 'camelCase',
++        },
++      ],
++      '@angular-eslint/component-selector': [
++        'error',
++        {
++          type: 'element',
++          prefix: 'care',
++          style: 'kebab-case',
++        },
++      ],
++    },
++  },
++  {
++    files: ['**/*.html'],
++    // Override or add rules here
++    rules: {},
++  },
++];
+diff --git a/frontend/libs/portal/data-access-tickets/project.json b/frontend/libs/portal/data-access-tickets/project.json
+new file mode 100644
+index 0000000..1c8ae59
+--- /dev/null
++++ b/frontend/libs/portal/data-access-tickets/project.json
+@@ -0,0 +1,10 @@
++{
++  "name": "portal-data-access-tickets",
++  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
++  "sourceRoot": "libs/portal/data-access-tickets/src",
++  "prefix": "care",
++  "projectType": "library",
++  "tags": ["scope:portal", "type:data-access"],
++  "// targets": "to see all targets run: nx show project portal-data-access-tickets --web",
++  "targets": {}
++}
+diff --git a/frontend/libs/portal/data-access-tickets/src/index.ts b/frontend/libs/portal/data-access-tickets/src/index.ts
+new file mode 100644
+index 0000000..a429651
+--- /dev/null
++++ b/frontend/libs/portal/data-access-tickets/src/index.ts
+@@ -0,0 +1 @@
++export * from './lib/http-ticket.adapter';
+diff --git a/frontend/libs/portal/data-access-tickets/src/lib/http-ticket.adapter.spec.ts b/frontend/libs/portal/data-access-tickets/src/lib/http-ticket.adapter.spec.ts
+new file mode 100644
+index 0000000..511ef04
+--- /dev/null
++++ b/frontend/libs/portal/data-access-tickets/src/lib/http-ticket.adapter.spec.ts
+@@ -0,0 +1,69 @@
++import { provideHttpClient } from '@angular/common/http';
++import {
++  HttpTestingController,
++  provideHttpClientTesting,
++} from '@angular/common/http/testing';
++import { TestBed } from '@angular/core/testing';
++import { TicketPort } from '@care/portal-domain-tickets';
++import { APP_CONFIG } from '@care/shared-util-config';
++import { firstValueFrom } from 'rxjs';
++import { provideHttpTicketPort } from './http-ticket.adapter';
++
++describe('HttpTicketAdapter', () => {
++  beforeEach(() => {
++    TestBed.configureTestingModule({
++      providers: [
++        provideHttpClient(),
++        provideHttpClientTesting(),
++        { provide: APP_CONFIG, useValue: { apiUrl: 'http://api' } },
++        provideHttpTicketPort(),
++      ],
++    });
++  });
++
++  it('goi GET /api/tickets va chuyen Spring Page thanh TicketPage', async () => {
++    const port = TestBed.inject(TicketPort);
++    const http = TestBed.inject(HttpTestingController);
++
++    const result = firstValueFrom(
++      port.search({ status: 'NEW' }, { page: 1, size: 20, sort: 'id,desc' }),
++    );
++
++    const req = http.expectOne(
++      (r) => r.url === 'http://api/api/tickets' && r.method === 'GET',
++    );
++    expect(req.request.params.get('status')).toBe('NEW');
++    expect(req.request.params.get('page')).toBe('1');
++    req.flush({
++      content: [
++        {
++          id: 7,
++          code: 'TK-000007',
++          title: 'Mat song',
++          category: 'NETWORK',
++          priority: 'HIGH',
++          status: 'NEW',
++          subscriberId: 3,
++          subscriberMsisdn: '0912000003',
++          subscriberName: 'Tran Thi B',
++          assignee: null,
++          description: 'chi tiet',
++          createdBy: 'agent1',
++          createdAt: '2026-01-01T08:00:00Z',
++          updatedAt: '2026-01-01T08:00:00Z',
++          version: 0,
++        },
++      ],
++      page: 1,
++      size: 20,
++      totalElements: 21,
++      totalPages: 2,
++    });
++
++    const page = await result;
++    expect(page.total).toBe(21);
++    expect(page.items).toHaveLength(1);
++    expect(page.items[0]).not.toHaveProperty('version');
++    http.verify();
++  });
++});
+diff --git a/frontend/libs/portal/data-access-tickets/src/lib/http-ticket.adapter.ts b/frontend/libs/portal/data-access-tickets/src/lib/http-ticket.adapter.ts
+new file mode 100644
+index 0000000..dacc08f
+--- /dev/null
++++ b/frontend/libs/portal/data-access-tickets/src/lib/http-ticket.adapter.ts
+@@ -0,0 +1,46 @@
++import { inject, Injectable, Provider } from '@angular/core';
++import { Ticket, TicketApi } from '@care/shared-data-access-api';
++import {
++  PageQuery,
++  TicketPage,
++  TicketPort,
++  TicketQuery,
++  TicketSummary,
++} from '@care/portal-domain-tickets';
++import { map, Observable } from 'rxjs';
++
++/** Adapter HTTP: goi API that qua TicketApi va chuyen hinh dang Spring Page sang TicketPage. */
++@Injectable()
++export class HttpTicketAdapter extends TicketPort {
++  private readonly api = inject(TicketApi);
++
++  search(query: TicketQuery, page: PageQuery): Observable<TicketPage> {
++    return this.api.search(query, page).pipe(
++      map((res) => ({
++        items: res.content.map(toSummary),
++        total: res.totalElements,
++      })),
++    );
++  }
++}
++
++export function toSummary(t: Ticket): TicketSummary {
++  return {
++    id: t.id,
++    code: t.code,
++    title: t.title,
++    category: t.category,
++    priority: t.priority,
++    status: t.status,
++    subscriberId: t.subscriberId,
++    subscriberMsisdn: t.subscriberMsisdn,
++    subscriberName: t.subscriberName,
++    assignee: t.assignee,
++    createdAt: t.createdAt,
++  };
++}
++
++/** Noi TicketPort voi adapter HTTP. Goi o composition root (route cua app), khong goi trong feature. */
++export function provideHttpTicketPort(): Provider[] {
++  return [{ provide: TicketPort, useClass: HttpTicketAdapter }];
++}
+diff --git a/frontend/libs/portal/data-access-tickets/src/test-setup.ts b/frontend/libs/portal/data-access-tickets/src/test-setup.ts
+new file mode 100644
+index 0000000..17b7965
+--- /dev/null
++++ b/frontend/libs/portal/data-access-tickets/src/test-setup.ts
+@@ -0,0 +1,5 @@
++import '@angular/compiler';
++import '@analogjs/vitest-angular/setup-snapshots';
++import { setupTestBed } from '@analogjs/vitest-angular/setup-testbed';
++
++setupTestBed();
+diff --git a/frontend/libs/portal/data-access-tickets/tsconfig.json b/frontend/libs/portal/data-access-tickets/tsconfig.json
+new file mode 100644
+index 0000000..bb320af
+--- /dev/null
++++ b/frontend/libs/portal/data-access-tickets/tsconfig.json
+@@ -0,0 +1,28 @@
++{
++  "extends": "../../../tsconfig.base.json",
++  "compilerOptions": {
++    "isolatedModules": true,
++    "strict": true,
++    "noImplicitOverride": true,
++    "noPropertyAccessFromIndexSignature": true,
++    "noImplicitReturns": true,
++    "noFallthroughCasesInSwitch": true,
++    "module": "preserve"
++  },
++  "angularCompilerOptions": {
++    "enableI18nLegacyMessageIdFormat": false,
++    "strictInjectionParameters": true,
++    "strictInputAccessModifiers": true,
++    "strictTemplates": true
++  },
++  "files": [],
++  "include": [],
++  "references": [
++    {
++      "path": "./tsconfig.lib.json"
++    },
++    {
++      "path": "./tsconfig.spec.json"
++    }
++  ]
++}
+diff --git a/frontend/libs/portal/data-access-tickets/tsconfig.lib.json b/frontend/libs/portal/data-access-tickets/tsconfig.lib.json
+new file mode 100644
+index 0000000..a9b98ba
+--- /dev/null
++++ b/frontend/libs/portal/data-access-tickets/tsconfig.lib.json
+@@ -0,0 +1,26 @@
++{
++  "extends": "./tsconfig.json",
++  "compilerOptions": {
++    "outDir": "../../../dist/out-tsc",
++    "declaration": true,
++    "declarationMap": true,
++    "inlineSources": true,
++    "types": []
++  },
++  "include": ["src/**/*.ts"],
++  "exclude": [
++    "src/**/*.spec.ts",
++    "src/**/*.test.ts",
++    "vite.config.ts",
++    "vite.config.mts",
++    "vitest.config.ts",
++    "vitest.config.mts",
++    "src/**/*.test.tsx",
++    "src/**/*.spec.tsx",
++    "src/**/*.test.js",
++    "src/**/*.spec.js",
++    "src/**/*.test.jsx",
++    "src/**/*.spec.jsx",
++    "src/test-setup.ts"
++  ]
++}
+diff --git a/frontend/libs/portal/data-access-tickets/tsconfig.spec.json b/frontend/libs/portal/data-access-tickets/tsconfig.spec.json
+new file mode 100644
+index 0000000..5785a8a
+--- /dev/null
++++ b/frontend/libs/portal/data-access-tickets/tsconfig.spec.json
+@@ -0,0 +1,29 @@
++{
++  "extends": "./tsconfig.json",
++  "compilerOptions": {
++    "outDir": "../../../dist/out-tsc",
++    "types": [
++      "vitest/globals",
++      "vitest/importMeta",
++      "vite/client",
++      "node",
++      "vitest"
++    ]
++  },
++  "include": [
++    "vite.config.ts",
++    "vite.config.mts",
++    "vitest.config.ts",
++    "vitest.config.mts",
++    "src/**/*.test.ts",
++    "src/**/*.spec.ts",
++    "src/**/*.test.tsx",
++    "src/**/*.spec.tsx",
++    "src/**/*.test.js",
++    "src/**/*.spec.js",
++    "src/**/*.test.jsx",
++    "src/**/*.spec.jsx",
++    "src/**/*.d.ts"
++  ],
++  "files": ["src/test-setup.ts"]
++}
+diff --git a/frontend/libs/portal/data-access-tickets/vite.config.mts b/frontend/libs/portal/data-access-tickets/vite.config.mts
+new file mode 100644
+index 0000000..316601f
+--- /dev/null
++++ b/frontend/libs/portal/data-access-tickets/vite.config.mts
+@@ -0,0 +1,29 @@
++/// <reference types='vitest' />
++import { defineConfig } from 'vite';
++import angular from '@analogjs/vite-plugin-angular';
++
++export default defineConfig(() => ({
++  root: import.meta.dirname,
++  cacheDir: '../../../node_modules/.vite/libs/portal/data-access-tickets',
++  resolve: {
++    tsconfigPaths: true,
++  },
++  plugins: [angular()],
++  // Uncomment this if you are using workers.
++  // worker: {
++  //  plugins: [],
++  // },
++  test: {
++    name: 'portal-data-access-tickets',
++    watch: false,
++    globals: true,
++    environment: 'jsdom',
++    include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
++    setupFiles: ['src/test-setup.ts'],
++    reporters: ['default'],
++    coverage: {
++      reportsDirectory: '../../../coverage/libs/portal/data-access-tickets',
++      provider: 'v8' as const,
++    },
++  },
++}));
+diff --git a/frontend/libs/portal/domain-tickets/README.md b/frontend/libs/portal/domain-tickets/README.md
+new file mode 100644
+index 0000000..801914f
+--- /dev/null
++++ b/frontend/libs/portal/domain-tickets/README.md
+@@ -0,0 +1,7 @@
++# portal-domain-tickets
++
++This library was generated with [Nx](https://nx.dev).
++
++## Running unit tests
++
++Run `nx test portal-domain-tickets` to execute the unit tests.
+diff --git a/frontend/libs/portal/domain-tickets/eslint.config.mjs b/frontend/libs/portal/domain-tickets/eslint.config.mjs
+new file mode 100644
+index 0000000..349ee7e
+--- /dev/null
++++ b/frontend/libs/portal/domain-tickets/eslint.config.mjs
+@@ -0,0 +1,34 @@
++import nx from '@nx/eslint-plugin';
++import baseConfig from '../../../eslint.config.mjs';
++
++export default [
++  ...nx.configs['flat/angular'],
++  ...nx.configs['flat/angular-template'],
++  ...baseConfig,
++  {
++    files: ['**/*.ts'],
++    rules: {
++      '@angular-eslint/directive-selector': [
++        'error',
++        {
++          type: 'attribute',
++          prefix: 'care',
++          style: 'camelCase',
++        },
++      ],
++      '@angular-eslint/component-selector': [
++        'error',
++        {
++          type: 'element',
++          prefix: 'care',
++          style: 'kebab-case',
++        },
++      ],
++    },
++  },
++  {
++    files: ['**/*.html'],
++    // Override or add rules here
++    rules: {},
++  },
++];
+diff --git a/frontend/libs/portal/domain-tickets/project.json b/frontend/libs/portal/domain-tickets/project.json
+new file mode 100644
+index 0000000..2eda0fc
+--- /dev/null
++++ b/frontend/libs/portal/domain-tickets/project.json
+@@ -0,0 +1,10 @@
++{
++  "name": "portal-domain-tickets",
++  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
++  "sourceRoot": "libs/portal/domain-tickets/src",
++  "prefix": "care",
++  "projectType": "library",
++  "tags": ["scope:portal", "type:domain"],
++  "// targets": "to see all targets run: nx show project portal-domain-tickets --web",
++  "targets": {}
++}
+diff --git a/frontend/libs/portal/domain-tickets/src/index.ts b/frontend/libs/portal/domain-tickets/src/index.ts
+new file mode 100644
+index 0000000..a1f3723
+--- /dev/null
++++ b/frontend/libs/portal/domain-tickets/src/index.ts
+@@ -0,0 +1,2 @@
++export * from './lib/ticket';
++export * from './lib/ticket.port';
+diff --git a/frontend/libs/portal/domain-tickets/src/lib/ticket.port.ts b/frontend/libs/portal/domain-tickets/src/lib/ticket.port.ts
+new file mode 100644
+index 0000000..10cfff2
+--- /dev/null
++++ b/frontend/libs/portal/domain-tickets/src/lib/ticket.port.ts
+@@ -0,0 +1,11 @@
++import { Observable } from 'rxjs';
++import { PageQuery, TicketPage, TicketQuery } from './ticket';
++
++/**
++ * Hop dong (port) ma man hinh phieu yeu cau can. Man hinh chi biet lop nay;
++ * app quyet dinh dung adapter nao (HTTP that, fake trong test) qua DI.
++ * Dung abstract class thay vi interface de lam luon DI token.
++ */
++export abstract class TicketPort {
++  abstract search(query: TicketQuery, page: PageQuery): Observable<TicketPage>;
++}
+diff --git a/frontend/libs/portal/domain-tickets/src/lib/ticket.ts b/frontend/libs/portal/domain-tickets/src/lib/ticket.ts
+new file mode 100644
+index 0000000..b1c4295
+--- /dev/null
++++ b/frontend/libs/portal/domain-tickets/src/lib/ticket.ts
+@@ -0,0 +1,40 @@
++/**
++ * Mo hinh phieu yeu cau theo goc nhin nghiep vu cua man hinh.
++ * Khong phu thuoc HTTP hay hinh dang JSON cua backend: adapter chiu trach nhiem chuyen doi.
++ */
++export type TicketCategory = 'BILLING' | 'NETWORK' | 'SERVICE' | 'OTHER';
++export type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
++export type TicketStatus = 'NEW' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
++
++export interface TicketSummary {
++  id: number;
++  code: string;
++  title: string;
++  category: TicketCategory;
++  priority: TicketPriority;
++  status: TicketStatus;
++  subscriberId: number;
++  subscriberMsisdn: string;
++  subscriberName: string;
++  assignee: string | null;
++  createdAt: string;
++}
++
++export interface TicketQuery {
++  status?: TicketStatus | null;
++  priority?: TicketPriority | null;
++  assignee?: string | null;
++}
++
++export interface PageQuery {
++  /** Trang tinh tu 0. */
++  page: number;
++  size: number;
++  /** Dang "field,asc" | "field,desc". */
++  sort?: string;
++}
++
++export interface TicketPage {
++  items: TicketSummary[];
++  total: number;
++}
+diff --git a/frontend/libs/portal/domain-tickets/src/test-setup.ts b/frontend/libs/portal/domain-tickets/src/test-setup.ts
+new file mode 100644
+index 0000000..17b7965
+--- /dev/null
++++ b/frontend/libs/portal/domain-tickets/src/test-setup.ts
+@@ -0,0 +1,5 @@
++import '@angular/compiler';
++import '@analogjs/vitest-angular/setup-snapshots';
++import { setupTestBed } from '@analogjs/vitest-angular/setup-testbed';
++
++setupTestBed();
+diff --git a/frontend/libs/portal/domain-tickets/src/testing.ts b/frontend/libs/portal/domain-tickets/src/testing.ts
+new file mode 100644
+index 0000000..090dfe2
+--- /dev/null
++++ b/frontend/libs/portal/domain-tickets/src/testing.ts
+@@ -0,0 +1,58 @@
++import { Observable, of } from 'rxjs';
++import {
++  PageQuery,
++  TicketPage,
++  TicketQuery,
++  TicketSummary,
++} from './lib/ticket';
++import { TicketPort } from './lib/ticket.port';
++
++/**
++ * Fake adapter: loc va phan trang tren mang trong bo nho, ghi lai cac lan goi de test kiem tra.
++ * Dung bang `{ provide: TicketPort, useValue: new InMemoryTicketAdapter().seed([...]) }`.
++ */
++export class InMemoryTicketAdapter extends TicketPort {
++  readonly calls: { query: TicketQuery; page: PageQuery }[] = [];
++  private tickets: TicketSummary[] = [];
++
++  seed(tickets: TicketSummary[]): this {
++    this.tickets = [...tickets];
++    return this;
++  }
++
++  search(query: TicketQuery, page: PageQuery): Observable<TicketPage> {
++    this.calls.push({ query, page });
++    const matched = this.tickets.filter(
++      (t) =>
++        (!query.status || t.status === query.status) &&
++        (!query.priority || t.priority === query.priority) &&
++        (!query.assignee || t.assignee === query.assignee),
++    );
++    const start = page.page * page.size;
++    return of({
++      items: matched.slice(start, start + page.size),
++      total: matched.length,
++    });
++  }
++}
++
++let nextId = 1;
++
++/** Tao phieu gia voi gia tri mac dinh hop le; truyen vao cac truong can quan tam. */
++export function aTicket(overrides: Partial<TicketSummary> = {}): TicketSummary {
++  const id = overrides.id ?? nextId++;
++  return {
++    id,
++    code: `TK-${String(id).padStart(6, '0')}`,
++    title: `Phieu ${id}`,
++    category: 'SERVICE',
++    priority: 'MEDIUM',
++    status: 'NEW',
++    subscriberId: 1,
++    subscriberMsisdn: '0912000001',
++    subscriberName: 'Nguyen Van A',
++    assignee: null,
++    createdAt: '2026-01-01T08:00:00Z',
++    ...overrides,
++  };
++}
+diff --git a/frontend/libs/portal/domain-tickets/tsconfig.json b/frontend/libs/portal/domain-tickets/tsconfig.json
+new file mode 100644
+index 0000000..bb320af
+--- /dev/null
++++ b/frontend/libs/portal/domain-tickets/tsconfig.json
+@@ -0,0 +1,28 @@
++{
++  "extends": "../../../tsconfig.base.json",
++  "compilerOptions": {
++    "isolatedModules": true,
++    "strict": true,
++    "noImplicitOverride": true,
++    "noPropertyAccessFromIndexSignature": true,
++    "noImplicitReturns": true,
++    "noFallthroughCasesInSwitch": true,
++    "module": "preserve"
++  },
++  "angularCompilerOptions": {
++    "enableI18nLegacyMessageIdFormat": false,
++    "strictInjectionParameters": true,
++    "strictInputAccessModifiers": true,
++    "strictTemplates": true
++  },
++  "files": [],
++  "include": [],
++  "references": [
++    {
++      "path": "./tsconfig.lib.json"
++    },
++    {
++      "path": "./tsconfig.spec.json"
++    }
++  ]
++}
+diff --git a/frontend/libs/portal/domain-tickets/tsconfig.lib.json b/frontend/libs/portal/domain-tickets/tsconfig.lib.json
+new file mode 100644
+index 0000000..a9b98ba
+--- /dev/null
++++ b/frontend/libs/portal/domain-tickets/tsconfig.lib.json
+@@ -0,0 +1,26 @@
++{
++  "extends": "./tsconfig.json",
++  "compilerOptions": {
++    "outDir": "../../../dist/out-tsc",
++    "declaration": true,
++    "declarationMap": true,
++    "inlineSources": true,
++    "types": []
++  },
++  "include": ["src/**/*.ts"],
++  "exclude": [
++    "src/**/*.spec.ts",
++    "src/**/*.test.ts",
++    "vite.config.ts",
++    "vite.config.mts",
++    "vitest.config.ts",
++    "vitest.config.mts",
++    "src/**/*.test.tsx",
++    "src/**/*.spec.tsx",
++    "src/**/*.test.js",
++    "src/**/*.spec.js",
++    "src/**/*.test.jsx",
++    "src/**/*.spec.jsx",
++    "src/test-setup.ts"
++  ]
++}
+diff --git a/frontend/libs/portal/domain-tickets/tsconfig.spec.json b/frontend/libs/portal/domain-tickets/tsconfig.spec.json
+new file mode 100644
+index 0000000..5785a8a
+--- /dev/null
++++ b/frontend/libs/portal/domain-tickets/tsconfig.spec.json
+@@ -0,0 +1,29 @@
++{
++  "extends": "./tsconfig.json",
++  "compilerOptions": {
++    "outDir": "../../../dist/out-tsc",
++    "types": [
++      "vitest/globals",
++      "vitest/importMeta",
++      "vite/client",
++      "node",
++      "vitest"
++    ]
++  },
++  "include": [
++    "vite.config.ts",
++    "vite.config.mts",
++    "vitest.config.ts",
++    "vitest.config.mts",
++    "src/**/*.test.ts",
++    "src/**/*.spec.ts",
++    "src/**/*.test.tsx",
++    "src/**/*.spec.tsx",
++    "src/**/*.test.js",
++    "src/**/*.spec.js",
++    "src/**/*.test.jsx",
++    "src/**/*.spec.jsx",
++    "src/**/*.d.ts"
++  ],
++  "files": ["src/test-setup.ts"]
++}
+diff --git a/frontend/libs/portal/domain-tickets/vite.config.mts b/frontend/libs/portal/domain-tickets/vite.config.mts
+new file mode 100644
+index 0000000..e16cdeb
+--- /dev/null
++++ b/frontend/libs/portal/domain-tickets/vite.config.mts
+@@ -0,0 +1,30 @@
++/// <reference types='vitest' />
++import { defineConfig } from 'vite';
++import angular from '@analogjs/vite-plugin-angular';
++
++export default defineConfig(() => ({
++  root: import.meta.dirname,
++  cacheDir: '../../../node_modules/.vite/libs/portal/domain-tickets',
++  resolve: {
++    tsconfigPaths: true,
++  },
++  plugins: [angular()],
++  // Uncomment this if you are using workers.
++  // worker: {
++  //  plugins: [],
++  // },
++  test: {
++    name: 'portal-domain-tickets',
++    watch: false,
++    passWithNoTests: true,
++    globals: true,
++    environment: 'jsdom',
++    include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
++    setupFiles: ['src/test-setup.ts'],
++    reporters: ['default'],
++    coverage: {
++      reportsDirectory: '../../../coverage/libs/portal/domain-tickets',
++      provider: 'v8' as const,
++    },
++  },
++}));
+diff --git a/frontend/libs/portal/feature-tickets/eslint.config.mjs b/frontend/libs/portal/feature-tickets/eslint.config.mjs
+index 349ee7e..2c7669b 100644
+--- a/frontend/libs/portal/feature-tickets/eslint.config.mjs
++++ b/frontend/libs/portal/feature-tickets/eslint.config.mjs
+@@ -26,6 +26,25 @@ export default [
+       ],
+     },
+   },
++  {
++    files: ['**/*.ts'],
++    rules: {
++      // ADR-0002: man hinh phieu yeu cau chi phu thuoc TicketPort.
++      'no-restricted-imports': [
++        'error',
++        {
++          paths: [
++            {
++              name: '@care/shared-data-access-api',
++              importNames: ['TicketApi'],
++              message:
++                'Inject TicketPort (@care/portal-domain-tickets) thay vi goi TicketApi truc tiep (ADR-0002).',
++            },
++          ],
++        },
++      ],
++    },
++  },
+   {
+     files: ['**/*.html'],
+     // Override or add rules here
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.spec.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.spec.ts
+new file mode 100644
+index 0000000..3ddebfd
+--- /dev/null
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.spec.ts
+@@ -0,0 +1,70 @@
++import { signal } from '@angular/core';
++import { TestBed } from '@angular/core/testing';
++import { provideRouter } from '@angular/router';
++import { TicketPort } from '@care/portal-domain-tickets';
++import {
++  aTicket,
++  InMemoryTicketAdapter,
++} from '@care/portal-domain-tickets/testing';
++import { AuthService } from '@care/shared-data-access-auth';
++import { provideUi } from '@care/shared-ui-layout';
++import { provideI18nTesting } from '@care/shared-util-i18n/testing';
++import { TicketListPage } from './ticket-list.page';
++
++// Khong co HttpClient trong test: man hinh chay hoan toan tren fake adapter.
++describe('TicketListPage', () => {
++  let port: InMemoryTicketAdapter;
++
++  beforeEach(async () => {
++    port = new InMemoryTicketAdapter().seed([
++      aTicket({ code: 'TK-A', assignee: 'agent1' }),
++      aTicket({ code: 'TK-B', assignee: 'agent2' }),
++      aTicket({ code: 'TK-C', assignee: null, status: 'RESOLVED' }),
++    ]);
++
++    await TestBed.configureTestingModule({
++      imports: [TicketListPage],
++      providers: [
++        provideRouter([]),
++        provideUi(),
++        provideI18nTesting(),
++        { provide: TicketPort, useValue: port },
++        { provide: AuthService, useValue: { username: signal('agent1') } },
++      ],
++    }).compileComponents();
++  });
++
++  // nz-table chen them mot hang do (measure row) rong o dau tbody -> bo qua.
++  function codes(el: HTMLElement): string[] {
++    return [...el.querySelectorAll('tbody tr td:first-child')]
++      .map((td) => td.textContent?.trim() ?? '')
++      .filter(Boolean);
++  }
++
++  it('hien thi phieu tu TicketPort, bat dau o trang 0 khong loc', async () => {
++    const fixture = TestBed.createComponent(TicketListPage);
++    await fixture.whenStable();
++
++    expect(codes(fixture.nativeElement)).toEqual(['TK-A', 'TK-B', 'TK-C']);
++    expect(port.calls[0].query).toEqual({
++      status: null,
++      priority: null,
++      assignee: null,
++    });
++    expect(port.calls[0].page.page).toBe(0);
++  });
++
++  it('"Chi phieu cua toi" truyen username dang nhap xuong port', async () => {
++    const fixture = TestBed.createComponent(TicketListPage);
++    await fixture.whenStable();
++
++    const checkbox = fixture.nativeElement.querySelector(
++      'label[nz-checkbox]',
++    ) as HTMLElement;
++    checkbox.click();
++    await fixture.whenStable();
++
++    expect(port.calls.at(-1)?.query.assignee).toBe('agent1');
++    expect(codes(fixture.nativeElement)).toEqual(['TK-A']);
++  });
++});
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.ts
+index b3a79ca..f634a03 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.ts
+@@ -9,6 +9,11 @@ import {
+ import { rxResource } from '@angular/core/rxjs-interop';
+ import { FormsModule } from '@angular/forms';
+ import { RouterLink } from '@angular/router';
++import {
++  TicketPort,
++  TicketPriority,
++  TicketStatus,
++} from '@care/portal-domain-tickets';
+ import { AuthService } from '@care/shared-data-access-auth';
+ import { DATE_FORMAT, TIME_FORMAT } from '@care/shared-util-i18n';
+ import { TranslocoPipe } from '@jsverse/transloco';
+@@ -23,9 +28,6 @@ import {
+   TICKET_CATEGORY,
+   TICKET_PRIORITY,
+   TICKET_STATUS,
+-  TicketApi,
+-  TicketPriority,
+-  TicketStatus,
+   toOptions,
+   toPageRequest,
+ } from '@care/shared-data-access-api';
+@@ -58,7 +60,8 @@ import { NzTagComponent } from 'ng-zorro-antd/tag';
+   changeDetection: ChangeDetectionStrategy.OnPush,
+ })
+ export class TicketListPage {
+-  private readonly api = inject(TicketApi);
++  /** Chi phu thuoc hop dong; adapter (HTTP hay fake) do app/test cung cap. */
++  private readonly tickets = inject(TicketPort);
+   private readonly auth = inject(AuthService);
+ 
+   protected readonly dateFormat = DATE_FORMAT;
+@@ -93,14 +96,14 @@ export class TicketListPage {
+ 
+   protected readonly result = rxResource({
+     params: () => ({ search: this.filters(), page: this.page() }),
+-    stream: ({ params }) => this.api.search(params.search, params.page),
++    stream: ({ params }) => this.tickets.search(params.search, params.page),
+   });
+ 
+   protected readonly rows = computed(() =>
+-    this.result.hasValue() ? this.result.value().content : [],
++    this.result.hasValue() ? this.result.value().items : [],
+   );
+   protected readonly total = computed(() =>
+-    this.result.hasValue() ? this.result.value().totalElements : 0,
++    this.result.hasValue() ? this.result.value().total : 0,
+   );
+ 
+   protected readonly hasFilters = computed(
+diff --git a/frontend/tsconfig.base.json b/frontend/tsconfig.base.json
+index 4f1007e..2eb8c47 100644
+--- a/frontend/tsconfig.base.json
++++ b/frontend/tsconfig.base.json
+@@ -39,6 +39,15 @@
+       "@care/shared-util-i18n": ["./libs/shared/util-i18n/src/index.ts"],
+       "@care/shared-util-i18n/testing": [
+         "./libs/shared/util-i18n/src/testing.ts"
++      ],
++      "@care/portal-domain-tickets": [
++        "./libs/portal/domain-tickets/src/index.ts"
++      ],
++      "@care/portal-domain-tickets/testing": [
++        "./libs/portal/domain-tickets/src/testing.ts"
++      ],
++      "@care/portal-data-access-tickets": [
++        "./libs/portal/data-access-tickets/src/index.ts"
+       ]
+     }
+   },

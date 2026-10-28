@@ -1,19 +1,27 @@
-# Lab buổi 1 — Kiến trúc dự án lớn
+# Lab buổi 1 — Kiến trúc Angular cho dự án lớn
 
-**Thời gian:** 90 phút · **Điểm xuất phát:** code hiện tại của repo (tag `session01-start`)
+**Thời gian:** 120 phút · **Điểm xuất phát:** code hiện tại của repo (tag `session01-start`)
+
+**Use case.** Màn hình *Phiếu yêu cầu* (`TicketListPage`) đang inject thẳng `TicketApi` và đọc `content`, `totalElements`
+của Spring Page. Muốn test màn hình phải giả lập HTTP; backend đổi hình dạng response thì phải sửa component.
+Lab tách màn hình này thành **hợp đồng `TicketPort` + HTTP adapter**, rồi thay bằng **fake adapter** để chứng minh màn hình test được độc lập.
 
 Sau lab này bạn sẽ:
-- Đọc được cấu trúc một Nx monorepo và đồ thị phụ thuộc giữa các project.
-- Tự tạo một feature lib đúng quy ước, nối vào app bằng lazy loading.
-- Hiểu vì sao ESLint chặn import sai tầng, và sửa được lỗi đó.
-- Dùng cấu hình runtime để một bản build chạy được trên nhiều môi trường.
+- Vẽ được sơ đồ phụ thuộc của workspace trước và sau khi tách.
+- Tự tạo lib đúng quy ước, nối vào app bằng lazy loading.
+- Tách port (domain) và adapter (data access), nối chúng ở composition root bằng DI theo route.
+- Viết test màn hình chạy trên fake adapter, không có HttpClient.
+- Thêm luật import và chạy chúng như CI.
+
+**Sản phẩm nộp cuối buổi** (theo nhóm 4–5 người): ảnh/ file sơ đồ phụ thuộc trước và sau, `docs/adr/0002-tach-ticket-port.md`,
+nhánh code pass `npx nx run-many -t lint test build`.
 
 Trước khi bắt đầu: `docker compose -f infra/docker-compose.yml up -d` và `npm start` đều đang chạy, đăng nhập được `agent1`/`agent1` (xem [course/setup/environment.md](../../setup/environment.md)).
 Tất cả lệnh `nx` chạy trong thư mục `frontend/`.
 
 ---
 
-## Bài 1 — Khám phá workspace (15 phút)
+## Bài 1 — Khám phá workspace, vẽ sơ đồ phụ thuộc (15 phút)
 
 ```bash
 npx nx show projects
@@ -29,10 +37,12 @@ Trả lời các câu hỏi sau (ghi vào giấy hoặc file nháp):
 4. Mở `eslint.config.mjs` ở thư mục gốc. Một lib `type:ui` được phép import lib loại nào?
 5. Mở `apps/portal/src/app/app.routes.ts`. Vì sao màn hình thuê bao dùng `loadChildren` thay vì `component`?
 6. Chạy `npx nx build portal` rồi xem bảng output. Tìm chunk tên `subscriber-list-page`: nó nằm ở **Initial** hay **Lazy**?
+7. Vẽ tay (giấy, draw.io hoặc Mermaid) **sơ đồ phụ thuộc** của `portal-feature-tickets`: nó phụ thuộc lib nào, và từ
+   `TicketListPage` đi qua những lớp nào để tới HTTP? Giữ bản vẽ này, cuối lab vẽ lại để so sánh.
 
 ---
 
-## Bài 2 — Thêm màn hình "Gói cước" (45 phút)
+## Bài 2 — Thêm màn hình "Gói cước" (30 phút)
 
 Nghiệp vụ: nhân viên CSKH cần xem danh sách gói cước, lọc theo Trả trước / Trả sau.
 Backend đã có sẵn API `GET /api/service-plans?type=PREPAID|POSTPAID`, và FE đã có sẵn `ServicePlanApi` trong
@@ -96,32 +106,150 @@ Tạo `src/lib/service-plan.routes.ts` export `servicePlanRoutes`, dùng `loadCo
 
 ---
 
-## Bài 3 — Phá luật và sửa luật (15 phút)
+## Bài 3 — Tách TicketPort và HTTP adapter (40 phút)
 
-1. Trong `service-plan.routes.ts`, thêm dòng:
+Mục tiêu: `TicketListPage` chỉ biết một hợp đồng. Đích đến:
 
-   ```ts
-   import { subscriberRoutes } from '@care/portal-feature-subscribers';
-   ```
+```
+apps/portal ──► portal-feature-tickets ──► portal-domain-tickets   (TicketPort, TicketSummary…)
+     │                                            ▲
+     └────────► portal-data-access-tickets ───────┘   (HttpTicketAdapter → TicketApi)
+```
 
-   Chạy `npx nx lint portal-feature-service-plans`. Ghi lại thông báo lỗi.
+### 3.1 Tạo hai lib
 
-2. Thay bằng import đường dẫn tương đối:
+```bash
+npx nx g @nx/angular:library libs/portal/domain-tickets \
+  --name=portal-domain-tickets --tags=scope:portal,type:domain
+npx nx g @nx/angular:library libs/portal/data-access-tickets \
+  --name=portal-data-access-tickets --tags=scope:portal,type:data-access
+```
 
-   ```ts
-   import { SubscriberListPage } from '../../../feature-subscribers/src/lib/subscriber-list/subscriber-list.page';
-   ```
+Xóa thư mục component mẫu mà generator sinh ra trong `src/lib/` của cả hai lib. Lib domain chưa có test: thêm
+`passWithNoTests: true` vào `vite.config.mts` của nó.
 
-   Chạy lint lại. Lỗi lần này khác lần trước như thế nào?
+Tag `type:domain` chưa có trong luật: trong `eslint.config.mjs` ở thư mục gốc, thêm `'type:domain'` vào danh sách được phép của
+`type:app`, `type:feature`, `type:data-access`, và thêm luật mới cho chính nó:
 
-3. Câu hỏi thảo luận: giả sử màn hình Gói cước cần dùng lại **bảng hiển thị thuê bao** của feature-subscribers.
-   Bạn sẽ chuyển phần đó vào lib nào, với tag gì? Vẽ lại mũi tên phụ thuộc sau khi chuyển.
+```js
+{ sourceTag: 'type:domain', onlyDependOnLibsWithTags: ['type:domain', 'type:util'] },
+```
 
-Xóa các dòng thử nghiệm trước khi làm bài tiếp theo.
+### 3.2 Domain: mô hình và port
+
+Trong `libs/portal/domain-tickets/src/lib/`:
+
+- `ticket.ts`: các type `TicketStatus`, `TicketPriority`, `TicketCategory`, `TicketSummary` (chỉ những trường màn hình danh sách
+  dùng: xem template), `TicketQuery` (`status`, `priority`, `assignee`), `PageQuery` (`page`, `size`, `sort?`),
+  `TicketPage` (`items`, `total`).
+- `ticket.port.ts`:
+
+  ```ts
+  export abstract class TicketPort {
+    abstract search(query: TicketQuery, page: PageQuery): Observable<TicketPage>;
+  }
+  ```
+
+Export cả hai file từ `src/index.ts`. **Không import gì từ `@angular/*`** trong lib này.
+
+> Vì sao `abstract class` chứ không phải `interface`? Interface biến mất sau khi biên dịch nên không làm DI token được;
+> abstract class vừa là kiểu vừa là token.
+
+### 3.3 Adapter HTTP
+
+Trong `libs/portal/data-access-tickets/src/lib/http-ticket.adapter.ts`:
+
+- `HttpTicketAdapter extends TicketPort`, `@Injectable()` (không `providedIn`), inject `TicketApi`.
+- `search()` gọi `TicketApi.search()` rồi `map` Spring Page → `TicketPage`: `content` → `items` (chuyển từng phần tử
+  bằng hàm `toSummary`), `totalElements` → `total`.
+- Hàm `provideHttpTicketPort()` trả về `[{ provide: TicketPort, useClass: HttpTicketAdapter }]`.
+
+Export từ `src/index.ts`.
+
+### 3.4 Đổi màn hình và nối ở composition root
+
+1. `TicketListPage`: thay `inject(TicketApi)` bằng `inject(TicketPort)`; lấy `TicketStatus`, `TicketPriority` từ
+   `@care/portal-domain-tickets`; đọc `items`/`total` thay cho `content`/`totalElements`.
+2. `apps/portal/src/app/app.routes.ts`: thêm `providers: [provideHttpTicketPort()]` vào route `tickets`.
+
+### 3.5 Kiểm tra
+
+- [ ] http://localhost:4200/tickets hiển thị, lọc, phân trang như trước (so sánh tab Network: cùng request)
+- [ ] `grep -rn "TicketApi" libs/portal/feature-tickets` không còn kết quả
+- [ ] `npx nx graph`: `portal-feature-tickets` có mũi tên tới `portal-domain-tickets`; `portal` có mũi tên tới `portal-data-access-tickets`
+
+> **Bẫy hay gặp:** quên `providers` ở route → vào trang Phiếu báo `NullInjectorError: No provider for TicketPort`.
+> Đặt `provideHttpTicketPort()` trong `ticket.routes.ts` của feature thì chạy được, nhưng feature lại phụ thuộc adapter HTTP:
+> đúng chỗ là app.
 
 ---
 
-## Bài 4 — Một bản build, nhiều môi trường (15 phút, nâng cao)
+## Bài 4 — Fake adapter và test độc lập (20 phút)
+
+1. Tạo `libs/portal/domain-tickets/src/testing.ts` với:
+   - `InMemoryTicketAdapter extends TicketPort`: `seed(tickets)`, lọc theo `status`/`priority`/`assignee`, cắt trang theo
+     `page`/`size`, lưu mỗi lần gọi vào mảng `calls`.
+   - `aTicket(overrides)`: tạo `TicketSummary` mặc định hợp lệ.
+2. Thêm path `"@care/portal-domain-tickets/testing"` trỏ tới file này trong `tsconfig.base.json`
+   (tham khảo `@care/shared-util-i18n/testing`).
+3. Viết `ticket-list.page.spec.ts` trong feature-tickets. Providers: `provideRouter([])`, `provideUi()`, `provideI18nTesting()`,
+   `{ provide: TicketPort, useValue: port }`, `AuthService` giả chỉ có `username: signal('agent1')`. Hai test:
+   - Lần gọi đầu tiên tới port có `page.page === 0` và không có bộ lọc; bảng hiện đúng mã phiếu đã seed.
+   - Bấm checkbox *Chỉ phiếu của tôi* → lần gọi cuối có `assignee === 'agent1'`, bảng chỉ còn phiếu của agent1.
+4. Viết `http-ticket.adapter.spec.ts` trong data-access-tickets bằng `provideHttpClientTesting()`: kiểm tra URL, query param
+   `status`, `page`, và kết quả đã chuyển sang `items`/`total`.
+5. **Thử nhanh không cần backend:** tạm đổi provider ở route `tickets` thành
+   `{ provide: TicketPort, useValue: new InMemoryTicketAdapter().seed([aTicket(), aTicket()]) }`, tắt container `api` → trang Phiếu
+   vẫn hiển thị. **Trả lại `provideHttpTicketPort()` sau khi thử.**
+
+> nz-table chèn một hàng đo (measure row) rỗng ở đầu `tbody`: khi đọc cột đầu tiên, lọc bỏ chuỗi rỗng.
+
+Kiểm tra: `npx nx test portal-feature-tickets` và `npx nx test portal-data-access-tickets` đều pass, **không có HTTP thật**.
+
+---
+
+## Bài 5 — Luật import và chạy như CI (15 phút)
+
+1. Bổ sung luật trong `eslint.config.mjs` gốc:
+   - `type:feature`: `bannedExternalImports: ['@angular/common/http']`
+   - `type:domain`: `bannedExternalImports: ['@angular/core*', '@angular/common*', '@angular/router*', '@angular/forms*', 'ng-zorro-antd*']`
+     (không cấm `@angular/compiler` vì `test-setup.ts` do generator sinh ra dùng nó)
+2. Trong `libs/portal/feature-tickets/eslint.config.mjs`, thêm `no-restricted-imports` chặn import `TicketApi` từ
+   `@care/shared-data-access-api`, kèm message nhắc ADR-0002.
+3. Phá luật để thấy lỗi, ghi lại thông báo:
+   - Trong `TicketListPage`: `import { TicketApi } from '@care/shared-data-access-api';` và `import { HttpClient } from '@angular/common/http';`
+   - Trong `ticket.port.ts`: `import { Injectable } from '@angular/core';`
+   - Trong `ticket.port.ts`: import bất kỳ thứ gì từ `@care/shared-data-access-api`
+
+   Chạy `npx nx run-many -t lint -p portal-feature-tickets portal-domain-tickets`. **Xóa các dòng thử.**
+4. Viết job CI chạy luật cho mọi push/PR. Repo dùng GitHub: `.github/workflows/ci.yml` với các bước `actions/checkout`,
+   `actions/setup-node` (đọc `frontend/.nvmrc`), `npm ci`, `npx nx run-many -t lint` (thư mục `frontend`). Nếu dự án của bạn dùng GitLab:
+
+   ```yaml
+   architecture:
+     image: node:24
+     script:
+       - cd frontend && npm ci && npx nx run-many -t lint
+   ```
+
+5. Chạy gate như CI ở máy: `npx nx run-many -t lint test build`.
+
+Câu hỏi thảo luận (chuẩn bị cho review chéo):
+- Port hiện chỉ có `search`. Buổi 2 thêm *tạo phiếu* và *duyệt phiếu*: port nên thêm method, hay tách port khác?
+- Màn hình Thuê bao có cần tách port tương tự không? Lý do tách/không tách (chi phí so với lợi ích).
+
+---
+
+## Review chéo (20 phút): sơ đồ và ADR
+
+Mỗi nhóm điền `docs/adr/0002-tach-ticket-port.md` theo mẫu [course/_templates/adr.md](../../_templates/adr.md)
+(tham khảo `docs/adr/0001-dung-ng-zorro-thay-primeng.md`), gồm: bối cảnh (dấu hiệu quan sát được ở Bài 1), ít nhất 3 phương án,
+quyết định, hệ quả, **cách kiểm chứng** (luật lint, test nào). Kèm sơ đồ phụ thuộc trước/sau (Mermaid trong ADR là đủ).
+Nhóm khác review theo 3 câu: chiều phụ thuộc có đúng không? luật nào giữ quyết định? phương án bị loại có được nêu lý do?
+
+---
+
+## Bài mở rộng — Một bản build, nhiều môi trường (làm ở nhà hoặc khi xong sớm)
 
 Yêu cầu: header hiện nhãn môi trường (ví dụ `DEV`, `TEST`) đọc từ `config.json`. Ở production không có nhãn.
 **Không** dùng `environment.ts`.
@@ -143,6 +271,8 @@ Mở trang: thấy nhãn **DEV**. Sửa `dist/apps/portal/browser/config.json` t
 nhãn đổi thành **TEST**.
 
 > Nhớ cập nhật `app.spec.ts`: component giờ inject `APP_CONFIG` nên test phải provide giá trị này.
+
+> Chủ đề này được dùng lại ở buổi 9 (build một lần, triển khai nhiều môi trường).
 
 ---
 

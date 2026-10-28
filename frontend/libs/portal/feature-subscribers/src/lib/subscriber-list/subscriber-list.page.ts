@@ -73,7 +73,7 @@ export class SubscriberListPage {
   protected readonly statusOptions = toOptions(SUBSCRIBER_STATUS);
   protected readonly typeOptions = toOptions(SUBSCRIBER_TYPE);
 
-  // --- Bo loc: signal cho state, RxJS cho debounce (buoi 2: interop signals <-> observables) ---
+  // --- Bo loc: signal cho state, RxJS cho debounce (buoi 3: interop signals <-> observables) ---
   protected readonly keyword = signal('');
   private readonly debouncedKeyword = toSignal(
     toObservable(this.keyword).pipe(debounceTime(400), distinctUntilChanged()),

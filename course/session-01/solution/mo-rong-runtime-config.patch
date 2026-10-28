@@ -137,7 +137,7 @@ index b060c3e..ec706be 100644
 +++ b/frontend/libs/shared/util-config/src/lib/app-config.ts
 @@ -2,6 +2,8 @@ import { InjectionToken, Provider } from '@angular/core';
  
- /** Cau hinh runtime, doc tu /config.json luc khoi dong -> 1 ban build chay duoc moi moi truong (buoi 7). */
+ /** Cau hinh runtime, doc tu /config.json luc khoi dong -> 1 ban build chay duoc moi moi truong (buoi 9). */
  export interface AppConfig {
 +  /** Ten moi truong hien tren header, vd "DEV", "TEST". Bo trong o production. */
 +  environmentName?: string;

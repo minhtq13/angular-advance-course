@@ -81,3 +81,8 @@ Docker Desktop: Settings → Resources → Proxies.
 | Không cài được Docker trên máy công ty | Báo giảng viên: lớp sẽ có một máy chủ chung chạy backend. Bạn chỉ cần sửa `apiUrl` trong `frontend/apps/portal/public/config.json` |
 
 Chi tiết về cơ sở dữ liệu: [database.md](database.md).
+
+## Chuẩn bị thêm cho các buổi sau
+
+- **Buổi 7 (SSO):** cần thêm Keycloak chạy trong Docker (profile `sso`, không cài gì thêm vào máy). Giảng viên sẽ gửi lệnh tải image trước buổi 7, để không phải tải trong lớp.
+- **Buổi 7 (E2E):** tải trình duyệt cho Playwright: `cd frontend && npx playwright install chromium`.

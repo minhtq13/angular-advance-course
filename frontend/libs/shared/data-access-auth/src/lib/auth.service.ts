@@ -45,7 +45,7 @@ const STORAGE_KEY = 'care.auth';
 
 /**
  * Dang nhap bang JWT do backend phat: POST /api/auth/login -> access + refresh token.
- * Token luu trong sessionStorage (mat khi dong tab). Buoi 5 se ban ve noi luu token va lam refresh token.
+ * Token luu trong sessionStorage (mat khi dong tab). Buoi 6 se ban ve noi luu token va lam refresh token.
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {

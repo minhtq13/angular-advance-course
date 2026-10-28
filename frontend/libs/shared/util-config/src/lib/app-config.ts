@@ -1,6 +1,6 @@
 import { InjectionToken, Provider } from '@angular/core';
 
-/** Cau hinh runtime, doc tu /config.json luc khoi dong -> 1 ban build chay duoc moi moi truong (buoi 7). */
+/** Cau hinh runtime, doc tu /config.json luc khoi dong -> 1 ban build chay duoc moi moi truong (buoi 9). */
 export interface AppConfig {
   apiUrl: string;
 }
