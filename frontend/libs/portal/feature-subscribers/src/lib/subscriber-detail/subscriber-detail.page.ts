@@ -36,6 +36,8 @@ import { NzPopconfirmDirective } from 'ng-zorro-antd/popconfirm';
 import { NzSkeletonComponent } from 'ng-zorro-antd/skeleton';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTagComponent } from 'ng-zorro-antd/tag';
+import { tap } from 'rxjs';
+import { RecentSubscribers } from '../recent/recent-subscribers';
 
 @Component({
   selector: 'care-subscriber-detail-page',
@@ -63,6 +65,7 @@ export class SubscriberDetailPage {
   private readonly auth = inject(AuthService);
   private readonly message = inject(NzMessageService);
   private readonly transloco = inject(TranslocoService);
+  private readonly recent = inject(RecentSubscribers);
 
   /** Bind tu route param :id nho withComponentInputBinding(). */
   readonly id = input.required({ transform: numberAttribute });
@@ -76,7 +79,14 @@ export class SubscriberDetailPage {
 
   protected readonly subscriber = rxResource({
     params: () => this.id(),
-    stream: ({ params: id }) => this.subscriberApi.get(id),
+    stream: ({ params: id }) =>
+      this.subscriberApi
+        .get(id)
+        .pipe(
+          tap(({ id, msisdn, fullName }) =>
+            this.recent.add({ id, msisdn, fullName }),
+          ),
+        ),
   });
 
   protected readonly tickets = rxResource({

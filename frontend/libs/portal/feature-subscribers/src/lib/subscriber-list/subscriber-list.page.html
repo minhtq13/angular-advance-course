@@ -6,6 +6,17 @@
   >
 </div>
 
+@if (recent().length) {
+<nav class="recent mb" [attr.aria-label]="'subscriber.recent' | transloco">
+  <span class="muted">{{ 'subscriber.recent' | transloco }}:</span>
+  @for (s of recent(); track s.id) {
+  <a class="cell-link" [routerLink]="['/subscribers', s.id]"
+    >{{ s.msisdn }} · {{ s.fullName }}</a
+  >
+  }
+</nav>
+}
+
 <div
   class="filters"
   role="search"

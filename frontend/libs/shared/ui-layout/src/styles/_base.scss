@@ -186,6 +186,14 @@ html[data-theme='dark'] {
   margin-left: auto;
 }
 
+// Hang lien ket nhanh (vd thue bao xem gan day).
+.recent {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--care-space-2) var(--care-space-4);
+  align-items: baseline;
+}
+
 .section-title {
   margin: var(--care-space-6) 0 var(--care-space-3);
   font-size: 16px;

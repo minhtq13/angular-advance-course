@@ -40,6 +40,7 @@ import { NzOptionComponent, NzSelectComponent } from 'ng-zorro-antd/select';
 import { NzTableModule, NzTableQueryParams } from 'ng-zorro-antd/table';
 import { NzTagComponent } from 'ng-zorro-antd/tag';
 import { debounceTime, distinctUntilChanged } from 'rxjs';
+import { RecentSubscribers } from '../recent/recent-subscribers';
 
 @Component({
   selector: 'care-subscriber-list-page',
@@ -66,6 +67,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs';
 export class SubscriberListPage {
   private readonly api = inject(SubscriberApi);
   private readonly router = inject(Router);
+  protected readonly recent = inject(RecentSubscribers).items;
 
   protected readonly dateFormat = DATE_FORMAT;
   protected readonly statusLabels = SUBSCRIBER_STATUS;
