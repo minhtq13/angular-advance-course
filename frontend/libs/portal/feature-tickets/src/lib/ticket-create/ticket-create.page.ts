@@ -1,6 +1,7 @@
 import {
   afterNextRender,
   ChangeDetectionStrategy,
+  computed,
   Component,
   DestroyRef,
   ElementRef,
@@ -25,6 +26,7 @@ import {
   TicketPriority,
   TicketValidationError,
 } from '@care/portal-domain-tickets';
+import { safeReturnUrl } from '@care/shared-data-access-auth';
 import {
   TICKET_CATEGORY,
   TICKET_PRIORITY,
@@ -48,6 +50,17 @@ type FieldName =
 /** Thong bao loi cua mot truong: key dich (loi client) hoac chu da dich san (loi server). */
 type FieldError =
   { key: string; params?: Record<string, unknown> } | { text: string };
+
+const LIST_URL = '/tickets';
+
+/**
+ * Chi quay ve danh sach phieu (kem bo loc cua no); URL khac -> danh sach mac dinh.
+ * returnUrl den tu query param: khong tin, chong open redirect.
+ */
+function backToList(url: unknown): string {
+  const safe = safeReturnUrl(url);
+  return safe === LIST_URL || safe.startsWith(`${LIST_URL}?`) ? safe : LIST_URL;
+}
 
 /** "?subscriberId=12" -> 12; thieu hoac sai -> undefined. */
 function toId(value: unknown): number | undefined {
@@ -83,6 +96,11 @@ export class TicketCreatePage implements OnInit {
   readonly subscriberId = input<number | undefined, unknown>(undefined, {
     transform: toId,
   });
+  /** Danh sach (kem bo loc) de quay ve sau khi tao hoac khi bam Huy: /tickets/new?returnUrl=%2Ftickets%3Fstatus%3DNEW */
+  readonly returnUrl = input<string>();
+  protected readonly backUrl = computed(() =>
+    this.router.parseUrl(backToList(this.returnUrl())),
+  );
 
   protected readonly categoryOptions = toOptions(TICKET_CATEGORY);
   protected readonly priorityOptions = toOptions(TICKET_PRIORITY);
@@ -152,7 +170,8 @@ export class TicketCreatePage implements OnInit {
       .subscribe({
         next: (ticket) => {
           this.idempotencyKey = crypto.randomUUID();
-          this.router.navigate(['/tickets'], {
+          // Ve dung danh sach dang loc; danh sach tai lai tu server nen thay ngay phieu moi.
+          this.router.navigateByUrl(this.backUrl(), {
             state: { created: ticket.code },
           });
         },

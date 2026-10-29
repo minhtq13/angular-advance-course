@@ -1,10 +1,15 @@
 <div class="page-header">
   <h1>{{ 'nav.tickets' | transloco }}</h1>
   <span class="muted tabular" role="status"
-    >{{ 'ticket.count' | transloco: { count: (total() | translocoDecimal) }
-    }}</span
+    >{{ 'ticket.count' | transloco: { count: (store.total() | translocoDecimal)
+    } }}</span
   >
-  <a nz-button nzType="primary" class="page-action" routerLink="/tickets/new"
+  <a
+    nz-button
+    nzType="primary"
+    class="page-action"
+    routerLink="/tickets/new"
+    [queryParams]="{ returnUrl: store.listUrl() }"
     >{{ 'ticket.new' | transloco }}</a
   >
 </div>
@@ -51,8 +56,8 @@
       nzId="tk-status"
       nzAllowClear
       [nzPlaceHolder]="'common.all' | transloco"
-      [ngModel]="status()"
-      (ngModelChange)="status.set($event)"
+      [ngModel]="store.filters().status"
+      (ngModelChange)="store.setFilters({ status: $event })"
     >
       @for (o of statusOptions; track o.value) {
       <nz-option [nzValue]="o.value" [nzLabel]="o.labelKey | transloco" />
@@ -65,8 +70,8 @@
       nzId="tk-priority"
       nzAllowClear
       [nzPlaceHolder]="'common.all' | transloco"
-      [ngModel]="priority()"
-      (ngModelChange)="priority.set($event)"
+      [ngModel]="store.filters().priority"
+      (ngModelChange)="store.setFilters({ priority: $event })"
     >
       @for (o of priorityOptions; track o.value) {
       <nz-option [nzValue]="o.value" [nzLabel]="o.labelKey | transloco" />
@@ -76,19 +81,19 @@
   <div class="filters-actions">
     <label
       nz-checkbox
-      [ngModel]="onlyMine()"
-      (ngModelChange)="onlyMine.set($event)"
+      [ngModel]="store.filters().onlyMine"
+      (ngModelChange)="store.setFilters({ onlyMine: $event })"
       >{{ 'ticket.onlyMine' | transloco }}</label
     >
-    @if (hasFilters()) {
-    <button nz-button nzType="link" (click)="clearFilters()">
+    @if (store.hasFilters()) {
+    <button nz-button nzType="link" (click)="store.clearFilters()">
       {{ 'common.clearFilters' | transloco }}
     </button>
     }
   </div>
 </div>
 
-@if (result.error()) {
+@if (store.status() === 'error') {
 <nz-alert
   nzType="error"
   nzShowIcon
@@ -99,7 +104,7 @@
   role="alert"
 />
 <ng-template #retryTpl>
-  <button nz-button nzSize="small" (click)="result.reload()">
+  <button nz-button nzSize="small" (click)="store.reload()">
     <nz-icon nzType="reload" aria-hidden="true" /> {{ 'common.retry' | transloco
     }}
   </button>
@@ -112,11 +117,11 @@
     nzShowSizeChanger
     [nzPageSizeOptions]="[20, 50, 100]"
     [nzFrontPagination]="false"
-    [nzData]="rows()"
-    [nzTotal]="total()"
-    [nzPageIndex]="page().page + 1"
-    [nzPageSize]="page().size"
-    [nzLoading]="result.isLoading()"
+    [nzData]="store.items()"
+    [nzTotal]="store.total()"
+    [nzPageIndex]="store.page().page + 1"
+    [nzPageSize]="store.page().size"
+    [nzLoading]="store.status() === 'loading'"
     [nzScroll]="{ x: '1300px' }"
     [nzNoResult]="emptyTpl"
     (nzQueryParams)="onQueryParams($event)"
@@ -142,7 +147,7 @@
       </tr>
     </thead>
     <tbody>
-      @for (t of rows(); track t.id) {
+      @for (t of store.items(); track t.id) {
       <tr
         care-ticket-row
         [ticket]="t"
@@ -158,8 +163,8 @@
 <ng-template #emptyTpl>
   <div class="empty-state">
     <p>{{ 'ticket.empty' | transloco }}</p>
-    @if (hasFilters()) {
-    <button nz-button (click)="clearFilters()">
+    @if (store.hasFilters()) {
+    <button nz-button (click)="store.clearFilters()">
       {{ 'common.clearFilters' | transloco }}
     </button>
     }
