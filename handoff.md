@@ -30,11 +30,14 @@ Viết cho: người hoặc phiên Claude Code sẽ làm tiếp dự án này.
 - **Mô hình git theo nhánh** (người dùng chốt 2026-10-29, thay cho tag): `sessionXX-start` là điểm bắt đầu lab, đáp án của buổi XX là patch trong
   `course/session-XX/solution/`. Khi chuẩn bị buổi kế tiếp: áp patch, commit "Áp đáp án buổi XX (sessionXX-end)", tạo nhánh `sessionXX-end`, rồi commit
   phần chuẩn bị của buổi sau và gắn `session(XX+1)-start`. Tài liệu `course/` luôn mới nhất trên `main`.
-- Nhánh hiện có (đã push): `session01-start` (5a7ad8c), `session01-end` (c825bd8), `session02-start` (68cb8c4); local có thêm `buoi-01`, `buoi-02`. Không còn tag (đã xóa vì trùng tên nhánh gây nhập nhằng khi checkout). `main` đang ở **trạng thái bắt đầu lab buổi 2**.
+- Nhánh hiện có (đã push): `session01-start` (5a7ad8c), `session01-end` (c825bd8), `session02-start` (68cb8c4); local có thêm `session02-end` (chưa push). Không còn tag (đã xóa vì trùng tên nhánh gây nhập nhằng khi checkout). `main` đang ở **trạng thái bắt đầu lab buổi 2**.
 - **Buổi 1, buổi 2 đã soạn đủ**: slide (PDF, PPTX), lab 5 bài 120', đáp án dạng patch, `instructor-notes.md`, `note-cho-giang-vien.md`, bài tập về nhà.
   - Buổi 2 có 3 patch: `bai1-ticket-row`, `bai2-3-form-tao-phieu`, `bai4-5-duyet-va-idempotency`. Đã kiểm tra gate pass sau **từng** patch (16 project), áp/gỡ sạch, và spec E2E `ticket-flow.spec.ts` pass với backend thật.
   - Backend ở `session02-start`: `POST /api/tickets/{id}/approve` (chỉ SUPERVISOR), `IdempotencyStore` (trong bộ nhớ), `TicketApiTests` (19 test backend pass).
-- **Buổi 3–10:** `README.md` và `instructor-notes.md` có khung theo đề cương. Chưa có slide, lab chi tiết, đáp án.
+- **Buổi 3 đã soạn và đã commit (2026-10-29):** `main` ở code `session03-start` (đáp án buổi 2 + chuẩn bị buổi 3) kèm tài liệu buổi 3; nhánh `session03-start` và `session03-end` đã push.
+  - Chuẩn bị: backend `care.demo.slow-short-query` (`DEMO_SLOW_SHORT_QUERY`), `SubscriberPicker` (CVA) thay ô nhập mã thuê bao, `lookup()` có 4 lỗi cố ý.
+  - Đáp án 3 patch: `bai2-3-switchmap-va-test-thu-tu`, `bai4-luong-song-sau-loi`, `bai5-huy-dang-ky`. Test mới đỏ trước khi sửa, xanh sau khi sửa; tái hiện được trên trình duyệt thật.
+- **Buổi 4–10:** `README.md` và `instructor-notes.md` có khung theo đề cương. Chưa có slide, lab chi tiết, đáp án.
 - **Libs hiện có:**
   - `admin/feature-dashboard`
   - `portal/feature-{subscribers,tickets}`
@@ -48,7 +51,7 @@ Viết cho: người hoặc phiên Claude Code sẽ làm tiếp dự án này.
 
 ## 4. Việc còn dở
 1. Chỉ commit/push khi người dùng bảo rõ (xem memory `no-commit-without-asking`).
-2. **Soạn buổi 3** (Signals và RxJS). Bắt đầu bằng: áp 3 patch buổi 2 → commit + nhánh `session02-end`; chuẩn bị điểm bắt đầu (fake adapter có độ trễ theo query, commit cố ý dùng `mergeMap`) → nhánh `session03-start`.
+2. **Soạn buổi 4** (State và NgRx), bắt đầu từ `session03-end`.
 3. **Buổi 6** cần backend refresh rotation có trạng thái và phát hiện token reuse (hiện refresh token stateless).
 4. **Buổi 7:** thêm service `keycloak` vào `infra/docker-compose.yml` dưới `profiles: [sso]` + realm export; auth hỗ trợ 2 chế độ.
 5. **Buổi 10:** tạo fixture Angular 21 (`fixtures/legacy-a21/`).

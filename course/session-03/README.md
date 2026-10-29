@@ -1,7 +1,7 @@
 # Buổi 03 — Signals và RxJS cho luồng dữ liệu
 
 **Thời lượng:** 4 giờ (review và use case 20', khái niệm 40', live demo 30', nghỉ 10', lab 120', review chéo 20')
-**Trạng thái tài liệu:** đã có khung theo đề cương; chưa soạn slide, lab chi tiết, đáp án.
+**Điểm bắt đầu:** `git checkout session03-start` · **Đáp án:** 3 patch trong `solution/`, bản đầy đủ ở nhánh `session03-end`
 
 ## Theo đề cương
 
@@ -22,43 +22,59 @@ Sau buổi học, học viên có thể:
 
 ## Use case trên Care Portal
 
-- **Tìm kiếm thuê bao** (`SubscriberListPage`) dùng ô tìm kiếm có debounce trên 200.000 bản ghi. Gõ `091` rồi `0912`:
-  nếu request `091` về **sau** `0912`, bảng hiện sai kết quả. Tái hiện bằng độ trễ khác nhau theo query.
-- Thay `switchMap` bằng `mergeMap` để thấy lỗi, rồi khôi phục hủy request (tab Network hiện *canceled*).
-- Cho API trả 500 một lần: luồng phải tiếp tục nhận từ khóa mới.
-- Rời màn hình khi request đang chạy: không còn subscription, không còn log sau khi destroy.
+Form tạo phiếu (buổi 2) bắt gõ **mã thuê bao** dạng số. Buổi 3 thay bằng **ô chọn thuê bao có tìm kiếm** (`care-subscriber-picker`,
+cài `ControlValueAccessor`). Giao diện nối sẵn ở `session03-start`; logic nằm trong hàm `lookup()` và có 4 vấn đề cố ý:
 
-## Dự kiến lab (120 phút)
+| # | Vấn đề | Bài |
+|---|---|---|
+| 1 | `mergeMap`: kết quả từ khóa cũ về muộn ghi đè kết quả mới | 2–3 |
+| 2 | Không `trim`, `distinctUntilChanged`, độ dài tối thiểu, trạng thái đang tìm | 3 |
+| 3 | `catchError` ngoài: lỗi một lần, luồng chết | 4 |
+| 4 | `subscribe()` trần trong constructor: rời màn hình không hủy | 5 |
+
+Tái hiện trên trình duyệt bằng chế độ demo của backend: `DEMO_SLOW_SHORT_QUERY=true` làm từ khóa tìm thuê bao dưới 5 ký tự chậm 2 giây.
+
+## Lab (120 phút)
 
 | Bài | Nội dung | Phút |
 |---|---|---|
-| 1 | Đo hiện trạng: đọc pipeline tìm kiếm, vẽ sơ đồ sự kiện (marble) trên giấy | 15 |
-| 2 | Tái hiện truy vấn cũ trả về muộn bằng fake adapter có độ trễ theo query; đổi sang `mergeMap` để thấy lỗi | 30 |
-| 3 | Khôi phục hủy request, test theo trình tự sự kiện (fake timers / `TestScheduler`) | 30 |
-| 4 | Luồng sống sau lỗi: `catchError` đặt đúng chỗ, test lỗi rồi gõ tiếp | 25 |
-| 5 | Subscription khi rời màn hình: `takeUntilDestroyed`, `toSignal`; kiểm tra bằng test và DevTools | 20 |
+| 1 | Đọc pipeline, vẽ marble, dự đoán 4 vấn đề; so sánh với `rxResource` ở trang Thuê bao | 15 |
+| 2 | Tái hiện truy vấn cũ về muộn trên trình duyệt; viết test marble đỏ | 30 |
+| 3 | `switchMap`, `trim`, `distinctUntilChanged`, độ dài tối thiểu, `loading`; test hủy; `docs/bang-chon-operator.md` | 30 |
+| 4 | `catchError` trong `switchMap`; test lỗi rồi gõ tiếp | 25 |
+| 5 | `toSignal` thay `subscribe()`; test `observed` sau khi hủy component | 20 |
 
 ## Liên kết code
 
 | Khái niệm | File |
 |---|---|
-| Interop signal ↔ RxJS ở trang thuê bao | `frontend/libs/portal/feature-subscribers/src/lib/subscriber-list/subscriber-list.page.ts` |
-| `rxResource` + `linkedSignal` phân trang | `frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.ts` |
-| Fake adapter (thêm độ trễ) | `libs/portal/domain-tickets/src/testing.ts` (sau buổi 1) |
-| Tìm kiếm phía server (tiền tố SĐT, CCCD, tên) | `backend/.../subscriber/SubscriberSpecs.java` |
+| Pipeline tìm kiếm (trọng tâm lab) | `frontend/libs/portal/feature-tickets/src/lib/subscriber-picker/lookup.ts` + `lookup.spec.ts` |
+| Ô chọn thuê bao, `ControlValueAccessor` | `frontend/libs/portal/feature-tickets/src/lib/subscriber-picker/subscriber-picker.ts` |
+| `rxResource` + `linkedSignal` (đối chiếu) | `frontend/libs/portal/feature-subscribers/src/lib/subscriber-list/subscriber-list.page.ts` |
+| Debounce bằng `toSignal(toObservable(...))` | cùng file trên, `debouncedKeyword` |
+| Chế độ demo chậm | `backend/.../subscriber/SubscriberService.java`, `application.yml` (`care.demo.slow-short-query`), `infra/docker-compose.yml` |
 
-## Cần chuẩn bị trước khi soạn chi tiết
+## Đã chuẩn bị ở `session03-start`
 
-- [ ] Fake adapter cho thuê bao (hoặc tham số dev-only `?delayMs=` ở backend) để điều khiển độ trễ theo từng query.
-- [ ] Bảng lựa chọn operator mẫu trong `solution/` (ngữ nghĩa, khi nào dùng, rủi ro).
-- [ ] Một commit cố ý dùng `mergeMap` và `subscribe` không hủy để làm điểm xuất phát lab.
+- Đáp án buổi 2 đã áp (`session02-end`).
+- Backend: `care.demo.slow-short-query` (biến môi trường `DEMO_SLOW_SHORT_QUERY`, mặc định tắt).
+- Frontend: `SubscriberPicker` thay ô nhập mã thuê bao trong form tạo phiếu; `lookup()` có 4 vấn đề cố ý; key i18n vi/en cho ô chọn;
+  test form và spec E2E `ticket-flow` đã cập nhật theo ô chọn mới.
 
 ## Tài liệu
 
 | | |
 |---|---|
-| Slide | `slides/` (chưa soạn) |
-| Lab | `lab/` (chưa soạn) |
-| Đáp án | `solution/` (chưa soạn) |
-| Ghi chú giảng viên | [instructor-notes.md](instructor-notes.md) |
-| Bài tập về nhà | `../bai-tap-ve-nha/buoi-03-<chu-de>.html` (chưa soạn) |
+| Slide | [slides/slides.md](slides/slides.md) (nguồn Marp) · `buoi-03-signals-va-rxjs.pptx` · `buoi-03-signals-va-rxjs.pdf` |
+| Lab | [lab/README.md](lab/README.md) |
+| Đáp án | [solution/README.md](solution/README.md) + 3 file `.patch` |
+| Ghi chú giảng viên | [instructor-notes.md](instructor-notes.md) · [note-cho-giang-vien.md](note-cho-giang-vien.md) |
+| Bài tập về nhà | [../bai-tap-ve-nha/buoi-03-signals-va-rxjs.html](../bai-tap-ve-nha/buoi-03-signals-va-rxjs.html) |
+
+## Sửa slide
+
+```bash
+cd course/session-03/slides
+npx @marp-team/marp-cli@4 slides.md --pptx --allow-local-files -o buoi-03-signals-va-rxjs.pptx
+npx @marp-team/marp-cli@4 slides.md --pdf  --allow-local-files -o buoi-03-signals-va-rxjs.pdf
+```

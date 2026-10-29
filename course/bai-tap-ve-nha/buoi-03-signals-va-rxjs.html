@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BTVN Buổi 3 · Signals và RxJS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600&display=swap" />
+    <link rel="stylesheet" href="assets/lesson.css" />
+  </head>
+  <body>
+    <main>
+      <p class="kicker">Bài tập về nhà · Buổi 3 · Signals và RxJS cho luồng dữ liệu</p>
+      <h1>Chọn đúng công cụ cho luồng dữ liệu</h1>
+      <dl class="homework-meta">
+        <dt>Làm sau</dt>
+        <dd>Buổi 3 (<a href="../session-03/slides/buoi-03-signals-va-rxjs.pdf">slide</a> · <a href="../session-03/lab/README.md">lab</a>)</dd>
+        <dt>Hạn nộp</dt>
+        <dd>Trước buổi 4</dd>
+        <dt>Thời gian</dt>
+        <dd>Khoảng 30 phút</dd>
+        <dt>Cần</dt>
+        <dd>Trình duyệt và giấy bút. Không cần chạy dự án.</dd>
+      </dl>
+
+      <div class="goal">
+        <p><strong>Mục tiêu:</strong> chọn operator theo câu hỏi "sự kiện mới đến khi việc cũ chưa xong thì sao?", phân biệt chỗ dùng signal với
+          chỗ dùng Observable, và đọc được chuỗi marble.</p>
+        <p>Làm phần 0 trước khi mở slide.</p>
+      </div>
+
+      <h2>Phần 0 · Khởi động: viết ra giấy (4 phút)</h2>
+      <ol>
+        <li>Một câu: khi nào dùng signal, khi nào dùng Observable?</li>
+        <li>Bốn operator làm phẳng, mỗi cái làm gì khi sự kiện mới đến mà việc cũ chưa xong?</li>
+        <li><code>catchError</code> đặt ngoài và trong <code>switchMap</code> khác nhau thế nào?</li>
+        <li>Ba cách gắn subscription với vòng đời component.</li>
+      </ol>
+      <details>
+        <summary>Ôn lại sau khi đã viết xong</summary>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Câu</th><th>Ý chính</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>Signal cho <strong>trạng thái</strong> (luôn có giá trị hiện tại, đọc đồng bộ). Observable cho <strong>sự kiện theo thời gian</strong> (debounce, hủy, xếp hàng, chạy song song).</td></tr>
+              <tr><td>2</td><td><code>switchMap</code> hủy cũ; <code>concatMap</code> xếp hàng; <code>exhaustMap</code> bỏ qua mới; <code>mergeMap</code> chạy song song.</td></tr>
+              <tr><td>3</td><td>Ngoài: lỗi đầu tiên làm cả luồng hoàn tất. Trong: lỗi chỉ kết thúc request đó, luồng ngoài vẫn nhận sự kiện mới.</td></tr>
+              <tr><td>4</td><td><code>toSignal()</code>, <code>takeUntilDestroyed()</code>, <code>rxResource</code> (hoặc <code>async</code> pipe). Không <code>subscribe()</code> trần.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+
+      <h2>Phần 1 · Chọn operator làm phẳng (6 tình huống)</h2>
+      <p>Tự hỏi: "sự kiện mới đến khi việc cũ chưa xong thì muốn gì?". Ghi lại điểm.</p>
+      <div class="quiz" id="quiz-operator" data-quiz>
+        <script type="application/json">
+          {
+            "questions": [
+              {
+                "prompt": "Form ghi chú phiếu tự lưu nháp mỗi khi người dùng ngừng gõ 1 giây (PUT /draft). Các bản nháp phải tới server đúng thứ tự.",
+                "options": ["switchMap", "concatMap", "exhaustMap", "mergeMap"],
+                "answer": 1,
+                "explain": "Lệnh ghi cần đúng thứ tự: xếp hàng. switchMap có thể hủy bản lưu đang chạy; mergeMap có thể để bản cũ ghi đè bản mới."
+              },
+              {
+                "prompt": "Nút Đăng nhập. Người dùng bấm 3 lần liên tục trong lúc request đầu chưa xong.",
+                "options": ["switchMap", "concatMap", "exhaustMap", "mergeMap"],
+                "answer": 2,
+                "explain": "Các lần bấm thêm là vô nghĩa khi đang xử lý: bỏ qua cho tới khi xong."
+              },
+              {
+                "prompt": "Trang chi tiết thuê bao /subscribers/:id. Người dùng bấm nhanh qua 5 thuê bao trong danh sách.",
+                "options": ["switchMap", "concatMap", "exhaustMap", "mergeMap"],
+                "answer": 0,
+                "explain": "Chỉ thuê bao đang mở có ý nghĩa: hủy request của thuê bao trước. (rxResource với params là id cũng làm vậy.)"
+              },
+              {
+                "prompt": "Dashboard tải số liệu của 6 thẻ thống kê độc lập, mỗi thẻ một API.",
+                "options": ["switchMap", "concatMap", "exhaustMap", "mergeMap"],
+                "answer": 3,
+                "explain": "Các việc độc lập, không thay thế nhau: chạy song song (hoặc forkJoin nếu cần đợi đủ cả 6)."
+              },
+              {
+                "prompt": "Ô gợi ý địa chỉ khi đăng ký thuê bao, gọi API sau mỗi lần ngừng gõ.",
+                "options": ["switchMap", "concatMap", "exhaustMap", "mergeMap"],
+                "answer": 0,
+                "explain": "Giống ô chọn thuê bao trong lab: chỉ kết quả của từ khóa cuối có ý nghĩa."
+              },
+              {
+                "prompt": "Nhiều request cùng nhận 401 vì access token hết hạn; cần gọi /api/auth/refresh. Khi một lần refresh đang chạy, các 401 tiếp theo nên làm gì với việc refresh?",
+                "options": ["switchMap: hủy refresh cũ, gọi refresh mới", "concatMap: xếp hàng nhiều lần refresh", "exhaustMap / chia sẻ: không gọi thêm, chờ kết quả lần đang chạy", "mergeMap: mỗi 401 một lần refresh"],
+                "answer": 2,
+                "explain": "Chỉ một lần refresh; các request khác chờ kết quả đó. Gọi nhiều lần với refresh token xoay vòng sẽ bị coi là tái sử dụng token (buổi 6)."
+              }
+            ]
+          }
+        </script>
+      </div>
+
+      <h2>Phần 2 · Signal, computed hay effect? (5 câu)</h2>
+      <div class="quiz" id="quiz-signal" data-quiz>
+        <script type="application/json">
+          {
+            "questions": [
+              {
+                "prompt": "Số phiếu đang hiển thị = rows().length. Dùng gì?",
+                "options": ["signal + cập nhật tay", "computed", "effect ghi vào signal", "toSignal"],
+                "answer": 1,
+                "explain": "Giá trị suy ra, chỉ đọc: computed."
+              },
+              {
+                "prompt": "Lưu theme người dùng chọn vào localStorage mỗi khi đổi.",
+                "options": ["computed", "effect", "linkedSignal", "toObservable"],
+                "answer": 1,
+                "explain": "Đồng bộ ra ngoài Angular (localStorage): đúng việc của effect."
+              },
+              {
+                "prompt": "Trang hiện tại của bảng: đổi bộ lọc thì về trang 0, nhưng người dùng vẫn bấm chuyển trang được.",
+                "options": ["computed", "effect reset page khi filters đổi", "linkedSignal", "signal + subscribe"],
+                "answer": 2,
+                "explain": "Suy ra từ bộ lọc nhưng vẫn ghi đè được: linkedSignal (đúng như trang Thuê bao và trang Phiếu)."
+              },
+              {
+                "prompt": "fullName = first + ' ' + last. Một bạn viết effect(() => this.fullName.set(...)). Vấn đề chính là gì?",
+                "options": ["Chạy chậm hơn computed một nhịp, khó lần theo, dễ vòng lặp", "Không biên dịch được", "Rò bộ nhớ", "Không có vấn đề"],
+                "answer": 0,
+                "explain": "Giá trị suy ra viết bằng effect thì cập nhật muộn và khó đọc luồng dữ liệu. Dùng computed."
+              },
+              {
+                "prompt": "Ô tìm kiếm cần chờ người dùng ngừng gõ 300ms rồi mới cập nhật bộ lọc (đang là signal keyword).",
+                "options": ["computed với setTimeout", "effect với setTimeout", "toSignal(toObservable(keyword).pipe(debounceTime(300)))", "linkedSignal"],
+                "answer": 2,
+                "explain": "Có thời gian → RxJS. Đi qua toObservable rồi về lại bằng toSignal, như debouncedKeyword ở trang Thuê bao."
+              }
+            ]
+          }
+        </script>
+      </div>
+
+      <h2>Phần 3 · Vận dụng: kiểm tra số thuê bao trùng (10 phút)</h2>
+      <p>
+        Form <em>Đăng ký thuê bao mới</em> có ô <strong>Số thuê bao</strong>. Backend đã có
+        <code>GET /api/subscribers/msisdn-availability?msisdn=0912345678</code> trả về <code>{ "msisdn": "0912345678", "available": true }</code>
+        (dùng <code>SubscriberService.isMsisdnAvailable</code>). Yêu cầu:
+      </p>
+      <ul>
+        <li>Chỉ kiểm tra khi số đủ 10 chữ số, bắt đầu bằng 0; chờ người dùng ngừng gõ 400ms.</li>
+        <li>Hiện "Đang kiểm tra…", "Số đã tồn tại", hoặc không hiện gì nếu dùng được.</li>
+        <li>API lỗi (mất mạng) <strong>không được chặn</strong> người dùng gửi form: server vẫn kiểm tra lại lúc tạo (409).</li>
+      </ul>
+      <p><strong>Viết ra:</strong></p>
+      <ol class="steps">
+        <li>Chuỗi operator (theo thứ tự) từ <code>msisdn$</code> tới trạng thái kiểm tra. Operator làm phẳng nào, vì sao?</li>
+        <li>Trạng thái trả về khi API lỗi là gì, và <code>catchError</code> đặt ở đâu?</li>
+        <li>Hai test marble bạn sẽ viết (mô tả bằng lời: đầu vào, kết quả mong đợi).</li>
+        <li>Nếu làm bằng <code>AsyncValidatorFn</code> của Reactive Forms: Angular đã tự làm giúp phần nào trong chuỗi trên?</li>
+      </ol>
+      <details>
+        <summary>Đáp án tham khảo (chỉ mở sau khi đã viết)</summary>
+        <pre><code>msisdn$.pipe(
+  map((v) =&gt; v.trim()),
+  debounceTime(400),
+  distinctUntilChanged(),
+  switchMap((v) =&gt;
+    !/^0\d{9}$/.test(v)
+      ? of({ status: 'idle' })
+      : api.msisdnAvailability(v).pipe(
+          map((r) =&gt; ({ status: r.available ? 'available' : 'taken' })),
+          startWith({ status: 'checking' }),
+          catchError(() =&gt; of({ status: 'unknown' })),   // không chặn gửi form
+        ),
+  ),
+)</code></pre>
+        <ol>
+          <li><code>switchMap</code>: chỉ số cuối cùng người dùng gõ có ý nghĩa; hủy kiểm tra số cũ.</li>
+          <li>Trạng thái <code>unknown</code> (không hiện lỗi, không chặn), <code>catchError</code> bên trong <code>switchMap</code>.</li>
+          <li>Ví dụ: (a) gõ <code>0912345678</code> rồi đổi thành <code>0912345679</code> trong khi kiểm tra số đầu còn chạy → chỉ kết quả số sau,
+            request đầu bị hủy; (b) API lỗi cho số đầu, số sau vẫn được kiểm tra.</li>
+          <li>Async validator được Angular gọi lại mỗi khi giá trị đổi và <strong>hủy</strong> Observable của lần kiểm tra trước (hành vi như
+            <code>switchMap</code>). Nhưng không có debounce: phải tự thêm (ví dụ <code>timer(400).pipe(switchMap(...))</code> trong validator)
+            và dùng <code>updateOn: 'blur'</code> nếu muốn ít request hơn.</li>
+        </ol>
+      </details>
+
+      <h2>Phần 4 · Đọc marble (5 phút)</h2>
+      <p>
+        Từ khóa <code>a</code> ở 0ms, <code>b</code> ở 100ms (không debounce). <code>search(a)</code> mất 300ms, <code>search(b)</code> mất 50ms.
+        Viết thời điểm các kết quả <code>A</code>, <code>B</code> phát ra (hoặc "không phát") với từng operator:
+        <code>switchMap</code>, <code>concatMap</code>, <code>exhaustMap</code>, <code>mergeMap</code>.
+      </p>
+      <details>
+        <summary>Đáp án</summary>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Operator</th><th>A</th><th>B</th><th>Giải thích</th></tr></thead>
+            <tbody>
+              <tr><td><code>switchMap</code></td><td>không phát</td><td>150ms</td><td>b đến lúc 100ms hủy search(a)</td></tr>
+              <tr><td><code>concatMap</code></td><td>300ms</td><td>350ms</td><td>search(b) chỉ bắt đầu sau khi search(a) xong</td></tr>
+              <tr><td><code>exhaustMap</code></td><td>300ms</td><td>không phát</td><td>b đến khi search(a) đang chạy nên bị bỏ qua</td></tr>
+              <tr><td><code>mergeMap</code></td><td>300ms</td><td>150ms</td><td>Song song; B phát trước A</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+
+      <h2>Nộp bài</h2>
+      <p>Gửi giảng viên qua kênh của lớp, <strong>trước buổi 4</strong>:</p>
+      <ol>
+        <li>Điểm phần 1 và phần 2.</li>
+        <li>Bài viết phần 3 (ảnh chụp giấy hoặc file).</li>
+        <li>Bảng phần 4 của bạn (trước khi mở đáp án).</li>
+      </ol>
+      <p class="meta">Một ngày trước buổi 4, làm lại phần 1 mà không mở phần ôn tập.</p>
+
+      <h2>Đọc thêm</h2>
+      <p>
+        <strong>Nguồn chính:</strong> <a href="https://angular.dev/ecosystem/rxjs-interop">Angular — RxJS interop</a> (khoảng 10 phút) và
+        <a href="https://angular.dev/guide/signals">Angular — Signals</a>.
+      </p>
+      <p>
+        Thêm: <a href="https://rxjs.dev/guide/testing/marble-testing">RxJS — Marble testing</a> ·
+        <a href="https://rxjs.dev/guide/operators">RxJS — Operators</a> ·
+        bảng chọn operator của lớp: <code>docs/bang-chon-operator.md</code> (nhánh <code>session03-end</code>).
+      </p>
+
+      <div class="callout">
+        <p><strong>Còn chỗ nào chưa rõ?</strong> Hỏi giảng viên, hoặc hỏi trợ lý AI ngay trong repo — ví dụ:
+          “vẽ marble cho lookup() khi API lỗi ở từ khóa đầu tiên”.</p>
+      </div>
+
+      <footer>Khóa Angular nâng cao · Bài tập về nhà buổi 3 · Dự án mẫu Care Portal</footer>
+    </main>
+    <script src="assets/quiz.js"></script>
+  </body>
+</html>

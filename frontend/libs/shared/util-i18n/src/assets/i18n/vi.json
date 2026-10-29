@@ -116,7 +116,7 @@
     "new": "Tạo phiếu",
     "form": {
       "heading": "Tạo phiếu yêu cầu",
-      "subscriberId": "Mã thuê bao",
+      "subscriberId": "Thuê bao",
       "category": "Phân loại",
       "priority": "Mức ưu tiên",
       "title": "Tiêu đề",
@@ -131,7 +131,11 @@
         "required": "Bắt buộc nhập",
         "blank": "Không được chỉ có khoảng trắng",
         "maxlength": "Tối đa {{max}} ký tự"
-      }
+      },
+      "subscriberSearch": "Gõ số thuê bao, CCCD hoặc tên (ít nhất 3 ký tự)",
+      "subscriberSearching": "Đang tìm…",
+      "subscriberNotFound": "Không tìm thấy thuê bao",
+      "subscriberSearchError": "Không tìm được. Gõ tiếp để thử lại."
     },
     "approve": {
       "action": "Duyệt",

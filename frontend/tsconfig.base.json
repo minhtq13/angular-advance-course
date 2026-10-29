@@ -48,7 +48,8 @@
       ],
       "@care/portal-data-access-tickets": [
         "./libs/portal/data-access-tickets/src/index.ts"
-      ]
+      ],
+      "@care/portal-ui-tickets": ["./libs/portal/ui-tickets/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

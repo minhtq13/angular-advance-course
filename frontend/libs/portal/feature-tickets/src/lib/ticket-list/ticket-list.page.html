@@ -4,6 +4,40 @@
     >{{ 'ticket.count' | transloco: { count: (total() | translocoDecimal) }
     }}</span
   >
+  <a nz-button nzType="primary" class="page-action" routerLink="/tickets/new"
+    >{{ 'ticket.new' | transloco }}</a
+  >
+</div>
+
+<div aria-live="polite">
+  @if (notice(); as n) {
+  <nz-alert
+    nzType="success"
+    nzShowIcon
+    nzCloseable
+    class="mb"
+    [nzMessage]="'text' in n ? n.text : (n.key | transloco: n.params)"
+  />
+  }
+</div>
+
+<div aria-live="assertive">
+  @if (approveError(); as err) {
+  <nz-alert
+    nzType="error"
+    nzShowIcon
+    class="mb"
+    role="alert"
+    [nzMessage]="'ticket.approve.conflictTitle' | transloco"
+    [nzDescription]="'text' in err ? err.text : (err.key | transloco)"
+    [nzAction]="reloadTpl"
+  />
+  <ng-template #reloadTpl>
+    <button nz-button nzSize="small" (click)="reloadAfterConflict()">
+      {{ 'ticket.approve.reload' | transloco }}
+    </button>
+  </ng-template>
+  }
 </div>
 
 <div
@@ -83,7 +117,7 @@
     [nzPageIndex]="page().page + 1"
     [nzPageSize]="page().size"
     [nzLoading]="result.isLoading()"
-    [nzScroll]="{ x: '1100px' }"
+    [nzScroll]="{ x: '1300px' }"
     [nzNoResult]="emptyTpl"
     (nzQueryParams)="onQueryParams($event)"
   >
@@ -103,40 +137,19 @@
         <th nzColumnKey="createdAt" [nzSortFn]="true" nzWidth="150px">
           {{ 'ticket.col.createdAt' | transloco }}
         </th>
+        <!-- Co dinh ben phai: man hinh hep van thay nut Duyet. -->
+        <th nzWidth="100px" nzRight>{{ 'ticket.col.actions' | transloco }}</th>
       </tr>
     </thead>
     <tbody>
       @for (t of rows(); track t.id) {
-      <tr>
-        <td>{{ t.code }}</td>
-        <td>
-          <a class="cell-link" [routerLink]="['/subscribers', t.subscriberId]"
-            >{{ t.subscriberMsisdn }}</a
-          >
-          <div class="muted">{{ t.subscriberName }}</div>
-        </td>
-        <td>{{ t.title }}</td>
-        <td>{{ categoryLabels[t.category] | transloco }}</td>
-        <td>
-          <nz-tag [nzColor]="priorityLabels[t.priority].color"
-            >{{ priorityLabels[t.priority].labelKey | transloco }}</nz-tag
-          >
-        </td>
-        <td>
-          <nz-tag [nzColor]="statusLabels[t.status].color"
-            >{{ statusLabels[t.status].labelKey | transloco }}</nz-tag
-          >
-        </td>
-        <td>
-          @if (t.assignee) { {{ t.assignee }} } @else {
-          <span class="muted">{{ 'common.unassigned' | transloco }}</span>
-          }
-        </td>
-        <td>
-          {{ t.createdAt | translocoDate: dateFormat }} {{ t.createdAt |
-          translocoDate: timeFormat }}
-        </td>
-      </tr>
+      <tr
+        care-ticket-row
+        [ticket]="t"
+        [canApprove]="isManager() && t.status === 'RESOLVED'"
+        [approving]="approvingId() === t.id"
+        (approve)="approve($event)"
+      ></tr>
       }
     </tbody>
   </nz-table>

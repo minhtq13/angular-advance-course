@@ -34,6 +34,13 @@
   <nz-tag [nzColor]="statusLabels[s.status].color"
     >{{ statusLabels[s.status].labelKey | transloco }}</nz-tag
   >
+  <a
+    nz-button
+    class="page-action"
+    routerLink="/tickets/new"
+    [queryParams]="{ subscriberId: s.id }"
+    >{{ 'subscriber.createTicket' | transloco }}</a
+  >
 </div>
 
 <div class="panel detail-panel">

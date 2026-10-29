@@ -1,0 +1,156 @@
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/subscriber-picker/subscriber-picker.spec.ts b/frontend/libs/portal/feature-tickets/src/lib/subscriber-picker/subscriber-picker.spec.ts
+new file mode 100644
+index 0000000..ccbce29
+--- /dev/null
++++ b/frontend/libs/portal/feature-tickets/src/lib/subscriber-picker/subscriber-picker.spec.ts
+@@ -0,0 +1,98 @@
++import { Component } from '@angular/core';
++import { TestBed } from '@angular/core/testing';
++import { FormControl, ReactiveFormsModule } from '@angular/forms';
++import { By } from '@angular/platform-browser';
++import {
++  PageResponse,
++  Subscriber,
++  SubscriberApi,
++} from '@care/shared-data-access-api';
++import { provideUi } from '@care/shared-ui-layout';
++import { provideI18nTesting } from '@care/shared-util-i18n/testing';
++import { of, Subject } from 'rxjs';
++import { SubscriberPicker } from './subscriber-picker';
++
++@Component({
++  imports: [SubscriberPicker, ReactiveFormsModule],
++  template: `<care-subscriber-picker [formControl]="control" />`,
++})
++class Host {
++  readonly control = new FormControl<number | null>(null);
++}
++
++/** Truy cap method protected cua picker trong test (thay cho go phim vao nz-select). */
++type PickerInternals = {
++  onSearch(term: string): void;
++  onSelect(id: number | null): void;
++};
++
++describe('SubscriberPicker', () => {
++  /** Moi lan search tra ve mot Subject: test tu quyet dinh khi nao "server" tra loi. */
++  let pending: Subject<PageResponse<Subscriber>>[];
++
++  beforeEach(() => {
++    pending = [];
++    TestBed.configureTestingModule({
++      imports: [Host],
++      providers: [
++        provideUi(),
++        provideI18nTesting(),
++        {
++          provide: SubscriberApi,
++          useValue: {
++            search: () => {
++              const response = new Subject<PageResponse<Subscriber>>();
++              pending.push(response);
++              return response;
++            },
++            get: () => of(null),
++          },
++        },
++      ],
++    });
++  });
++
++  afterEach(() => vi.useRealTimers());
++
++  async function render() {
++    const fixture = TestBed.createComponent(Host);
++    await fixture.whenStable();
++    const picker = fixture.debugElement.query(By.directive(SubscriberPicker))
++      .componentInstance as PickerInternals;
++    // Bat dong ho gia sau khi render xong: debounceTime cua RxJS dung setInterval.
++    vi.useFakeTimers();
++    return { fixture, picker };
++  }
++
++  it('chon thue bao trong ket qua -> form control nhan id', async () => {
++    const { fixture, picker } = await render();
++    picker.onSearch('0901');
++    vi.advanceTimersByTime(300);
++    pending[0].next({
++      content: [
++        { id: 5, msisdn: '0901000005', fullName: 'Le Van C' } as Subscriber,
++      ],
++      page: 0,
++      size: 10,
++      totalElements: 1,
++      totalPages: 1,
++    });
++    pending[0].complete();
++
++    picker.onSelect(5);
++
++    expect(fixture.componentInstance.control.value).toBe(5);
++  });
++
++  it('roi man hinh khi dang tim: request dang chay bi huy, khong con ai lang nghe', async () => {
++    const { fixture, picker } = await render();
++    picker.onSearch('0901');
++    vi.advanceTimersByTime(300);
++    expect(pending[0].observed).toBe(true);
++
++    fixture.destroy();
++
++    // HttpClient that: huy dang ky = huy XHR (tab Network hien "canceled").
++    expect(pending[0].observed).toBe(false);
++  });
++});
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/subscriber-picker/subscriber-picker.ts b/frontend/libs/portal/feature-tickets/src/lib/subscriber-picker/subscriber-picker.ts
+index 424ef83..50295e8 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/subscriber-picker/subscriber-picker.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/subscriber-picker/subscriber-picker.ts
+@@ -8,7 +8,7 @@ import {
+   input,
+   signal,
+ } from '@angular/core';
+-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
++import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+ import {
+   ControlValueAccessor,
+   FormsModule,
+@@ -18,7 +18,7 @@ import { Subscriber, SubscriberApi } from '@care/shared-data-access-api';
+ import { TranslocoPipe } from '@jsverse/transloco';
+ import { NzOptionComponent, NzSelectComponent } from 'ng-zorro-antd/select';
+ import { map, Observable, Subject } from 'rxjs';
+-import { idleLookup, lookup, LookupState } from './lookup';
++import { idleLookup, lookup } from './lookup';
+ 
+ export interface SubscriberOption {
+   id: number;
+@@ -58,8 +58,14 @@ export class SubscriberPicker implements ControlValueAccessor {
+   readonly describedBy = input<string | null>(null);
+ 
+   private readonly terms = new Subject<string>();
+-  protected readonly state =
+-    signal<LookupState<SubscriberOption>>(idleLookup());
++  /**
++   * toSignal dang ky trong injection context va tu huy dang ky khi component bi huy:
++   * request dang chay bi huy theo (switchMap -> unsubscribe -> abort XHR).
++   */
++  protected readonly state = toSignal(
++    this.terms.pipe(lookup((term) => this.search(term))),
++    { initialValue: idleLookup<SubscriberOption>() },
++  );
+ 
+   protected readonly selected = signal<SubscriberOption | null>(null);
+   protected readonly disabled = signal(false);
+@@ -75,12 +81,6 @@ export class SubscriberPicker implements ControlValueAccessor {
+   private onChange: (id: number | null) => void = () => undefined;
+   protected onTouched: () => void = () => undefined;
+ 
+-  constructor() {
+-    this.terms
+-      .pipe(lookup((term) => this.search(term)))
+-      .subscribe((state) => this.state.set(state));
+-  }
+-
+   protected onSearch(term: string): void {
+     this.terms.next(term);
+   }

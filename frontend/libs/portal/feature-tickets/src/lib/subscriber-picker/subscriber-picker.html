@@ -1,0 +1,31 @@
+<nz-select
+  class="picker"
+  nzShowSearch
+  nzServerSearch
+  nzAllowClear
+  [nzId]="inputId()"
+  [nzPlaceHolder]="'ticket.form.subscriberSearch' | transloco"
+  [nzLoading]="state().status === 'loading'"
+  [nzNotFoundContent]="notFound"
+  [nzDisabled]="disabled()"
+  [ngModel]="selected()?.id ?? null"
+  (ngModelChange)="onSelect($event)"
+  (nzOnSearch)="onSearch($event)"
+  (nzBlur)="onTouched()"
+  [attr.aria-invalid]="invalid() ? true : null"
+  [attr.aria-describedby]="describedBy()"
+>
+  @for (o of options(); track o.id) {
+  <nz-option [nzValue]="o.id" [nzLabel]="o.msisdn + ' — ' + o.fullName" />
+  }
+</nz-select>
+
+<ng-template #notFound>
+  <div class="muted" role="status">
+    @switch (state().status) { @case ('loading') { {{
+    'ticket.form.subscriberSearching' | transloco }} } @case ('error') { {{
+    'ticket.form.subscriberSearchError' | transloco }} } @case ('done') { {{
+    'ticket.form.subscriberNotFound' | transloco }} } @default { {{
+    'ticket.form.subscriberSearch' | transloco }} } }
+  </div>
+</ng-template>

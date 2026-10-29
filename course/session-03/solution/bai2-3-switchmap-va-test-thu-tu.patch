@@ -1,0 +1,189 @@
+diff --git a/docs/bang-chon-operator.md b/docs/bang-chon-operator.md
+new file mode 100644
+index 0000000..1954db8
+--- /dev/null
++++ b/docs/bang-chon-operator.md
+@@ -0,0 +1,28 @@
++# Bảng chọn operator làm phẳng (flattening)
++
++Dùng khi mỗi sự kiện bên ngoài (gõ phím, bấm nút, đổi bộ lọc) sinh ra một Observable bên trong (thường là một request HTTP).
++Câu hỏi để chọn: **khi sự kiện mới đến mà request cũ chưa xong, muốn chuyện gì xảy ra?**
++
++| Operator | Request cũ chưa xong, sự kiện mới đến | Dùng cho | Rủi ro nếu chọn sai |
++|---|---|---|---|
++| `switchMap` | **Hủy** request cũ, chạy request mới | Tìm kiếm, gợi ý, đổi bộ lọc, tải chi tiết theo id trên URL: chỉ kết quả mới nhất có ý nghĩa | Dùng cho lệnh ghi: hủy giữa chừng, server có thể đã ghi nhưng client không biết |
++| `concatMap` | **Xếp hàng**, chạy lần lượt theo thứ tự | Lệnh ghi cần đúng thứ tự: lưu nháp tự động, cập nhật tuần tự cùng một bản ghi | Hàng đợi dài ra nếu sự kiện đến nhanh hơn server xử lý |
++| `exhaustMap` | **Bỏ qua** sự kiện mới cho tới khi request cũ xong | Nút gửi form, đăng nhập, làm mới token: lần bấm thêm là vô nghĩa | Bỏ qua cả sự kiện có ý nghĩa (người dùng đổi dữ liệu rồi bấm lại) |
++| `mergeMap` | **Chạy song song**, kết quả về theo thứ tự hoàn thành | Tác vụ độc lập: tải nhiều ảnh, gửi nhiều thông báo. Giới hạn song song bằng tham số thứ hai | Kết quả cũ về muộn ghi đè kết quả mới (lỗi buổi 3); quá tải server khi không giới hạn |
++
++## Áp dụng trong Care Portal
++
++| Chỗ | Operator | Lý do |
++|---|---|---|
++| Ô chọn thuê bao (`lookup`) | `switchMap` | Chỉ kết quả của từ khóa mới nhất có ý nghĩa; hủy request cũ còn giảm tải server |
++| Bảng thuê bao, bảng phiếu (`rxResource`) | tương đương `switchMap` | `rxResource` tự hủy stream cũ khi `params` đổi |
++| Nút "Tạo phiếu" | `exhaustMap` hoặc cờ `submitting()` | Lần bấm thứ hai khi đang gửi là vô nghĩa; idempotency phía server lo phần còn lại (buổi 2) |
++| Làm mới token khi nhiều request cùng nhận 401 (buổi 6) | `exhaustMap` / chia sẻ một refresh | Chỉ một lần refresh, các request khác chờ kết quả đó |
++
++## Xử lý lỗi và hủy
++
++- `catchError` đặt **bên trong** operator làm phẳng: lỗi của một request chỉ kết thúc request đó, luồng ngoài vẫn sống.
++  Đặt ngoài: lỗi đầu tiên làm cả luồng hoàn tất, người dùng gõ tiếp cũng không có gì xảy ra.
++- Hủy đăng ký (`unsubscribe`) Observable của `HttpClient` = hủy XHR. Tab Network hiện *(canceled)*.
++- Đăng ký trong component phải gắn với vòng đời: `toSignal(...)` hoặc `takeUntilDestroyed()`. `subscribe()` trần trong constructor
++  sống tiếp sau khi rời màn hình.
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/subscriber-picker/lookup.spec.ts b/frontend/libs/portal/feature-tickets/src/lib/subscriber-picker/lookup.spec.ts
+index a16d687..ffad2c3 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/subscriber-picker/lookup.spec.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/subscriber-picker/lookup.spec.ts
+@@ -1,8 +1,21 @@
++import { Observable } from 'rxjs';
+ import { TestScheduler } from 'rxjs/testing';
+ import { lookup, LookupState } from './lookup';
+ 
+ // Test theo trinh tu su kien bang marble: thoi gian ao, khong cho that.
+-// Cu phap: '-' = 1 khung thoi gian, 'a' = gia tri, '|' = ket thuc, '300ms' = troi qua 300ms.
++// Cu phap: '-' = 1 khung thoi gian, 'a' = gia tri (chiem 1ms), '|' = ket thuc,
++// '#' = loi, '300ms' = troi qua 300ms, '^' / '!' = bat dau / huy dang ky.
++const loading = (term: string): LookupState<string> => ({
++  status: 'loading',
++  term,
++  items: [],
++});
++const done = (term: string): LookupState<string> => ({
++  status: 'done',
++  term,
++  items: [term],
++});
++
+ describe('lookup', () => {
+   let scheduler: TestScheduler;
+ 
+@@ -16,16 +29,61 @@ describe('lookup', () => {
+     scheduler.run(({ cold, hot, expectObservable }) => {
+       const terms = hot('a 100ms b', { a: '0901', b: '09012' });
+       const search = (term: string) => cold('50ms (r|)', { r: [term] });
+-      const done = (term: string): LookupState<string> => ({
+-        status: 'done',
+-        term,
+-        items: [term],
+-      });
+ 
+       // 'b' den o 101ms; debounce 300ms -> tim luc 401ms; ket qua sau 50ms -> 451ms.
+-      expectObservable(terms.pipe(lookup(search))).toBe('451ms d', {
++      expectObservable(terms.pipe(lookup(search))).toBe('401ms l 49ms d', {
++        l: loading('09012'),
+         d: done('09012'),
+       });
+     });
+   });
++
++  it('tu khoa cu tra ve muon khong ghi de ket qua moi, va request cu bi huy', () => {
++    scheduler.run(({ cold, hot, expectObservable, expectSubscriptions }) => {
++      // "0901" khop nhieu ban ghi nen cham (1000ms); "09012345" nhanh (100ms).
++      const slow = cold('1000ms (r|)', { r: ['0901'] });
++      const fast = cold('100ms (r|)', { r: ['09012345'] });
++      const search = (term: string): Observable<string[]> =>
++        term === '0901' ? slow : fast;
++      const terms = hot('a 400ms b', { a: '0901', b: '09012345' });
++
++      expectObservable(terms.pipe(lookup(search))).toBe(
++        '300ms x 400ms y 99ms z',
++        { x: loading('0901'), y: loading('09012345'), z: done('09012345') },
++      );
++      // Request "0901" bat dau o 300ms, bi huy o 701ms khi co tu khoa moi.
++      expectSubscriptions(slow.subscriptions).toBe('300ms ^ 400ms !');
++    });
++  });
++
++  it('bo qua khoang trang hai dau va khong tim lai cung tu khoa', () => {
++    scheduler.run(({ cold, hot, expectObservable }) => {
++      const calls: string[] = [];
++      const search = (term: string) => {
++        calls.push(term);
++        return cold('10ms (r|)', { r: [term] });
++      };
++      const terms = hot('a 400ms b', { a: '0901', b: ' 0901 ' });
++
++      expectObservable(terms.pipe(lookup(search))).toBe('300ms l 9ms d', {
++        l: loading('0901'),
++        d: done('0901'),
++      });
++      scheduler.flush();
++      expect(calls).toEqual(['0901']);
++    });
++  });
++
++  it('tu khoa ngan hon 3 ky tu: khong goi API', () => {
++    scheduler.run(({ hot, expectObservable }) => {
++      const search = vi.fn();
++      const terms = hot('a', { a: '09' });
++
++      expectObservable(terms.pipe(lookup(search))).toBe('300ms i', {
++        i: { status: 'idle', term: '09', items: [] },
++      });
++      scheduler.flush();
++      expect(search).not.toHaveBeenCalled();
++    });
++  });
+ });
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/subscriber-picker/lookup.ts b/frontend/libs/portal/feature-tickets/src/lib/subscriber-picker/lookup.ts
+index 0ae6b0c..82c893a 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/subscriber-picker/lookup.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/subscriber-picker/lookup.ts
+@@ -1,11 +1,13 @@
+ import {
+   catchError,
+   debounceTime,
++  distinctUntilChanged,
+   map,
+-  mergeMap,
+   Observable,
+   of,
+   OperatorFunction,
++  startWith,
++  switchMap,
+ } from 'rxjs';
+ 
+ /** Trang thai o tim kiem: dung de hien "dang tim", ket qua, hoac loi. */
+@@ -19,21 +21,35 @@ export function idleLookup<T>(term = ''): LookupState<T> {
+   return { status: 'idle', term, items: [] };
+ }
+ 
++export interface LookupOptions {
++  /** Cho nguoi dung ngung go bao lau moi tim. */
++  debounceMs?: number;
++  /** Tu khoa ngan hon thi khong goi API (khop qua nhieu, cham, vo ich). */
++  minLength?: number;
++}
++
+ /**
+  * Bien dong tu khoa nguoi dung go thanh dong trang thai ket qua tim kiem.
+  * search: ham goi API cho mot tu khoa (moi lan goi tra ve Observable rieng).
+  */
+ export function lookup<T>(
+   search: (term: string) => Observable<T[]>,
+-  debounceMs = 300,
++  { debounceMs = 300, minLength = 3 }: LookupOptions = {},
+ ): OperatorFunction<string, LookupState<T>> {
+   return (terms) =>
+     terms.pipe(
++      map((term) => term.trim()),
+       debounceTime(debounceMs),
+-      mergeMap((term) =>
+-        search(term).pipe(
+-          map((items): LookupState<T> => ({ status: 'done', term, items })),
+-        ),
++      distinctUntilChanged(),
++      // switchMap: tu khoa moi -> huy (unsubscribe) request cu; HttpClient abort XHR.
++      // Ket qua cua tu khoa cu khong bao gio ghi de ket qua cua tu khoa moi.
++      switchMap((term) =>
++        term.length < minLength
++          ? of(idleLookup<T>(term))
++          : search(term).pipe(
++              map((items): LookupState<T> => ({ status: 'done', term, items })),
++              startWith<LookupState<T>>({ status: 'loading', term, items: [] }),
++            ),
+       ),
+       catchError(() =>
+         of<LookupState<T>>({ status: 'error', term: '', items: [] }),

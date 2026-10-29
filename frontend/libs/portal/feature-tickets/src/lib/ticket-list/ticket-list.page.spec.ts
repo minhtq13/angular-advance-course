@@ -29,7 +29,10 @@ describe('TicketListPage', () => {
         provideUi(),
         provideI18nTesting(),
         { provide: TicketPort, useValue: port },
-        { provide: AuthService, useValue: { username: signal('agent1') } },
+        {
+          provide: AuthService,
+          useValue: { username: signal('agent1'), hasAnyRole: () => false },
+        },
       ],
     }).compileComponents();
   });
@@ -66,5 +69,73 @@ describe('TicketListPage', () => {
 
     expect(port.calls.at(-1)?.query.assignee).toBe('agent1');
     expect(codes(fixture.nativeElement)).toEqual(['TK-A']);
+  });
+});
+
+// Buoi 2: Manager duyet phieu, hai nguoi duyet cung mot version.
+describe('TicketListPage - phe duyet', () => {
+  let port: InMemoryTicketAdapter;
+
+  beforeEach(async () => {
+    port = new InMemoryTicketAdapter().seed([
+      aTicket({ id: 101, code: 'TK-R', status: 'RESOLVED', version: 3 }),
+      aTicket({ id: 102, code: 'TK-N', status: 'NEW' }),
+    ]);
+    await TestBed.configureTestingModule({
+      imports: [TicketListPage],
+      providers: [
+        provideRouter([]),
+        provideUi(),
+        provideI18nTesting(),
+        { provide: TicketPort, useValue: port },
+        {
+          provide: AuthService,
+          useValue: {
+            username: signal('supervisor1'),
+            hasAnyRole: (...roles: string[]) => roles.includes('SUPERVISOR'),
+          },
+        },
+      ],
+    }).compileComponents();
+  });
+
+  const approveButtons = (el: HTMLElement) =>
+    [...el.querySelectorAll('tbody button')] as HTMLButtonElement[];
+
+  it('chi phieu RESOLVED co nut Duyet; duyet xong bao thanh cong va tai lai danh sach', async () => {
+    const fixture = TestBed.createComponent(TicketListPage);
+    await fixture.whenStable();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(approveButtons(el)).toHaveLength(1);
+
+    approveButtons(el)[0].click();
+    await fixture.whenStable();
+
+    expect(port.approveCalls).toEqual([{ id: 101, version: 3 }]);
+    expect(el.textContent).toContain('Đã duyệt phiếu TK-R');
+    expect(approveButtons(el)).toHaveLength(0);
+  });
+
+  it('nguoi khac da duyet truoc (version cu): bao 409, giu man hinh, tai lai khi nguoi dung chon', async () => {
+    const fixture = TestBed.createComponent(TicketListPage);
+    await fixture.whenStable();
+    const el = fixture.nativeElement as HTMLElement;
+
+    // Manager thu hai duyet truoc tren may khac: phieu len version 4, man hinh nay van giu version 3.
+    port.approve(101, 3).subscribe();
+
+    approveButtons(el)[0].click();
+    await fixture.whenStable();
+
+    const alert = el.querySelector('[role=alert]');
+    expect(alert?.textContent).toContain('Không duyệt được phiếu');
+    expect(port.approveCalls.at(-1)).toEqual({ id: 101, version: 3 });
+    expect(approveButtons(el)).toHaveLength(1);
+
+    (alert?.querySelector('button') as HTMLButtonElement).click();
+    await fixture.whenStable();
+
+    expect(el.querySelector('[role=alert]')).toBeNull();
+    expect(approveButtons(el)).toHaveLength(0);
   });
 });

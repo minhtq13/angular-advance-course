@@ -1,0 +1,49 @@
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/subscriber-picker/lookup.spec.ts b/frontend/libs/portal/feature-tickets/src/lib/subscriber-picker/lookup.spec.ts
+index ffad2c3..0d78cd9 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/subscriber-picker/lookup.spec.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/subscriber-picker/lookup.spec.ts
+@@ -86,4 +86,24 @@ describe('lookup', () => {
+       expect(search).not.toHaveBeenCalled();
+     });
+   });
++
++  it('API loi mot lan: bao loi cho tu khoa do, go tiep van tim duoc', () => {
++    scheduler.run(({ cold, hot, expectObservable }) => {
++      const search = (term: string) =>
++        term === '0901'
++          ? cold<string[]>('50ms #')
++          : cold('50ms (r|)', { r: [term] });
++      const terms = hot('a 400ms b', { a: '0901', b: '0902' });
++
++      expectObservable(terms.pipe(lookup(search))).toBe(
++        '300ms l 49ms e 350ms m 49ms d',
++        {
++          l: loading('0901'),
++          e: { status: 'error', term: '0901', items: [] },
++          m: loading('0902'),
++          d: done('0902'),
++        },
++      );
++    });
++  });
+ });
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/subscriber-picker/lookup.ts b/frontend/libs/portal/feature-tickets/src/lib/subscriber-picker/lookup.ts
+index 82c893a..400ffb2 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/subscriber-picker/lookup.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/subscriber-picker/lookup.ts
+@@ -49,10 +49,12 @@ export function lookup<T>(
+           : search(term).pipe(
+               map((items): LookupState<T> => ({ status: 'done', term, items })),
+               startWith<LookupState<T>>({ status: 'loading', term, items: [] }),
++              // Bat loi BEN TRONG switchMap: loi chi ket thuc request nay; luong tu khoa ben ngoai van song,
++              // nguoi dung go tiep la tim tiep. Bat ben ngoai thi loi dau tien lam ca luong hoan tat.
++              catchError(() =>
++                of<LookupState<T>>({ status: 'error', term, items: [] }),
++              ),
+             ),
+       ),
+-      catchError(() =>
+-        of<LookupState<T>>({ status: 'error', term: '', items: [] }),
+-      ),
+     );
+ }
