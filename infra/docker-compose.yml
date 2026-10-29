@@ -31,6 +31,8 @@ services:
       DB_PORT: 5432
       # Buoi 3: DEMO_SLOW_SHORT_QUERY=true docker compose -f infra/docker-compose.yml up -d api
       DEMO_SLOW_SHORT_QUERY: ${DEMO_SLOW_SHORT_QUERY:-false}
+      # Buoi 5: MAX_PAGE_SIZE=10000 docker compose -f infra/docker-compose.yml up -d api
+      MAX_PAGE_SIZE: ${MAX_PAGE_SIZE:-200}
     ports:
       - "8081:8081"
     depends_on:

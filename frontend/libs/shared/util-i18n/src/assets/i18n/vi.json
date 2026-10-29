@@ -41,7 +41,8 @@
     "forbidden": "Không có quyền truy cập",
     "notFound": "Không tìm thấy trang",
     "servicePlans": "Gói cước",
-    "ticketNew": "Tạo phiếu yêu cầu"
+    "ticketNew": "Tạo phiếu yêu cầu",
+    "report": "Báo cáo thuê bao"
   },
   "status": {
     "forbidden": "Bạn không có quyền truy cập chức năng này.",
@@ -93,7 +94,8 @@
       "noTickets": "Thuê bao này chưa có phiếu yêu cầu nào."
     },
     "createTicket": "Tạo phiếu",
-    "recent": "Xem gần đây"
+    "recent": "Xem gần đây",
+    "report": "Báo cáo"
   },
   "ticket": {
     "count": "{{count}} phiếu",
@@ -200,5 +202,16 @@
       "monthlyFee": "Cước tháng",
       "dataGb": "Data (GB)"
     }
+  },
+  "report": {
+    "title": "Báo cáo thuê bao",
+    "count": "{{count}} thuê bao",
+    "shift": "Ca trực",
+    "rows": "Số dòng",
+    "reload": "Tải lại",
+    "back": "Về danh sách",
+    "age": "Tuổi",
+    "loadError": "Không tải được báo cáo.",
+    "loadErrorHint": "Nếu chọn nhiều dòng, backend cần chạy với MAX_PAGE_SIZE đủ lớn."
   }
 }

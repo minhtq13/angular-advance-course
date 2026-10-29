@@ -26,7 +26,8 @@ spring:
   data:
     web:
       pageable:
-        max-page-size: 200
+        # Buoi 5: MAX_PAGE_SIZE=10000 de tai nhieu dong khi do hieu nang. Mac dinh gioi han 200 de bao ve server.
+        max-page-size: ${MAX_PAGE_SIZE:200}
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
