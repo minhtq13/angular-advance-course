@@ -41,7 +41,8 @@
     "forbidden": "Access denied",
     "notFound": "Page not found",
     "servicePlans": "Service plans",
-    "ticketNew": "New ticket"
+    "ticketNew": "New ticket",
+    "report": "Subscriber report"
   },
   "status": {
     "forbidden": "You do not have permission to access this feature.",
@@ -93,7 +94,8 @@
       "noTickets": "This subscriber has no tickets yet."
     },
     "createTicket": "New ticket",
-    "recent": "Recently viewed"
+    "recent": "Recently viewed",
+    "report": "Report"
   },
   "ticket": {
     "count": "Total: {{count}}",
@@ -200,5 +202,16 @@
       "monthlyFee": "Monthly fee",
       "dataGb": "Data (GB)"
     }
+  },
+  "report": {
+    "title": "Subscriber report",
+    "count": "{{count}} subscribers",
+    "shift": "Shift",
+    "rows": "Rows",
+    "reload": "Reload",
+    "back": "Back to list",
+    "age": "Age",
+    "loadError": "Could not load the report.",
+    "loadErrorHint": "For large row counts the backend must run with a large enough MAX_PAGE_SIZE."
   }
 }

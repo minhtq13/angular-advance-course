@@ -140,7 +140,7 @@
       {{ (submitting() ? 'ticket.form.submitting' : 'ticket.form.submit') |
       transloco }}
     </button>
-    <a nz-button routerLink="/tickets"
+    <a nz-button [routerLink]="backUrl()"
       >{{ 'ticket.form.cancel' | transloco }}</a
     >
   </div>

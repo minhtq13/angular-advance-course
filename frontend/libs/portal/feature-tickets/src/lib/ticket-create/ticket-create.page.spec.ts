@@ -132,7 +132,7 @@ describe('TicketCreatePage', () => {
 
   it('thanh cong: gui lenh da trim va chuyen ve danh sach kem ma phieu', async () => {
     const navigate = vi
-      .spyOn(TestBed.inject(Router), 'navigate')
+      .spyOn(TestBed.inject(Router), 'navigateByUrl')
       .mockResolvedValue(true);
     const page = await render('12');
     chooseCategory(page);
@@ -146,13 +146,32 @@ describe('TicketCreatePage', () => {
       title: 'Cuoc bat thuong',
       description: undefined,
     });
-    expect(navigate).toHaveBeenCalledWith(['/tickets'], {
-      state: { created: expect.stringMatching(/^TK-/) },
-    });
+    expect(navigate).toHaveBeenCalledWith(
+      TestBed.inject(Router).parseUrl('/tickets'),
+      { state: { created: expect.stringMatching(/^TK-/) } },
+    );
+  });
+
+  it.each([
+    ['/tickets?status=RESOLVED&page=2', '/tickets?status=RESOLVED&page=2'],
+    ['https://evil.example/phish', '/tickets'],
+    ['//evil.example', '/tickets'],
+    ['/admin/dashboard', '/tickets'],
+  ])('returnUrl %s -> tao xong quay ve %s', async (returnUrl, expected) => {
+    const navigate = vi
+      .spyOn(TestBed.inject(Router), 'navigateByUrl')
+      .mockResolvedValue(true);
+    const page = await render('12');
+    page.fixture.componentRef.setInput('returnUrl', returnUrl);
+    chooseCategory(page);
+    await page.type('tk-title', 'Cuoc bat thuong');
+    await page.submit();
+
+    expect(String(navigate.mock.calls[0][0])).toBe(expected);
   });
 
   it('gui lai sau loi dung lai cung Idempotency-Key (backend khong tao phieu thu hai)', async () => {
-    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
     port.failNext(new Error('timeout'));
     const page = await render();
     chooseCategory(page);
@@ -171,8 +190,8 @@ describe('TicketCreatePage', () => {
     const button = page.el.querySelector(
       'button[type=submit]',
     ) as HTMLButtonElement;
-    // Fake tra ve dong bo nen gia lap "dang gui" bang cach chan navigate lai.
-    vi.spyOn(TestBed.inject(Router), 'navigate').mockReturnValue(
+    // Fake tra ve dong bo nen gia lap "dang gui" bang cach chan navigateByUrl lai.
+    vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockReturnValue(
       new Promise(() => undefined),
     );
     button.click();

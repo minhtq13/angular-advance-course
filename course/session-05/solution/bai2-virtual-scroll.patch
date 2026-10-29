@@ -1,0 +1,220 @@
+diff --git a/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.html b/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.html
+index a2b170e..77d5dfe 100644
+--- a/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.html
++++ b/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.html
+@@ -44,41 +44,58 @@
+ />
+ }
+ 
++<!--
++  Virtual scroll: chi ve cac dong dang thay (+ dem) thay vi 10.000 dong. CDK can moi dong cung chieu cao
++  (itemSize) nen dung luoi CSS thay cho <table>; role table/row/cell giu ngu nghia bang cho trinh doc man hinh.
++-->
+ <nz-spin [nzSpinning]="result.isLoading()">
+-  <div class="panel report">
+-    <table class="report-table">
+-      <thead>
+-        <tr>
+-          <th class="num">#</th>
+-          <th>{{ 'subscriber.col.msisdn' | transloco }}</th>
+-          <th>{{ 'subscriber.col.fullName' | transloco }}</th>
+-          <th class="num">{{ 'report.age' | transloco }}</th>
+-          @if (!compact()) {
+-          <th>{{ 'subscriber.col.province' | transloco }}</th>
+-          <th>{{ 'subscriber.col.plan' | transloco }}</th>
+-          }
+-          <th>{{ 'subscriber.col.type' | transloco }}</th>
+-          <th>{{ 'subscriber.col.status' | transloco }}</th>
+-          <th>{{ 'subscriber.col.activatedAt' | transloco }}</th>
+-        </tr>
+-      </thead>
+-      <tbody>
+-        @for (s of rows(); track s; let i = $index) {
+-        <tr>
+-          <td class="num">{{ i + 1 }}</td>
+-          <td class="tabular">{{ s.msisdn }}</td>
+-          <td>{{ s.fullName }}</td>
+-          <td class="num">{{ ageOf(s.dateOfBirth) }}</td>
+-          @if (!compact()) {
+-          <td>{{ s.province }}</td>
+-          <td>{{ s.planCode }}</td>
+-          }
+-          <td>{{ typeLabel(s.type) | transloco }}</td>
+-          <td>{{ statusLabel(s.status) | transloco }}</td>
+-          <td class="tabular">{{ activatedOn(s) }}</td>
+-        </tr>
++  <div
++    class="panel report"
++    role="table"
++    [class.compact]="compact()"
++    [attr.aria-label]="'report.title' | transloco"
++    [attr.aria-rowcount]="rows().length + 1"
++  >
++    <div class="report-row report-head" role="row" aria-rowindex="1">
++      <span class="num" role="columnheader">#</span>
++      <span role="columnheader">{{ 'subscriber.col.msisdn' | transloco }}</span>
++      <span role="columnheader"
++        >{{ 'subscriber.col.fullName' | transloco }}</span
++      >
++      <span class="num" role="columnheader"
++        >{{ 'report.age' | transloco }}</span
++      >
++      @if (!compact()) {
++      <span role="columnheader"
++        >{{ 'subscriber.col.province' | transloco }}</span
++      >
++      <span role="columnheader">{{ 'subscriber.col.plan' | transloco }}</span>
++      }
++      <span role="columnheader">{{ 'subscriber.col.type' | transloco }}</span>
++      <span role="columnheader">{{ 'subscriber.col.status' | transloco }}</span>
++      <span role="columnheader"
++        >{{ 'subscriber.col.activatedAt' | transloco }}</span
++      >
++    </div>
++    <cdk-virtual-scroll-viewport class="report-viewport" [itemSize]="rowHeight">
++      <div
++        class="report-row"
++        role="row"
++        *cdkVirtualFor="let s of rows(); let i = index"
++        [attr.aria-rowindex]="i + 2"
++      >
++        <span class="num" role="cell">{{ i + 1 }}</span>
++        <span class="tabular" role="cell">{{ s.msisdn }}</span>
++        <span role="cell">{{ s.fullName }}</span>
++        <span class="num" role="cell">{{ ageOf(s.dateOfBirth) }}</span>
++        @if (!compact()) {
++        <span role="cell">{{ s.province }}</span>
++        <span role="cell">{{ s.planCode }}</span>
+         }
+-      </tbody>
+-    </table>
++        <span role="cell">{{ typeLabel(s.type) | transloco }}</span>
++        <span role="cell">{{ statusLabel(s.status) | transloco }}</span>
++        <span class="tabular" role="cell">{{ activatedOn(s) }}</span>
++      </div>
++    </cdk-virtual-scroll-viewport>
+   </div>
+ </nz-spin>
+diff --git a/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.scss b/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.scss
+index c0c2236..f93caeb 100644
+--- a/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.scss
++++ b/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.scss
+@@ -1,29 +1,50 @@
++// Moi dong cung chieu cao: CDK virtual scroll tinh vi tri bang itemSize (rowHeight trong component).
++$row-height: 33px;
++
+ .report {
+   overflow-x: auto;
++  font-size: 13px;
+ }
+ 
+-.report-table {
+-  width: 100%;
+-  border-collapse: collapse;
+-  font-size: 13px;
++.report-row {
++  display: grid;
++  grid-template-columns: 64px 120px minmax(
++      180px,
++      1fr
++    ) 56px 140px 80px 90px 120px 120px;
++  align-items: center;
++  min-width: 960px;
++  height: $row-height;
++  border-bottom: 1px solid var(--care-border);
+ 
+-  th,
+-  td {
+-    padding: var(--care-space-1) var(--care-space-2);
+-    border-bottom: 1px solid var(--care-border);
+-    text-align: left;
++  > span {
++    padding: 0 var(--care-space-2);
++    overflow: hidden;
++    text-overflow: ellipsis;
+     white-space: nowrap;
+   }
+ 
+-  th {
+-    position: sticky;
+-    top: 0;
+-    background: var(--care-surface);
+-    color: var(--care-text-muted);
+-    font-weight: 600;
+-  }
+-
+   .num {
+     text-align: right;
+   }
+ }
++
++.compact .report-row {
++  grid-template-columns: 64px 120px minmax(180px, 1fr) 56px 90px 120px 120px;
++  min-width: 720px;
++}
++
++.report-head {
++  color: var(--care-text-muted);
++  font-weight: 600;
++}
++
++.report-viewport {
++  height: calc(100vh - 320px);
++  min-height: 320px;
++  min-width: 960px;
++}
++
++.compact .report-viewport {
++  min-width: 720px;
++}
+diff --git a/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.spec.ts b/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.spec.ts
+index 26ba887..29bb974 100644
+--- a/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.spec.ts
++++ b/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.spec.ts
+@@ -49,10 +49,13 @@ describe('SubscriberReportPage', () => {
+       {},
+       { page: 0, size: 1000, sort: 'id,asc' },
+     );
+-    const rows = (fixture.nativeElement as HTMLElement).querySelectorAll(
+-      'tbody tr',
+-    );
+-    expect(rows).toHaveLength(1000);
++    const el = fixture.nativeElement as HTMLElement;
++    // Virtual scroll: bang van bao du 1.000 dong cho trinh doc man hinh, nhung chi ve vai dong trong DOM.
++    expect(
++      el.querySelector('[role=table]')?.getAttribute('aria-rowcount'),
++    ).toBe('1001');
++    const rendered = el.querySelectorAll('.report-row:not(.report-head)');
++    expect(rendered.length).toBeLessThan(100);
+     fixture.destroy();
+   });
+ });
+diff --git a/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.ts b/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.ts
+index 3a5d8db..18322ee 100644
+--- a/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.ts
++++ b/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.ts
+@@ -5,6 +5,7 @@ import {
+   inject,
+   signal,
+ } from '@angular/core';
++import { ScrollingModule } from '@angular/cdk/scrolling';
+ import { rxResource } from '@angular/core/rxjs-interop';
+ import { FormsModule } from '@angular/forms';
+ import { RouterLink } from '@angular/router';
+@@ -47,6 +48,7 @@ export const REPORT_SIZES = [1000, 5000, 10000] as const;
+     NzSelectComponent,
+     NzOptionComponent,
+     NzSpinComponent,
++    ScrollingModule,
+   ],
+   templateUrl: './subscriber-report.page.html',
+   styleUrl: './subscriber-report.page.scss',
+@@ -57,6 +59,8 @@ export class SubscriberReportPage {
+ 
+   protected readonly sizes = REPORT_SIZES;
+   protected readonly timeFormat = TIME_FORMAT;
++  /** Phai khop $row-height trong scss: CDK tinh vi tri tung dong bang chieu cao co dinh. */
++  protected readonly rowHeight = 33;
+   protected readonly size = signal<number>(REPORT_SIZES[0]);
+ 
+   protected readonly result = rxResource({

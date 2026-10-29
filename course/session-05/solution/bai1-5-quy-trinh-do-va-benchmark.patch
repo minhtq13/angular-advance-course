@@ -1,0 +1,176 @@
+diff --git a/docs/benchmark-buoi-05.md b/docs/benchmark-buoi-05.md
+new file mode 100644
+index 0000000..d1b011b
+--- /dev/null
++++ b/docs/benchmark-buoi-05.md
+@@ -0,0 +1,50 @@
++# Benchmark buổi 5: màn hình Báo cáo thuê bao
++
++**Câu hỏi:** tải và hiển thị 10.000 thuê bao trên một màn hình tốn bao nhiêu, và mỗi thay đổi giúp được bao nhiêu, trong điều kiện nào?
++
++## Điều kiện đo
++
++| | |
++|---|---|
++| Thiết bị | Apple M4, 10 nhân, 16 GB RAM, macOS 26.7.1 |
++| Trình duyệt | Chromium headless của Playwright 1.64.1 (bản 1248) |
++| CPU throttle | 1× (không làm chậm) và 4× (giả lập máy yếu), qua Chrome DevTools Protocol |
++| Build | **Development** (`nx serve`), đo trên máy giảng viên. Bản production nhanh hơn; xu hướng giữ nguyên |
++| Dữ liệu | 10.000 thuê bao đầu tiên theo id (dump 200.000 thuê bao), payload JSON 2,93 MB (chưa nén) |
++| Backend | Docker cục bộ, `MAX_PAGE_SIZE=10000` |
++| Thao tác đo | (1) Lần đầu chọn 10.000 dòng: từ lúc bấm tới khi hiện "10.000 thuê bao" + 2 frame. (2) "Tải lại" 3 lần: từ lúc bấm tới khi có response + 4 frame. (3) Ngồi yên 5 giây: `ScriptDuration`, `RecalcStyleDuration`, `LayoutDuration`. (4) Heap (`JSHeapUsedSize` sau 2 lần GC) trước và sau 20 lần Báo cáo ↔ Danh sách |
++| Công cụ | `apps/portal-e2e/src/perf/report.perf.spec.ts` (`PERF=1`), lặp lại được |
++
++## Dữ liệu thô
++
++| Phiên bản | CPU | Lần đầu (ms) | Tải lại 1/2/3 (ms) | Node DOM | Ngồi yên 5 giây: script / style (ms) | Heap trước → sau 20 lần (MB) |
++|---|---|---|---|---|---|---|
++| Điểm bắt đầu (bảng DOM thường) | 1× | 1.181 | 933 / 1.104 / 1.046 | 100.167 | 150 / 0 | 50,3 → 96,8 |
++| Điểm bắt đầu | 4× | 3.394 | 3.746 / 4.467 / 4.120 | 100.167 | 247 / 0 | 50,3 → 96,8 |
++| + Bài 2 (virtual scroll) | 1× | 446 | 151 / 150 / 150 | 357 | 6 / 2 | 31,6 → 42,6 |
++| + Bài 2 | 4× | 473 | 151 / 166 / 138 | 357 | 9 / 1 | 31,6 → 42,6 |
++| + Bài 3 (tách đồng hồ, view model, `track` id) | 1× | 381 | 150 / 150 / 134 | 357 | 4 / 4 | 31,3 → 42,6 |
++| + Bài 3 | 4× | 490 | 167 / 166 / 150 | 357 | 4 / 1 | 31,2 → 42,6 |
++| + Bài 4 (gỡ listener `resize`) | 1× | 447 | 150 / 133 / 133 | 357 | 3 / 4 | 24,7 → 26,7 |
++| + Bài 4 | 4× | 458 | 167 / 150 / 150 | 357 | 4 / 3 | 24,7 → 26,7 |
++| *Đối chứng: bảng DOM thường + chỉ Bài 3* | 1× | 2.780 | 967 / 933 / 917 | 100.167 | 9 / 0 | 55,7 → 109,5 |
++| *Đối chứng: bảng DOM thường + chỉ Bài 3* | 4× | 9.213 | 3.563 / 3.532 / 3.518 | 100.167 | 6 / 0 | 55,7 → 109,5 |
++
++Số đo một lần chạy cho mỗi dòng (3 lần cho "tải lại"). Chênh lệch dưới khoảng 20 ms coi là nhiễu.
++
++## Kết luận và điều kiện áp dụng
++
++1. **Virtual scroll là thay đổi lớn nhất** khi người dùng chỉ *xem* danh sách dài: tải lại 10.000 dòng từ khoảng 1 giây (4 giây trên máy yếu)
++   xuống khoảng 150 ms, DOM từ 100.167 xuống 357 node. **Điều kiện:** các dòng cùng chiều cao; chấp nhận không có `Ctrl+F` của trình duyệt
++   trên dòng chưa vẽ; vẫn tải đủ 2,93 MB. Nếu người dùng không cần cuộn qua hàng nghìn dòng thì **phân trang server** (trang Thuê bao)
++   còn rẻ hơn: payload vài chục kB.
++2. **Tách phần cập nhật liên tục ra component riêng** (đồng hồ) giảm CPU khi ngồi yên với DOM lớn từ 150 ms xuống 9 ms mỗi 5 giây
++   (đối chứng). Sau khi đã virtual scroll, lợi ích còn nhỏ (6 → 4 ms) vì chỉ còn khoảng 20 dòng.
++3. **`track` theo id một mình không làm tải lại nhanh hơn** khi vẫn vẽ 10.000 dòng (đối chứng: 917–967 ms so với 933–1.104 ms): chi phí
++   chính là kiểm tra lại 10.000 dòng có pipe `transloco` không thuần, không phải dựng lại DOM. Angular vẫn cảnh báo `NG0956` cho
++   `track` theo object; nên sửa vì đúng, không phải vì nhanh hơn trong trường hợp này.
++4. **Định dạng ngày theo ngôn ngữ bằng pipe ở từng dòng có giá:** đối chứng vẽ đủ 10.000 dòng chậm hơn ở lần đầu (2.780 so với 1.181 ms).
++   Với virtual scroll thì không đáng kể. Nếu buộc phải vẽ đủ (in, xuất), tính sẵn chuỗi ngày trong view model theo ngôn ngữ đang chọn.
++5. **Rò bộ nhớ:** listener `resize` không gỡ giữ trang và dữ liệu sau mỗi lần điều hướng: +46,5 MB (bảng DOM, giữ cả node DOM đã tách)
++   và +11 MB (virtual scroll) sau 20 lần. Sau khi gỡ: +2 MB (nhiễu, cache). Heap snapshot: đường giữ đi từ `Window` → listener →
++   `SubscriberReportPage` → mảng dữ liệu.
+diff --git a/frontend/apps/portal-e2e/src/perf/report.perf.spec.ts b/frontend/apps/portal-e2e/src/perf/report.perf.spec.ts
+new file mode 100644
+index 0000000..fc21a33
+--- /dev/null
++++ b/frontend/apps/portal-e2e/src/perf/report.perf.spec.ts
+@@ -0,0 +1,114 @@
++/* eslint-disable playwright/no-skipped-test, playwright/no-conditional-in-test, playwright/no-wait-for-timeout --
++   Kich ban do hieu nang, khong phai test hanh vi: can ngoi yen 5 giay, bat/tat throttle va chi chay khi PERF=1. */
++import { expect, Page, test } from '@playwright/test';
++
++/**
++ * Buoi 5: do hieu nang man hinh Bao cao thue bao, in mot dong "PERF {...}" (du lieu tho) de ghi vao bang benchmark.
++ * Chi chay khi PERF=1, can backend chay voi MAX_PAGE_SIZE=10000:
++ *   PERF=1 THROTTLE=4 npx playwright test -c apps/portal-e2e/playwright.config.mts report.perf --project=chromium
++ * THROTTLE: he so lam cham CPU (1 = khong lam cham, 4 = gia lap may yeu).
++ */
++test.skip(!process.env['PERF'], 'Chi chay khi PERF=1');
++test.setTimeout(240_000);
++
++const frames = (page: Page) =>
++  page.evaluate(
++    () =>
++      new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))),
++  );
++
++test('bao cao 10.000 dong: tai, tai lai, ngoi yen, heap sau 20 lan dieu huong', async ({
++  page,
++}) => {
++  const cdp = await page.context().newCDPSession(page);
++  await cdp.send('Performance.enable');
++  const throttle = Number(process.env['THROTTLE'] ?? '1');
++  const metric = async (name: string) =>
++    (await cdp.send('Performance.getMetrics')).metrics.find(
++      (m) => m.name === name,
++    )?.value ?? 0;
++  const heapMb = async () => {
++    await cdp.send('HeapProfiler.collectGarbage');
++    await cdp.send('HeapProfiler.collectGarbage');
++    return (
++      Math.round(((await metric('JSHeapUsedSize')) / 1024 / 1024) * 10) / 10
++    );
++  };
++  const listRow = page.locator('tbody tr.ant-table-row').first();
++
++  await page.goto('/subscribers');
++  await page.getByLabel('Tên đăng nhập').fill('agent1');
++  await page.getByLabel('Mật khẩu').fill('agent1');
++  await page.getByRole('button', { name: 'Đăng nhập' }).click();
++  await expect(listRow).toBeVisible();
++  await page.getByRole('link', { name: 'Báo cáo' }).click();
++  await expect(page.getByText('1.000 thuê bao')).toBeVisible();
++  if (throttle > 1)
++    await cdp.send('Emulation.setCPUThrottlingRate', { rate: throttle });
++
++  // 1) Lan dau chuyen sang 10.000 dong.
++  await page.locator('nz-select:has(#rp-size)').click();
++  let t = Date.now();
++  await Promise.all([
++    page.waitForResponse((r) => r.url().includes('size=10000')),
++    page.locator('nz-option-item', { hasText: '10.000' }).click(),
++  ]);
++  await expect(page.getByText('10.000 thuê bao')).toBeVisible({
++    timeout: 120_000,
++  });
++  await frames(page);
++  const firstLoadMs = Date.now() - t;
++
++  // 2) Tai lai cung 10.000 dong, 3 lan.
++  const reloadMs: number[] = [];
++  for (let run = 0; run < 3; run++) {
++    t = Date.now();
++    await Promise.all([
++      page.waitForResponse((r) => r.url().includes('size=10000')),
++      page.getByRole('button', { name: 'Tải lại' }).click(),
++    ]);
++    await frames(page);
++    await frames(page);
++    reloadMs.push(Date.now() - t);
++  }
++  const domNodes = await page.evaluate(
++    () => document.getElementsByTagName('*').length,
++  );
++
++  // 3) Ngoi yen 5 giay voi 10.000 dong (dong ho cap nhat moi giay).
++  const s0 = await metric('ScriptDuration');
++  const r0 = await metric('RecalcStyleDuration');
++  const l0 = await metric('LayoutDuration');
++  await page.waitForTimeout(5000);
++  const idle = {
++    scriptMs: Math.round(((await metric('ScriptDuration')) - s0) * 1000),
++    styleMs: Math.round(((await metric('RecalcStyleDuration')) - r0) * 1000),
++    layoutMs: Math.round(((await metric('LayoutDuration')) - l0) * 1000),
++  };
++  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
++
++  // 4) Heap: 20 lan Bao cao (mac dinh 1.000 dong) <-> Danh sach.
++  await page.getByRole('link', { name: 'Về danh sách' }).click();
++  await expect(listRow).toBeVisible();
++  const heapBefore = await heapMb();
++  for (let i = 0; i < 20; i++) {
++    await page.getByRole('link', { name: 'Báo cáo' }).click();
++    await expect(page.getByText('1.000 thuê bao')).toBeVisible();
++    await page.getByRole('link', { name: 'Về danh sách' }).click();
++    await expect(listRow).toBeVisible();
++  }
++  const heapAfter = await heapMb();
++
++  console.log(
++    'PERF ' +
++      JSON.stringify({
++        throttle,
++        firstLoadMs,
++        reloadMs,
++        domNodes,
++        idle,
++        heapBefore,
++        heapAfter,
++      }),
++  );
++});

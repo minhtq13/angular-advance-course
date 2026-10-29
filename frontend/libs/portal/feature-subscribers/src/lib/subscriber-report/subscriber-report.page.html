@@ -1,0 +1,84 @@
+<div class="page-header">
+  <h1>{{ 'report.title' | transloco }}</h1>
+  <span class="muted tabular" role="status"
+    >{{ 'report.count' | transloco: { count: (rows().length | translocoDecimal)
+    } }}</span
+  >
+  <span class="muted tabular page-action"
+    >{{ 'report.shift' | transloco }}: {{ now() | translocoDate: timeFormat
+    }}</span
+  >
+</div>
+
+<div class="filters">
+  <div class="filter-field">
+    <label for="rp-size">{{ 'report.rows' | transloco }}</label>
+    <nz-select
+      nzId="rp-size"
+      [ngModel]="size()"
+      (ngModelChange)="size.set($event)"
+    >
+      @for (n of sizes; track n) {
+      <nz-option [nzValue]="n" [nzLabel]="(n | translocoDecimal) ?? ''" />
+      }
+    </nz-select>
+  </div>
+  <div class="filters-actions">
+    <button nz-button (click)="reload()" [disabled]="result.isLoading()">
+      {{ 'report.reload' | transloco }}
+    </button>
+    <a nz-button nzType="link" routerLink="/subscribers"
+      >{{ 'report.back' | transloco }}</a
+    >
+  </div>
+</div>
+
+@if (result.error()) {
+<nz-alert
+  nzType="error"
+  nzShowIcon
+  class="mb"
+  role="alert"
+  [nzMessage]="'report.loadError' | transloco"
+  [nzDescription]="'report.loadErrorHint' | transloco"
+/>
+}
+
+<nz-spin [nzSpinning]="result.isLoading()">
+  <div class="panel report">
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th class="num">#</th>
+          <th>{{ 'subscriber.col.msisdn' | transloco }}</th>
+          <th>{{ 'subscriber.col.fullName' | transloco }}</th>
+          <th class="num">{{ 'report.age' | transloco }}</th>
+          @if (!compact()) {
+          <th>{{ 'subscriber.col.province' | transloco }}</th>
+          <th>{{ 'subscriber.col.plan' | transloco }}</th>
+          }
+          <th>{{ 'subscriber.col.type' | transloco }}</th>
+          <th>{{ 'subscriber.col.status' | transloco }}</th>
+          <th>{{ 'subscriber.col.activatedAt' | transloco }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (s of rows(); track s; let i = $index) {
+        <tr>
+          <td class="num">{{ i + 1 }}</td>
+          <td class="tabular">{{ s.msisdn }}</td>
+          <td>{{ s.fullName }}</td>
+          <td class="num">{{ ageOf(s.dateOfBirth) }}</td>
+          @if (!compact()) {
+          <td>{{ s.province }}</td>
+          <td>{{ s.planCode }}</td>
+          }
+          <td>{{ typeLabel(s.type) | transloco }}</td>
+          <td>{{ statusLabel(s.status) | transloco }}</td>
+          <td class="tabular">{{ activatedOn(s) }}</td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</nz-spin>

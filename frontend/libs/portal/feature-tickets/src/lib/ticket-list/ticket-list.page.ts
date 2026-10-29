@@ -4,26 +4,20 @@ import {
   computed,
   DestroyRef,
   inject,
-  linkedSignal,
   signal,
 } from '@angular/core';
-import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import {
   TicketConflictError,
   TicketPort,
-  TicketPriority,
-  TicketStatus,
   TicketSummary,
 } from '@care/portal-domain-tickets';
 import { AuthService } from '@care/shared-data-access-auth';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { TranslocoDecimalPipe } from '@jsverse/transloco-locale';
 import {
-  DEFAULT_PAGE,
-  PageRequest,
-  samePage,
   TICKET_PRIORITY,
   TICKET_STATUS,
   toOptions,
@@ -36,6 +30,7 @@ import { NzCheckboxComponent } from 'ng-zorro-antd/checkbox';
 import { NzOptionComponent, NzSelectComponent } from 'ng-zorro-antd/select';
 import { NzTableModule, NzTableQueryParams } from 'ng-zorro-antd/table';
 import { TicketRow } from '@care/portal-ui-tickets';
+import { TicketListStore } from './ticket-list.store';
 import { finalize } from 'rxjs';
 
 /** Thong bao tren trang: key dich (kem tham so) hoac chu da dich san tu backend. */
@@ -60,6 +55,7 @@ type Notice =
   ],
   templateUrl: './ticket-list.page.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [TicketListStore],
 })
 export class TicketListPage {
   /** Chi phu thuoc hop dong; adapter (HTTP hay fake) do app/test cung cap. */
@@ -84,49 +80,8 @@ export class TicketListPage {
   protected readonly statusOptions = toOptions(TICKET_STATUS);
   protected readonly priorityOptions = toOptions(TICKET_PRIORITY);
 
-  protected readonly status = signal<TicketStatus | null>(null);
-  protected readonly priority = signal<TicketPriority | null>(null);
-  protected readonly onlyMine = signal(false);
-
-  private readonly filters = computed(() => ({
-    status: this.status(),
-    priority: this.priority(),
-    assignee: this.onlyMine() ? this.auth.username() : null,
-  }));
-
-  protected readonly page = linkedSignal<
-    ReturnType<typeof this.filters>,
-    PageRequest
-  >({
-    source: this.filters,
-    computation: (_, previous) => ({
-      ...(previous?.value ?? DEFAULT_PAGE),
-      page: 0,
-    }),
-    equal: samePage,
-  });
-
-  protected readonly result = rxResource({
-    params: () => ({ search: this.filters(), page: this.page() }),
-    stream: ({ params }) => this.tickets.search(params.search, params.page),
-  });
-
-  protected readonly rows = computed(() =>
-    this.result.hasValue() ? this.result.value().items : [],
-  );
-  protected readonly total = computed(() =>
-    this.result.hasValue() ? this.result.value().total : 0,
-  );
-
-  protected readonly hasFilters = computed(
-    () => this.status() !== null || this.priority() !== null || this.onlyMine(),
-  );
-
-  protected clearFilters(): void {
-    this.status.set(null);
-    this.priority.set(null);
-    this.onlyMine.set(false);
-  }
+  /** Bo loc, trang va ket qua nam trong store; component chi giu state UI cuc bo (thong bao, dang duyet). */
+  protected readonly store = inject(TicketListStore);
 
   protected approve(ticket: TicketSummary): void {
     if (this.approvingId() !== null) return;
@@ -146,7 +101,7 @@ export class TicketListPage {
             key: 'ticket.approve.done',
             params: { code: approved.code },
           });
-          this.result.reload();
+          this.store.reload();
         },
         error: (error: unknown) =>
           this.approveError.set(
@@ -159,7 +114,7 @@ export class TicketListPage {
 
   protected reloadAfterConflict(): void {
     this.approveError.set(null);
-    this.result.reload();
+    this.store.reload();
   }
 
   private createdNotice(code: unknown): Notice | null {
@@ -169,6 +124,6 @@ export class TicketListPage {
   }
 
   protected onQueryParams(query: NzTableQueryParams): void {
-    this.page.set(toPageRequest(query));
+    this.store.setPage(toPageRequest(query));
   }
 }

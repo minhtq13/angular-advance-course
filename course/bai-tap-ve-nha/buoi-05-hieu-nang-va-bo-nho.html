@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BTVN Buổi 5 · Hiệu năng và bộ nhớ</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600&display=swap" />
+    <link rel="stylesheet" href="assets/lesson.css" />
+  </head>
+  <body>
+    <main>
+      <p class="kicker">Bài tập về nhà · Buổi 5 · Hiệu năng và quản lý bộ nhớ</p>
+      <h1>Đo, đọc số, kết luận có điều kiện</h1>
+      <dl class="homework-meta">
+        <dt>Làm sau</dt>
+        <dd>Buổi 5 (<a href="../session-05/slides/buoi-05-hieu-nang-va-bo-nho.pdf">slide</a> · <a href="../session-05/lab/README.md">lab</a>)</dd>
+        <dt>Hạn nộp</dt>
+        <dd>Trước buổi 6</dd>
+        <dt>Thời gian</dt>
+        <dd>Khoảng 30 phút</dd>
+        <dt>Cần</dt>
+        <dd>Trình duyệt và giấy bút. Phần tùy chọn cần Chrome và một dự án Angular bất kỳ.</dd>
+      </dl>
+
+      <div class="goal">
+        <p><strong>Mục tiêu:</strong> đọc số đo để chọn cách sửa, phát hiện rò bộ nhớ trong code, và viết kết luận không vượt quá dữ liệu.</p>
+        <p>Làm phần 0 trước khi mở slide.</p>
+      </div>
+
+      <h2>Phần 0 · Khởi động: viết ra giấy (4 phút)</h2>
+      <ol>
+        <li>Sáu thứ phải giữ cố định khi đo hiệu năng.</li>
+        <li>Vì sao ứng dụng zoneless + <code>OnPush</code> vẫn có thể chạy change detection tốn kém?</li>
+        <li>Virtual scroll giảm được gì, không giảm được gì?</li>
+        <li>Quy trình 3 heap snapshot và dấu hiệu nào cho thấy rò thật.</li>
+      </ol>
+      <details>
+        <summary>Ôn lại sau khi đã viết xong</summary>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Câu</th><th>Ý chính</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>Thiết bị/trình duyệt, CPU/mạng (throttle), build, dữ liệu, thao tác bắt đầu–kết thúc, số lần lặp (ghi tất cả).</td></tr>
+              <tr><td>2</td><td>Kiểm tra một view là đánh giá lại mọi binding trong view đó. Một signal đổi mỗi giây trong trang 10.000 dòng → 10.000 dòng binding/method mỗi giây.</td></tr>
+              <tr><td>3</td><td>Giảm node DOM và thời gian vẽ. Không giảm payload (vẫn tải hết); mất Ctrl+F trên dòng chưa vẽ, khó in.</td></tr>
+              <tr><td>4</td><td>GC + snapshot; điều hướng N lần; GC + snapshot; N lần nữa; so sánh. Rò thật: số instance tăng <em>theo số lần điều hướng</em>, retainer dẫn về gốc như <code>Window</code>.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+
+      <h2>Phần 1 · Đọc số đo (5 câu)</h2>
+      <p>Dữ liệu từ bảng benchmark của lớp (máy giảng viên, dev build). Ghi lại điểm.</p>
+      <div class="quiz" id="quiz-so-do" data-quiz>
+        <script type="application/json">
+          {
+            "questions": [
+              {
+                "prompt": "Bảng DOM 10.000 dòng: tải lại 933–1.104 ms. Đổi track theo object sang track theo id (giữ DOM thường): 917–967 ms. Kết luận đúng?",
+                "options": ["track id giúp nhanh hơn rõ rệt", "track id gần như không đổi thời gian tải lại trong điều kiện này; chi phí chính ở chỗ khác", "track id làm chậm hơn", "Không thể kết luận gì vì chỉ đo 3 lần"],
+                "answer": 1,
+                "explain": "Chênh lệch nằm trong nhiễu. Chi phí chính là kiểm tra lại binding/pipe của 10.000 dòng. Vẫn nên sửa vì đúng (và Angular cảnh báo NG0956)."
+              },
+              {
+                "prompt": "Ngồi yên 5 giây với 10.000 dòng: 150 ms script. Tách đồng hồ ra component riêng: 9 ms. Nhưng sau khi đã virtual scroll: 6 → 4 ms. Kết luận đúng?",
+                "options": ["Tách đồng hồ vô ích", "Tách đồng hồ đáng giá khi view lớn; khi view đã nhỏ thì lợi ích còn ít", "Virtual scroll làm đồng hồ chạy nhanh hơn", "Nên bỏ đồng hồ"],
+                "answer": 1,
+                "explain": "Lợi ích của việc thu nhỏ phạm vi change detection tỉ lệ với kích thước view bị kiểm tra lại."
+              },
+              {
+                "prompt": "Virtual scroll: tải lại từ ~1 giây xuống ~150 ms. Payload thay đổi thế nào?",
+                "options": ["Giảm còn vài chục kB", "Không đổi, vẫn 2,93 MB", "Tăng gấp đôi", "Giảm một nửa"],
+                "answer": 1,
+                "explain": "Virtual scroll chỉ thay đổi phần vẽ. Muốn giảm payload: phân trang server."
+              },
+              {
+                "prompt": "Heap: 50,3 → 96,8 MB sau 20 lần điều hướng. Sau khi gỡ listener: 24,7 → 26,7 MB. +2 MB còn lại là?",
+                "options": ["Vẫn rò, phải tìm tiếp", "Nhiễu/cache bình thường nếu không tăng tiếp khi điều hướng thêm", "Lỗi của Chrome", "Không cần quan tâm heap"],
+                "answer": 1,
+                "explain": "Phải kiểm tra bằng lần điều hướng tiếp theo: nếu lại +2 MB mỗi 20 lần thì là rò; nếu dừng thì là cache/khởi tạo."
+              },
+              {
+                "prompt": "Vẽ đủ 10.000 dòng với pipe translocoDate mỗi dòng: lần đầu 2.780 ms, so với 1.181 ms khi dùng toLocaleDateString. Nên làm gì nếu bắt buộc vẽ đủ (để in)?",
+                "options": ["Quay lại toLocaleDateString('vi-VN') cứng", "Tính sẵn chuỗi ngày trong view model theo ngôn ngữ đang chọn (một formatter cho cả danh sách)", "Bỏ cột ngày", "Dùng effect"],
+                "answer": 1,
+                "explain": "Giữ đúng i18n (không cứng vi-VN) nhưng tạo formatter một lần, không phải mỗi dòng mỗi lần kiểm tra."
+              }
+            ]
+          }
+        </script>
+      </div>
+
+      <h2>Phần 2 · Code này có rò không? (5 câu)</h2>
+      <div class="quiz" id="quiz-ro" data-quiz>
+        <script type="application/json">
+          {
+            "questions": [
+              {
+                "prompt": "constructor() { this.http.get('/api/plans').subscribe(p => this.plans.set(p)); }",
+                "options": ["Rò: phải hủy", "Không rò lâu dài: Observable của HttpClient hoàn tất sau một response", "Rò vì dùng signal", "Không biên dịch"],
+                "answer": 1,
+                "explain": "HttpClient phát một lần rồi complete. Vẫn nên dùng rxResource/toSignal để hủy nếu rời trang trước khi có response."
+              },
+              {
+                "prompt": "constructor() { this.router.events.subscribe(e => this.log(e)); } trong một component.",
+                "options": ["Rò: router.events không bao giờ complete, giữ component sau khi hủy", "Không rò", "Chỉ rò khi zoneless", "Router tự hủy"],
+                "answer": 0,
+                "explain": "Nguồn sống cả vòng đời app. Thêm takeUntilDestroyed() hoặc toSignal."
+              },
+              {
+                "prompt": "readonly ticks = toSignal(interval(1000), { initialValue: 0 }); (khai báo field trong component)",
+                "options": ["Rò", "Không rò: toSignal hủy khi component bị hủy", "Không chạy được", "Chỉ chạy một lần"],
+                "answer": 1,
+                "explain": "toSignal đăng ký trong injection context và hủy theo DestroyRef."
+              },
+              {
+                "prompt": "ngOnInit() { document.addEventListener('keydown', this.onKey); } không có ngOnDestroy.",
+                "options": ["Không rò vì là document", "Rò: document giữ handler → giữ component", "Angular tự gỡ", "Chỉ rò khi có Zone.js"],
+                "answer": 1,
+                "explain": "Gỡ trong DestroyRef.onDestroy, hoặc dùng host listener (@HostListener / host: { '(document:keydown)': ... }) để Angular tự gỡ."
+              },
+              {
+                "prompt": "Service providedIn: 'root' giữ cache Map<id, Subscriber> không giới hạn, thêm mỗi lần xem chi tiết.",
+                "options": ["Không phải rò vì là service", "Tăng không giới hạn theo thời gian dùng: cần giới hạn kích thước (LRU) và xóa khi đổi phiên", "Chỉ là vấn đề nếu dùng NgRx", "GC tự dọn"],
+                "answer": 1,
+                "explain": "Không có giới hạn là rò theo nghiệp vụ, kể cả khi về kỹ thuật vẫn 'đang dùng'. Thêm: dữ liệu cá nhân → xóa khi đổi phiên (buổi 4)."
+              }
+            ]
+          }
+        </script>
+      </div>
+
+      <h2>Phần 3 · Vận dụng: kế hoạch đo cho màn hình Lịch sử cước (10 phút)</h2>
+      <p>
+        Màn hình <em>Lịch sử cước</em> của một thuê bao doanh nghiệp có thể có 50.000 dòng/tháng. Người dùng phàn nàn: "đổi tháng phải chờ",
+        "để tab mở cả buổi thì máy nóng". Viết <strong>kế hoạch đo</strong> (chưa sửa gì):
+      </p>
+      <ol class="steps">
+        <li>Bảng điều kiện đo (6 dòng như slide 5) với giá trị cụ thể bạn sẽ dùng.</li>
+        <li>Hai câu hỏi đo, mỗi câu dùng công cụ nào, đo từ đâu đến đâu, mấy lần.</li>
+        <li>Hai giả thuyết nguyên nhân cho "để tab mở cả buổi thì máy nóng" và cách kiểm chứng từng giả thuyết.</li>
+        <li>Dòng "đối chứng" nào bạn sẽ đo để tránh kết luận sai?</li>
+      </ol>
+      <details>
+        <summary>Đáp án tham khảo (chỉ mở sau khi đã viết)</summary>
+        <ol>
+          <li>Ví dụ: laptop phổ biến của CSKH (ghi CPU/RAM), Chrome bản công ty dùng, CPU 4× + Fast 4G, production build, cùng thuê bao và
+            cùng hai tháng có 50.000 dòng, thao tác "chọn tháng → bảng vẽ xong", 5 lần, bỏ lần đầu.</li>
+          <li>(a) "Đổi tháng chậm ở đâu?" → Performance (scripting/rendering/long task) + Network (payload, thời gian server).
+            (b) "Ngồi yên có tốn CPU không?" → Performance monitor 60 giây + Angular DevTools Profiler (có CD định kỳ không).</li>
+          <li>Giả thuyết: timer/polling làm change detection toàn trang định kỳ → Profiler có cột đều đặn; rò bộ nhớ làm GC chạy nhiều → heap
+            snapshot sau nhiều lần đổi tháng, Performance monitor thấy heap răng cưa đi lên.</li>
+          <li>Đo riêng thời gian server (curl/Network "Waiting") để biết phần chậm có phải ở frontend không; đo cùng thao tác trên một tháng ít
+            dòng để biết chi phí có tỉ lệ với số dòng không.</li>
+        </ol>
+      </details>
+
+      <h2>Phần tùy chọn · Đo trên dự án của bạn</h2>
+      <p>
+        Chọn một màn hình danh sách trong dự án thật. Mở Console ở dev mode: có cảnh báo <code>NG0956</code> không? Mở Angular DevTools Profiler,
+        ngồi yên 10 giây: có change detection định kỳ không, từ đâu? Ghi 3 dòng kết quả (không gửi code của doanh nghiệp).
+      </p>
+
+      <h2>Nộp bài</h2>
+      <p>Gửi giảng viên qua kênh của lớp, <strong>trước buổi 6</strong>:</p>
+      <ol>
+        <li>Điểm phần 1 và phần 2.</li>
+        <li>Kế hoạch đo phần 3.</li>
+        <li>(Tùy chọn) 3 dòng kết quả phần tùy chọn.</li>
+      </ol>
+      <p class="meta">Một ngày trước buổi 6, làm lại phần 2 mà không mở phần ôn tập.</p>
+
+      <h2>Đọc thêm</h2>
+      <p>
+        <strong>Nguồn chính:</strong> <a href="https://developer.chrome.com/docs/devtools/memory-problems">Chrome DevTools — Fix memory problems</a>
+        (khoảng 15 phút) và <a href="https://angular.dev/tools/devtools">Angular DevTools</a>.
+      </p>
+      <p>
+        Thêm: <a href="https://developer.chrome.com/docs/devtools/performance">Chrome DevTools — Analyze runtime performance</a> ·
+        <a href="https://material.angular.dev/cdk/scrolling/overview">Angular CDK — Scrolling</a> ·
+        <a href="https://angular.dev/guide/templates/defer">Angular — Deferrable views</a> ·
+        bảng benchmark của lớp: <code>docs/benchmark-buoi-05.md</code> (nhánh <code>session05-end</code>).
+      </p>
+
+      <div class="callout">
+        <p><strong>Còn chỗ nào chưa rõ?</strong> Hỏi giảng viên, hoặc hỏi trợ lý AI ngay trong repo — ví dụ:
+          “vì sao track theo id không làm tải lại nhanh hơn trong bảng benchmark buổi 5?”.</p>
+      </div>
+
+      <footer>Khóa Angular nâng cao · Bài tập về nhà buổi 5 · Dự án mẫu Care Portal</footer>
+    </main>
+    <script src="assets/quiz.js"></script>
+  </body>
+</html>

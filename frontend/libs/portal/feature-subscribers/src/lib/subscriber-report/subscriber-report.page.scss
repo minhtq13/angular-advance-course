@@ -1,0 +1,29 @@
+.report {
+  overflow-x: auto;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+
+  th,
+  td {
+    padding: var(--care-space-1) var(--care-space-2);
+    border-bottom: 1px solid var(--care-border);
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  th {
+    position: sticky;
+    top: 0;
+    background: var(--care-surface);
+    color: var(--care-text-muted);
+    font-weight: 600;
+  }
+
+  .num {
+    text-align: right;
+  }
+}

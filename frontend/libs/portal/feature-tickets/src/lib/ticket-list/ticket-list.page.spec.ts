@@ -107,11 +107,16 @@ describe('TicketListPage - phe duyet', () => {
     await fixture.whenStable();
     const el = fixture.nativeElement as HTMLElement;
     expect(approveButtons(el)).toHaveLength(1);
+    const before = port.calls.at(-1);
+    const searches = port.calls.length;
 
     approveButtons(el)[0].click();
     await fixture.whenStable();
 
     expect(port.approveCalls).toEqual([{ id: 101, version: 3 }]);
+    // Lam moi sau ghi: dung mot lan, dung bo loc va trang dang xem.
+    expect(port.calls).toHaveLength(searches + 1);
+    expect(port.calls.at(-1)).toEqual(before);
     expect(el.textContent).toContain('Đã duyệt phiếu TK-R');
     expect(approveButtons(el)).toHaveLength(0);
   });

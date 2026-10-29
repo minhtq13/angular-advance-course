@@ -4,6 +4,9 @@
     >{{ 'subscriber.count' | transloco: { count: (total() | translocoDecimal) }
     }}</span
   >
+  <a nz-button class="page-action" routerLink="/subscribers/report"
+    >{{ 'subscriber.report' | transloco }}</a
+  >
 </div>
 
 @if (recent().length) {

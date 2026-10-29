@@ -1,0 +1,63 @@
+diff --git a/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.spec.ts b/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.spec.ts
+index 29bb974..30286ac 100644
+--- a/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.spec.ts
++++ b/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.spec.ts
+@@ -58,4 +58,18 @@ describe('SubscriberReportPage', () => {
+     expect(rendered.length).toBeLessThan(100);
+     fixture.destroy();
+   });
++
++  it('roi man hinh: go listener resize (khong giu trang va du lieu trong bo nho)', async () => {
++    const remove = vi.spyOn(window, 'removeEventListener');
++    const fixture = TestBed.createComponent(SubscriberReportPage);
++    await fixture.whenStable();
++
++    fixture.destroy();
++
++    expect(remove).toHaveBeenCalledWith(
++      'resize',
++      expect.any(Function),
++      undefined,
++    );
++  });
+ });
+diff --git a/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.ts b/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.ts
+index 0a8cab5..74c27ec 100644
+--- a/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.ts
++++ b/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.ts
+@@ -6,7 +6,7 @@ import {
+   signal,
+ } from '@angular/core';
+ import { ScrollingModule } from '@angular/cdk/scrolling';
+-import { rxResource } from '@angular/core/rxjs-interop';
++import { rxResource, toSignal } from '@angular/core/rxjs-interop';
+ import { FormsModule } from '@angular/forms';
+ import { RouterLink } from '@angular/router';
+ import { SubscriberApi } from '@care/shared-data-access-api';
+@@ -74,14 +74,18 @@ export class SubscriberReportPage {
+       : [];
+   });
+ 
+-  /** Man hinh hep -> an bot cot. */
+-  protected readonly compact = signal(window.innerWidth < 1200);
+-
+-  constructor() {
+-    fromEvent(window, 'resize')
+-      .pipe(debounceTime(200))
+-      .subscribe(() => this.compact.set(window.innerWidth < 1200));
+-  }
++  /**
++   * Man hinh hep -> an bot cot. toSignal go listener khi component bi huy. Ban dau dung
++   * fromEvent(...).subscribe() khong huy: window giu closure -> giu trang nay va ca nghin dong du lieu
++   * sau moi lan dieu huong (heap tang ~11 MB sau 20 lan).
++   */
++  protected readonly compact = toSignal(
++    fromEvent(window, 'resize').pipe(
++      debounceTime(200),
++      map(() => window.innerWidth < 1200),
++    ),
++    { initialValue: window.innerWidth < 1200 },
++  );
+ 
+   protected reload(): void {
+     this.result.reload();

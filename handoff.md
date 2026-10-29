@@ -41,7 +41,10 @@ Viết cho: người hoặc phiên Claude Code sẽ làm tiếp dự án này.
   - Chuẩn bị: `RecentSubscribers` (thuê bao xem gần đây, `providedIn: 'root'`, cố ý chưa xóa khi đổi phiên).
   - Đáp án 5 patch: ma trận state, `TicketListStore` (SignalStore), bộ lọc trên URL + ADR-0003, làm mới sau ghi (`returnUrl`), xóa state khi đổi phiên.
     Đã kiểm tra trên trình duyệt thật: F5/Back/link giữ bộ lọc; rò thuê bao giữa agent1 → supervisor1 có ở điểm bắt đầu, hết sau Bài 5.
-- **Buổi 5–10:** `README.md` và `instructor-notes.md` có khung theo đề cương. Chưa có slide, lab chi tiết, đáp án.
+- **Buổi 5 đã soạn, commit và push (2026-10-29):** `main` ở code `session05-start` (đáp án buổi 4 + chuẩn bị buổi 5) kèm tài liệu buổi 5; nhánh `session05-start`, `session05-end` đã push.
+  - Chuẩn bị: backend `MAX_PAGE_SIZE` (mặc định 200); màn hình **Báo cáo thuê bao** `/subscribers/report` có 4 vấn đề hiệu năng thật.
+  - Đáp án 4 patch: virtual scroll (CDK), change detection (`ShiftClock`, view model, `trackBy` id), rò bộ nhớ (`toSignal(fromEvent)`), kịch bản đo `perf/report.perf.spec.ts` (`PERF=1`) + `docs/benchmark-buoi-05.md` với số đo thật (Apple M4, dev build).
+- **Buổi 6–10:** `README.md` và `instructor-notes.md` có khung theo đề cương. Chưa có slide, lab chi tiết, đáp án.
 - **Libs hiện có:**
   - `admin/feature-dashboard`
   - `portal/feature-{subscribers,tickets}`
@@ -55,7 +58,7 @@ Viết cho: người hoặc phiên Claude Code sẽ làm tiếp dự án này.
 
 ## 4. Việc còn dở
 1. Chỉ commit/push khi người dùng bảo rõ (xem memory `no-commit-without-asking`).
-2. **Soạn buổi 5** (Hiệu năng và bộ nhớ), bắt đầu từ `session04-end`.
+2. **Soạn buổi 6** (Auth và bảo mật API), bắt đầu từ `session05-end`. Cần backend refresh rotation có trạng thái và phát hiện token reuse.
 3. **Buổi 6** cần backend refresh rotation có trạng thái và phát hiện token reuse (hiện refresh token stateless).
 4. **Buổi 7:** thêm service `keycloak` vào `infra/docker-compose.yml` dưới `profiles: [sso]` + realm export; auth hỗ trợ 2 chế độ.
 5. **Buổi 10:** tạo fixture Angular 21 (`fixtures/legacy-a21/`).

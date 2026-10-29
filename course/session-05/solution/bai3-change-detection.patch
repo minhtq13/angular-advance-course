@@ -1,0 +1,265 @@
+diff --git a/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/report-row.spec.ts b/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/report-row.spec.ts
+new file mode 100644
+index 0000000..63b7b13
+--- /dev/null
++++ b/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/report-row.spec.ts
+@@ -0,0 +1,15 @@
++import { ageOn } from './report-row';
++
++describe('ageOn', () => {
++  const today = new Date(2026, 9, 29); // 29/10/2026
++
++  it.each([
++    ['1990-10-29', 36], // dung ngay sinh nhat
++    ['1990-10-30', 35], // ngay mai moi sinh nhat
++    ['1990-11-01', 35],
++    ['1990-01-01', 36],
++    ['2008-02-29', 18],
++  ])('sinh %s -> %i tuoi', (dob, expected) => {
++    expect(ageOn(dob, today)).toBe(expected);
++  });
++});
+diff --git a/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/report-row.ts b/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/report-row.ts
+new file mode 100644
+index 0000000..cc5556e
+--- /dev/null
++++ b/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/report-row.ts
+@@ -0,0 +1,41 @@
++import {
++  Subscriber,
++  SUBSCRIBER_STATUS,
++  SUBSCRIBER_TYPE,
++} from '@care/shared-data-access-api';
++
++/** Mot dong bao cao da tinh san: template chi doc thuoc tinh, khong goi ham cho tung dong moi lan kiem tra. */
++export interface ReportRow {
++  id: number;
++  msisdn: string;
++  fullName: string;
++  age: number;
++  province: string;
++  planCode: string;
++  typeKey: string;
++  statusKey: string;
++  activatedAt: string;
++}
++
++export function ageOn(dateOfBirth: string, today: Date): number {
++  const born = new Date(dateOfBirth);
++  const age = today.getFullYear() - born.getFullYear();
++  const hadBirthday =
++    today.getMonth() > born.getMonth() ||
++    (today.getMonth() === born.getMonth() && today.getDate() >= born.getDate());
++  return hadBirthday ? age : age - 1;
++}
++
++export function toReportRow(s: Subscriber, today: Date): ReportRow {
++  return {
++    id: s.id,
++    msisdn: s.msisdn,
++    fullName: s.fullName,
++    age: ageOn(s.dateOfBirth, today),
++    province: s.province,
++    planCode: s.planCode,
++    typeKey: SUBSCRIBER_TYPE[s.type],
++    statusKey: SUBSCRIBER_STATUS[s.status].labelKey,
++    activatedAt: s.activatedAt,
++  };
++}
+diff --git a/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/shift-clock.ts b/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/shift-clock.ts
+new file mode 100644
+index 0000000..c8cc7a5
+--- /dev/null
++++ b/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/shift-clock.ts
+@@ -0,0 +1,27 @@
++import { ChangeDetectionStrategy, Component } from '@angular/core';
++import { toSignal } from '@angular/core/rxjs-interop';
++import { TIME_FORMAT } from '@care/shared-util-i18n';
++import { TranslocoPipe } from '@jsverse/transloco';
++import { TranslocoDatePipe } from '@jsverse/transloco-locale';
++import { interval, map } from 'rxjs';
++
++/**
++ * Dong ho ca truc. Tach thanh component rieng: moi giay chi view nho nay duoc kiem tra lai,
++ * khong phai ca bang bao cao. toSignal tu huy interval khi component bi huy (khong ro bo nho).
++ */
++@Component({
++  selector: 'care-shift-clock',
++  imports: [TranslocoPipe, TranslocoDatePipe],
++  template: `{{ 'report.shift' | transloco }}:
++    {{ now() | translocoDate: timeFormat }}`,
++  changeDetection: ChangeDetectionStrategy.OnPush,
++})
++export class ShiftClock {
++  protected readonly timeFormat = TIME_FORMAT;
++  protected readonly now = toSignal(
++    interval(1000).pipe(map(() => new Date())),
++    {
++      initialValue: new Date(),
++    },
++  );
++}
+diff --git a/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.html b/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.html
+index 77d5dfe..6d52213 100644
+--- a/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.html
++++ b/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.html
+@@ -4,10 +4,7 @@
+     >{{ 'report.count' | transloco: { count: (rows().length | translocoDecimal)
+     } }}</span
+   >
+-  <span class="muted tabular page-action"
+-    >{{ 'report.shift' | transloco }}: {{ now() | translocoDate: timeFormat
+-    }}</span
+-  >
++  <care-shift-clock class="muted tabular page-action" />
+ </div>
+ 
+ <div class="filters">
+@@ -81,20 +78,22 @@
+       <div
+         class="report-row"
+         role="row"
+-        *cdkVirtualFor="let s of rows(); let i = index"
++        *cdkVirtualFor="let s of rows(); let i = index; trackBy: trackById"
+         [attr.aria-rowindex]="i + 2"
+       >
+         <span class="num" role="cell">{{ i + 1 }}</span>
+         <span class="tabular" role="cell">{{ s.msisdn }}</span>
+         <span role="cell">{{ s.fullName }}</span>
+-        <span class="num" role="cell">{{ ageOf(s.dateOfBirth) }}</span>
++        <span class="num" role="cell">{{ s.age }}</span>
+         @if (!compact()) {
+         <span role="cell">{{ s.province }}</span>
+         <span role="cell">{{ s.planCode }}</span>
+         }
+-        <span role="cell">{{ typeLabel(s.type) | transloco }}</span>
+-        <span role="cell">{{ statusLabel(s.status) | transloco }}</span>
+-        <span class="tabular" role="cell">{{ activatedOn(s) }}</span>
++        <span role="cell">{{ s.typeKey | transloco }}</span>
++        <span role="cell">{{ s.statusKey | transloco }}</span>
++        <span class="tabular" role="cell"
++          >{{ s.activatedAt | translocoDate: dateFormat }}</span
++        >
+       </div>
+     </cdk-virtual-scroll-viewport>
+   </div>
+diff --git a/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.scss b/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.scss
+index f93caeb..86f5aaf 100644
+--- a/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.scss
++++ b/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.scss
+@@ -8,10 +8,9 @@ $row-height: 33px;
+ 
+ .report-row {
+   display: grid;
+-  grid-template-columns: 64px 120px minmax(
+-      180px,
+-      1fr
+-    ) 56px 140px 80px 90px 120px 120px;
++  grid-template-columns:
++    64px 120px minmax(180px, 1fr)
++    56px 140px 80px 90px 120px 120px;
+   align-items: center;
+   min-width: 960px;
+   height: $row-height;
+diff --git a/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.ts b/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.ts
+index 18322ee..0a8cab5 100644
+--- a/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.ts
++++ b/frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/subscriber-report.page.ts
+@@ -9,15 +9,8 @@ import { ScrollingModule } from '@angular/cdk/scrolling';
+ import { rxResource } from '@angular/core/rxjs-interop';
+ import { FormsModule } from '@angular/forms';
+ import { RouterLink } from '@angular/router';
+-import {
+-  Subscriber,
+-  SUBSCRIBER_STATUS,
+-  SUBSCRIBER_TYPE,
+-  SubscriberApi,
+-  SubscriberStatus,
+-  SubscriberType,
+-} from '@care/shared-data-access-api';
+-import { TIME_FORMAT } from '@care/shared-util-i18n';
++import { SubscriberApi } from '@care/shared-data-access-api';
++import { DATE_FORMAT } from '@care/shared-util-i18n';
+ import { TranslocoPipe } from '@jsverse/transloco';
+ import {
+   TranslocoDatePipe,
+@@ -28,6 +21,8 @@ import { NzButtonComponent } from 'ng-zorro-antd/button';
+ import { NzOptionComponent, NzSelectComponent } from 'ng-zorro-antd/select';
+ import { NzSpinComponent } from 'ng-zorro-antd/spin';
+ import { debounceTime, fromEvent, map } from 'rxjs';
++import { ReportRow, toReportRow } from './report-row';
++import { ShiftClock } from './shift-clock';
+ 
+ export const REPORT_SIZES = [1000, 5000, 10000] as const;
+ 
+@@ -49,6 +44,7 @@ export const REPORT_SIZES = [1000, 5000, 10000] as const;
+     NzOptionComponent,
+     NzSpinComponent,
+     ScrollingModule,
++    ShiftClock,
+   ],
+   templateUrl: './subscriber-report.page.html',
+   styleUrl: './subscriber-report.page.scss',
+@@ -58,7 +54,7 @@ export class SubscriberReportPage {
+   private readonly api = inject(SubscriberApi);
+ 
+   protected readonly sizes = REPORT_SIZES;
+-  protected readonly timeFormat = TIME_FORMAT;
++  protected readonly dateFormat = DATE_FORMAT;
+   /** Phai khop $row-height trong scss: CDK tinh vi tri tung dong bang chieu cao co dinh. */
+   protected readonly rowHeight = 33;
+   protected readonly size = signal<number>(REPORT_SIZES[0]);
+@@ -70,17 +66,18 @@ export class SubscriberReportPage {
+         .search({}, { page: 0, size: params.size, sort: 'id,asc' })
+         .pipe(map((page) => page.content)),
+   });
+-  protected readonly rows = computed(() =>
+-    this.result.hasValue() ? this.result.value() : [],
+-  );
++  /** Tinh san mot lan moi khi du lieu doi, khong tinh lai moi lan kiem tra view. */
++  protected readonly rows = computed(() => {
++    const today = new Date();
++    return this.result.hasValue()
++      ? this.result.value().map((s) => toReportRow(s, today))
++      : [];
++  });
+ 
+-  /** Dong ho ca truc tren dau trang, cap nhat moi giay. */
+-  protected readonly now = signal(new Date());
+   /** Man hinh hep -> an bot cot. */
+   protected readonly compact = signal(window.innerWidth < 1200);
+ 
+   constructor() {
+-    setInterval(() => this.now.set(new Date()), 1000);
+     fromEvent(window, 'resize')
+       .pipe(debounceTime(200))
+       .subscribe(() => this.compact.set(window.innerWidth < 1200));
+@@ -90,26 +87,6 @@ export class SubscriberReportPage {
+     this.result.reload();
+   }
+ 
+-  protected ageOf(dateOfBirth: string): number {
+-    const born = new Date(dateOfBirth);
+-    const today = new Date();
+-    const age = today.getFullYear() - born.getFullYear();
+-    const hadBirthday =
+-      today.getMonth() > born.getMonth() ||
+-      (today.getMonth() === born.getMonth() &&
+-        today.getDate() >= born.getDate());
+-    return hadBirthday ? age : age - 1;
+-  }
+-
+-  protected activatedOn(subscriber: Subscriber): string {
+-    return new Date(subscriber.activatedAt).toLocaleDateString('vi-VN');
+-  }
+-
+-  protected typeLabel(type: SubscriberType): string {
+-    return SUBSCRIBER_TYPE[type];
+-  }
+-
+-  protected statusLabel(status: SubscriberStatus): string {
+-    return SUBSCRIBER_STATUS[status].labelKey;
+-  }
++  /** Dong giu nguyen DOM khi tai lai cung du lieu: so theo id, khong theo object moi tu server. */
++  protected readonly trackById = (_: number, row: ReportRow) => row.id;
+ }

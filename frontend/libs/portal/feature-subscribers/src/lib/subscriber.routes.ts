@@ -10,6 +10,14 @@ export const subscriberRoutes: Route[] = [
       ),
   },
   {
+    path: 'report',
+    title: 'title.report',
+    loadComponent: () =>
+      import('./subscriber-report/subscriber-report.page').then(
+        (m) => m.SubscriberReportPage,
+      ),
+  },
+  {
     path: ':id',
     title: 'title.subscriberDetail',
     loadComponent: () =>

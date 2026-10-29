@@ -1,7 +1,7 @@
 # Buổi 05 — Hiệu năng và quản lý bộ nhớ
 
 **Thời lượng:** 4 giờ (review và use case 20', khái niệm 40', live demo 30', nghỉ 10', lab 120', review chéo 20')
-**Trạng thái tài liệu:** đã có khung theo đề cương; chưa soạn slide, lab chi tiết, đáp án.
+**Điểm bắt đầu:** `git checkout session05-start` · **Đáp án:** 4 patch trong `solution/`, bản đầy đủ ở nhánh `session05-end`
 
 ## Theo đề cương
 
@@ -22,45 +22,54 @@ Sau buổi học, học viên có thể:
 
 ## Use case trên Care Portal
 
-- Trang Thuê bao trên 200.000 bản ghi (tăng lên 1–5 triệu bằng seed): đo thời gian từ đổi bộ lọc tới vẽ xong bảng.
-- So sánh 3 cách: phân trang server 20/100 dòng, tải 10.000 dòng render DOM thường, 10.000 dòng với virtual scroll
-  (`cdk-virtual-scroll-viewport` hoặc `nzVirtualScroll`). Ghi payload (kB), thời gian scripting/rendering, bộ nhớ.
-- Bundle ban đầu ~1,29 MB, riêng CSS ng-zorro ~577 kB: đo, đặt budget, thử import CSS theo component.
-- Rò bộ nhớ có chủ đích (subscription `interval` không hủy, listener `window` không gỡ): điều hướng 20 lần, so sánh heap.
+Màn hình **Báo cáo thuê bao** (`/subscribers/report`, có sẵn ở điểm bắt đầu) tải 1.000–10.000 thuê bao vào một bảng HTML thường, kèm
+đồng hồ ca trực cập nhật mỗi giây. Màn hình có 4 vấn đề hiệu năng thật: `track` theo object, gọi method trong template cho từng dòng
+(`toLocaleDateString`), đồng hồ làm cả trang kiểm tra lại mỗi giây, listener `resize` và `setInterval` không gỡ (rò bộ nhớ).
+Backend cần `MAX_PAGE_SIZE=10000` để tải nhiều dòng.
 
-## Dự kiến lab (120 phút)
+Số đo baseline (máy giảng viên, dev build, CPU 4×): lần đầu 3.394 ms, tải lại 3,7–4,5 giây, 100.167 node DOM, heap +46,5 MB sau 20 lần
+điều hướng. Sau khi sửa: tải lại khoảng 150 ms, 357 node DOM, heap +2 MB. Chi tiết: `docs/benchmark-buoi-05.md` (nhánh `session05-end`).
+
+## Lab (120 phút)
 
 | Bài | Nội dung | Phút |
 |---|---|---|
-| 1 | Baseline: quy trình đo (thiết bị, CPU throttle, dữ liệu, số lần lặp), ghi dữ liệu thô | 25 |
-| 2 | DOM thường so với virtual scroll so với phân trang server; ghi payload và profile | 35 |
-| 3 | Change detection: Angular DevTools Profiler, `OnPush`, `track`, `@defer` cho panel chi tiết | 25 |
-| 4 | Heap sau 20 lần điều hướng: tìm retained object, sửa, đo lại | 25 |
-| 5 | Hoàn thiện bảng benchmark và kết luận có điều kiện | 10 |
+| 1 | Baseline: điều kiện đo, Console (`NG0956`), Performance, Performance monitor, Network; ghi dữ liệu thô | 25 |
+| 2 | Virtual scroll bằng CDK (lưới CSS + role bảng); so với DOM thường và phân trang server | 35 |
+| 3 | Change detection: Angular DevTools Profiler, tách `ShiftClock`, view model tính sẵn, `trackBy` id | 25 |
+| 4 | Heap snapshot 3 bước, retainer path, gỡ listener bằng `toSignal`; test `removeEventListener` | 25 |
+| 5 | `docs/benchmark-buoi-05.md`: dữ liệu thô, profile trước/sau, kết luận có điều kiện | 10 |
 
 ## Liên kết code
 
 | Khái niệm | File |
 |---|---|
-| Phân trang server và bảng thuê bao | `frontend/libs/portal/feature-subscribers/` |
-| Budget build | `frontend/apps/portal/project.json` (`budgets`) |
-| Chỉ đăng ký icon dùng tới | `frontend/libs/shared/ui-layout/src/lib/provide-ui.ts` |
-| Seed dữ liệu lớn | `backend/src/main/resources/application.yml` (`SEED_SUBSCRIBERS`), `README.md` mục Tăng lượng dữ liệu |
-| Index và trigram | `backend/src/main/resources/db/migration/` |
+| Màn hình đo (điểm bắt đầu) | `frontend/libs/portal/feature-subscribers/src/lib/subscriber-report/` |
+| Phân trang server (đối chiếu) | `frontend/libs/portal/feature-subscribers/src/lib/subscriber-list/` |
+| Giới hạn kích thước trang | `backend/src/main/resources/application.yml` (`MAX_PAGE_SIZE`), `infra/docker-compose.yml` |
+| Kịch bản đo lặp lại được (đáp án) | `frontend/apps/portal-e2e/src/perf/report.perf.spec.ts` (`PERF=1`, `THROTTLE=4`) |
+| Mẫu bảng benchmark | `course/_templates/benchmark.md` |
 
-## Cần chuẩn bị trước khi soạn chi tiết
+## Đã chuẩn bị ở `session05-start`
 
-- [ ] Endpoint hoặc chế độ trả nhiều dòng (ví dụ `size=10000`, có giới hạn trên) chỉ dùng cho bài so sánh.
-- [ ] Commit có rò bộ nhớ cố ý làm điểm xuất phát Bài 4.
-- [ ] Mẫu bảng benchmark: `course/_templates/benchmark.md`.
-- [ ] Cảnh báo học viên: máy yếu thì giảm xuống 1 triệu bản ghi; mọi so sánh phải trên cùng máy.
+- Đáp án buổi 4 đã áp (`session04-end`).
+- Backend: `max-page-size` đọc từ `MAX_PAGE_SIZE` (mặc định 200).
+- Frontend: màn hình **Báo cáo thuê bao** (route `subscribers/report`, nút **Báo cáo** ở trang Thuê bao), key i18n `report.*`, test cơ bản.
 
 ## Tài liệu
 
 | | |
 |---|---|
-| Slide | `slides/` (chưa soạn) |
-| Lab | `lab/` (chưa soạn) |
-| Đáp án | `solution/` (chưa soạn) |
-| Ghi chú giảng viên | [instructor-notes.md](instructor-notes.md) |
-| Bài tập về nhà | `../bai-tap-ve-nha/buoi-05-<chu-de>.html` (chưa soạn) |
+| Slide | [slides/slides.md](slides/slides.md) (nguồn Marp) · `buoi-05-hieu-nang-va-bo-nho.pptx` · `buoi-05-hieu-nang-va-bo-nho.pdf` |
+| Lab | [lab/README.md](lab/README.md) |
+| Đáp án | [solution/README.md](solution/README.md) + 4 file `.patch` |
+| Ghi chú giảng viên | [instructor-notes.md](instructor-notes.md) · [note-cho-giang-vien.md](note-cho-giang-vien.md) |
+| Bài tập về nhà | [../bai-tap-ve-nha/buoi-05-hieu-nang-va-bo-nho.html](../bai-tap-ve-nha/buoi-05-hieu-nang-va-bo-nho.html) |
+
+## Sửa slide
+
+```bash
+cd course/session-05/slides
+npx @marp-team/marp-cli@4 slides.md --pptx --allow-local-files -o buoi-05-hieu-nang-va-bo-nho.pptx
+npx @marp-team/marp-cli@4 slides.md --pdf  --allow-local-files -o buoi-05-hieu-nang-va-bo-nho.pdf
+```
