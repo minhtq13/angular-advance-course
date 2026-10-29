@@ -1,7 +1,7 @@
 # Buổi 04 — Ghi chú giảng viên
 
 ## Chuẩn bị trước buổi
-- [ ] Checkout tag `session04-start`, chạy `docker compose -f infra/docker-compose.yml up -d` và `npm start`
+- [ ] Checkout nhánh `session04-start`, chạy `docker compose -f infra/docker-compose.yml up -d` và `npm start`
 - [ ] Mở sẵn: slide, VS Code tại `frontend/`, trình duyệt (portal), Swagger
 - [ ] Thu sản phẩm buổi 03 và bài tập về nhà để dùng trong 20 phút đầu
 

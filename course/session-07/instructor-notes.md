@@ -1,7 +1,7 @@
 # Buổi 07 — Ghi chú giảng viên
 
 ## Chuẩn bị trước buổi
-- [ ] Checkout tag `session07-start`, chạy `docker compose -f infra/docker-compose.yml up -d` --profile sso và `npm start`
+- [ ] Checkout nhánh `session07-start`, chạy `docker compose -f infra/docker-compose.yml up -d` --profile sso và `npm start`
 - [ ] Mở sẵn: slide, VS Code tại `frontend/`, trình duyệt (portal), Swagger
 - [ ] Thu sản phẩm buổi 06 và bài tập về nhà để dùng trong 20 phút đầu
 

@@ -7,7 +7,7 @@ session-XX/
   README.md               Mục tiêu, nội dung, liên kết tới code trong dự án
   slides/                 Slide
   lab/                    Đề bài lab và hướng dẫn
-  solution/               Đáp án lab (hoặc trỏ tới git tag)
+  solution/               Đáp án lab (patch, hoặc trỏ tới nhánh git)
   instructor-notes.md     Ghi chú giảng viên: timeline, câu hỏi hay gặp, lỗi thường gặp
 
 _templates/
@@ -18,7 +18,7 @@ bai-tap-ve-nha/
   reference/              Bảng tra cứu in được
 ```
 
-Quy ước git tag: `sessionXX-start` (điểm học viên bắt đầu lab) và `sessionXX-end` (đáp án đầy đủ, build và test đều pass).
+Quy ước nhánh git: `sessionXX-start` (điểm học viên bắt đầu lab) và `sessionXX-end` (đáp án đầy đủ, build và test đều pass).
 
 ## Dự án thực hành và ánh xạ với đề cương
 
