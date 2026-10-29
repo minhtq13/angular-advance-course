@@ -15,7 +15,9 @@ test('agent tao phieu tu trang thue bao, tieu de khoang trang bi chan', async ({
   await login(page, 'agent1', '/subscribers/1');
   await page.getByRole('link', { name: 'Tạo phiếu' }).click();
   await expect(page).toHaveURL(/\/tickets\/new\?subscriberId=1/);
-  await expect(page.getByLabel('Mã thuê bao')).toHaveValue('1');
+  await expect(page.locator('care-subscriber-picker')).toContainText(
+    '0900000001',
+  );
   await page.locator('#tk-category').click();
   await page
     .getByTitle('Cước phí')

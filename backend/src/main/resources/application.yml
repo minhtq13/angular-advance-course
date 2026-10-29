@@ -44,6 +44,9 @@ care:
     refresh-token-ttl: ${REFRESH_TOKEN_TTL:8h}
   cors:
     allowed-origins: ${CORS_ORIGINS:http://localhost:4200,http://localhost:4300}
+  demo:
+    # Buoi 3: tu khoa tim thue bao ngan hon 5 ky tu tra ve cham 2 giay. Chi bat khi demo trong lop.
+    slow-short-query: ${DEMO_SLOW_SHORT_QUERY:false}
 
 server:
   port: ${PORT:8081}

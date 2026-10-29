@@ -29,6 +29,8 @@ services:
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
+      # Buoi 3: DEMO_SLOW_SHORT_QUERY=true docker compose -f infra/docker-compose.yml up -d api
+      DEMO_SLOW_SHORT_QUERY: ${DEMO_SLOW_SHORT_QUERY:-false}
     ports:
       - "8081:8081"
     depends_on:

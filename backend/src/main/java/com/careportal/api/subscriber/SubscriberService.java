@@ -10,6 +10,7 @@ import com.careportal.api.subscriber.SubscriberDtos.CreateSubscriberRequest;
 import com.careportal.api.subscriber.SubscriberDtos.SubscriberDto;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,11 +20,24 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class SubscriberService {
 
+    /** Tu khoa ngan hon so ky tu nay bi lam cham khi bat che do demo. */
+    static final int SHORT_QUERY = 5;
+
     private final SubscriberRepository repository;
     private final ServicePlanRepository planRepository;
     private final SubscriberMapper mapper;
 
+    /**
+     * Buoi 3: DEMO_SLOW_SHORT_QUERY=true -> tu khoa ngan (khop nhieu ban ghi) tra ve cham 2 giay, de tai hien
+     * "request cu ve sau request moi" tren trinh duyet. Mac dinh tat; khong bao gio bat o moi truong that.
+     */
+    @Value("${care.demo.slow-short-query:false}")
+    private boolean slowShortQuery;
+
     public PageResponse<SubscriberDto> search(SubscriberSearch search, Pageable pageable) {
+        if (slowShortQuery && search.q() != null && !search.q().isBlank() && search.q().trim().length() < SHORT_QUERY) {
+            sleep(2000);
+        }
         return PageResponse.of(repository.findAll(SubscriberSpecs.matches(search), pageable).map(mapper::toDto));
     }
 
@@ -63,6 +77,14 @@ public class SubscriberService {
         }
         subscriber.setStatus(request.status());
         return mapper.toDto(repository.saveAndFlush(subscriber));
+    }
+
+    private static void sleep(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private Subscriber find(long id) {

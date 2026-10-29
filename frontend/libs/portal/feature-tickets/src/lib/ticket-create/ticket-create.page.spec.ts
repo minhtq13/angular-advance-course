@@ -2,7 +2,9 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { TicketPort, TicketValidationError } from '@care/portal-domain-tickets';
 import { InMemoryTicketAdapter } from '@care/portal-domain-tickets/testing';
+import { SubscriberApi } from '@care/shared-data-access-api';
 import { provideUi } from '@care/shared-ui-layout';
+import { of } from 'rxjs';
 import { provideI18nTesting } from '@care/shared-util-i18n/testing';
 import { TicketCreatePage } from './ticket-create.page';
 
@@ -18,6 +20,14 @@ describe('TicketCreatePage', () => {
         provideUi(),
         provideI18nTesting(),
         { provide: TicketPort, useValue: port },
+        {
+          provide: SubscriberApi,
+          useValue: {
+            get: (id: number) =>
+              of({ id, msisdn: '0900000012', fullName: 'Tran Thi B' }),
+            search: () => of({ content: [], totalElements: 0 }),
+          },
+        },
       ],
     }).compileComponents();
   });
@@ -52,9 +62,11 @@ describe('TicketCreatePage', () => {
     ).form.controls.category.setValue('BILLING');
   }
 
-  it('lay subscriberId tu query param', async () => {
-    const { input } = await render('12');
-    expect(input('tk-subscriber').value).toBe('12');
+  it('lay subscriberId tu query param va hien so thue bao', async () => {
+    const { el } = await render('12');
+    expect(el.querySelector('care-subscriber-picker')?.textContent).toContain(
+      '0900000012',
+    );
   });
 
   it('tieu de chi co khoang trang: khong goi API, bao loi dung truong va dua focus toi do', async () => {

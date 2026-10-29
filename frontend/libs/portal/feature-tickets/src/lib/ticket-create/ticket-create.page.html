@@ -30,14 +30,11 @@
       >{{ 'ticket.form.subscriberId' | transloco }}</nz-form-label
     >
     <nz-form-control>
-      <input
-        nz-input
-        id="tk-subscriber"
-        type="number"
-        inputmode="numeric"
+      <care-subscriber-picker
+        inputId="tk-subscriber"
         formControlName="subscriberId"
-        [attr.aria-invalid]="subscriberErr ? true : null"
-        [attr.aria-describedby]="subscriberErr ? 'tk-subscriber-error' : null"
+        [invalid]="!!subscriberErr"
+        [describedBy]="subscriberErr ? 'tk-subscriber-error' : null"
       />
       @if (subscriberErr) {
       <div class="field-error" id="tk-subscriber-error">

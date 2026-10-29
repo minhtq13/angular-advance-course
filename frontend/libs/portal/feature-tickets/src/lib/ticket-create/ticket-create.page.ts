@@ -36,6 +36,7 @@ import { NzButtonComponent } from 'ng-zorro-antd/button';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzOptionComponent, NzSelectComponent } from 'ng-zorro-antd/select';
+import { SubscriberPicker } from '../subscriber-picker/subscriber-picker';
 import { notBlank } from './not-blank.validator';
 
 const TITLE_MAX = 200;
@@ -66,6 +67,7 @@ function toId(value: unknown): number | undefined {
     NzInputModule,
     NzSelectComponent,
     NzOptionComponent,
+    SubscriberPicker,
   ],
   templateUrl: './ticket-create.page.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -199,10 +201,16 @@ export class TicketCreatePage implements OnInit {
 
   private focusFirstInvalid(): void {
     afterNextRender(
-      () =>
-        this.host.nativeElement
-          .querySelector<HTMLElement>('[aria-invalid="true"]')
-          ?.focus(),
+      () => {
+        const invalid = this.host.nativeElement.querySelector<HTMLElement>(
+          '[aria-invalid="true"]',
+        );
+        // nz-select dat aria-invalid tren the bao ngoai: focus vao o nhap ben trong.
+        const target = invalid?.matches('input, textarea')
+          ? invalid
+          : invalid?.querySelector<HTMLElement>('input');
+        target?.focus();
+      },
       { injector: this.injector },
     );
   }

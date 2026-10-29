@@ -116,7 +116,7 @@
     "new": "New ticket",
     "form": {
       "heading": "New service ticket",
-      "subscriberId": "Subscriber ID",
+      "subscriberId": "Subscriber",
       "category": "Category",
       "priority": "Priority",
       "title": "Title",
@@ -131,7 +131,11 @@
         "required": "Required",
         "blank": "Must not be only spaces",
         "maxlength": "At most {{max}} characters"
-      }
+      },
+      "subscriberSearch": "Type phone number, ID number or name (at least 3 characters)",
+      "subscriberSearching": "Searching…",
+      "subscriberNotFound": "No subscriber found",
+      "subscriberSearchError": "Search failed. Keep typing to try again."
     },
     "approve": {
       "action": "Approve",
