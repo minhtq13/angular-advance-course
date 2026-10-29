@@ -1,6 +1,8 @@
 package com.careportal.api.ticket;
 
+import com.careportal.api.common.IdempotencyStore;
 import com.careportal.api.common.PageResponse;
+import com.careportal.api.ticket.TicketDtos.ApproveTicketRequest;
 import com.careportal.api.ticket.TicketDtos.CreateTicketRequest;
 import com.careportal.api.ticket.TicketDtos.TicketDto;
 import com.careportal.api.ticket.TicketDtos.TicketSearch;
@@ -13,13 +15,15 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -27,7 +31,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class TicketController {
 
+    static final String IDEMPOTENCY_KEY = "Idempotency-Key";
+    static final String REPLAYED = "Idempotent-Replayed";
+
     private final TicketService service;
+    private final IdempotencyStore idempotency;
 
     @GetMapping
     public PageResponse<TicketDto> search(
@@ -41,10 +49,29 @@ public class TicketController {
         return service.get(id);
     }
 
+    /**
+     * Gui kem header Idempotency-Key (UUID do client sinh cho moi lan "tao phieu") thi gui lai bao nhieu lan
+     * cung chi tao mot phieu; lan gui lai nhan header Idempotent-Replayed: true.
+     */
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public TicketDto create(@Valid @RequestBody CreateTicketRequest request, Principal principal) {
-        return service.create(request, principal.getName());
+    public ResponseEntity<TicketDto> create(
+            @Valid @RequestBody CreateTicketRequest request,
+            @RequestHeader(name = IDEMPOTENCY_KEY, required = false) String idempotencyKey,
+            Principal principal) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            return ResponseEntity.status(HttpStatus.CREATED).body(service.create(request, principal.getName()));
+        }
+        var outcome = idempotency.execute(principal.getName(), idempotencyKey, request,
+                () -> service.create(request, principal.getName()));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .header(REPLAYED, String.valueOf(outcome.replayed()))
+                .body(outcome.result());
+    }
+
+    @PostMapping("/{id}/approve")
+    @PreAuthorize("hasRole('SUPERVISOR')")
+    public TicketDto approve(@PathVariable long id, @Valid @RequestBody ApproveTicketRequest request) {
+        return service.approve(id, request.version());
     }
 
     @PatchMapping("/{id}")

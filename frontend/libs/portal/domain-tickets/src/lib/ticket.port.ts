@@ -1,5 +1,11 @@
 import { Observable } from 'rxjs';
-import { PageQuery, TicketPage, TicketQuery } from './ticket';
+import {
+  CreateTicketCommand,
+  PageQuery,
+  TicketPage,
+  TicketQuery,
+  TicketSummary,
+} from './ticket';
 
 /**
  * Hop dong (port) ma man hinh phieu yeu cau can. Man hinh chi biet lop nay;
@@ -8,4 +14,16 @@ import { PageQuery, TicketPage, TicketQuery } from './ticket';
  */
 export abstract class TicketPort {
   abstract search(query: TicketQuery, page: PageQuery): Observable<TicketPage>;
+
+  /**
+   * Tao phieu. Cung idempotencyKey -> cung mot phieu (an toan khi gui lai).
+   * Loi: TicketValidationError (du lieu sai).
+   */
+  abstract create(
+    command: CreateTicketCommand,
+    idempotencyKey: string,
+  ): Observable<TicketSummary>;
+
+  /** Manager duyet phieu da xu ly. Loi: TicketConflictError (version cu, sai trang thai). */
+  abstract approve(id: number, version: number): Observable<TicketSummary>;
 }

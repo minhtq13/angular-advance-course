@@ -1,6 +1,6 @@
 # Lab buổi 1 — Kiến trúc Angular cho dự án lớn
 
-**Thời gian:** 120 phút · **Điểm xuất phát:** code hiện tại của repo (tag `session01-start`)
+**Thời gian:** 120 phút · **Điểm xuất phát:** `git checkout session01-start`
 
 **Use case.** Màn hình *Phiếu yêu cầu* (`TicketListPage`) đang inject thẳng `TicketApi` và đọc `content`, `totalElements`
 của Spring Page. Muốn test màn hình phải giả lập HTTP; backend đổi hình dạng response thì phải sửa component.

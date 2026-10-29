@@ -40,7 +40,8 @@
     "dashboard": "Tổng quan",
     "forbidden": "Không có quyền truy cập",
     "notFound": "Không tìm thấy trang",
-    "servicePlans": "Gói cước"
+    "servicePlans": "Gói cước",
+    "ticketNew": "Tạo phiếu yêu cầu"
   },
   "status": {
     "forbidden": "Bạn không có quyền truy cập chức năng này.",
@@ -90,7 +91,8 @@
       "statusChanged": "Đã chuyển sang \"{{status}}\"",
       "recentTickets": "Phiếu yêu cầu gần đây",
       "noTickets": "Thuê bao này chưa có phiếu yêu cầu nào."
-    }
+    },
+    "createTicket": "Tạo phiếu"
   },
   "ticket": {
     "count": "{{count}} phiếu",
@@ -108,7 +110,34 @@
       "priority": "Ưu tiên",
       "status": "Trạng thái",
       "assignee": "Người xử lý",
-      "createdAt": "Ngày tạo"
+      "createdAt": "Ngày tạo",
+      "actions": "Thao tác"
+    },
+    "new": "Tạo phiếu",
+    "form": {
+      "heading": "Tạo phiếu yêu cầu",
+      "subscriberId": "Mã thuê bao",
+      "category": "Phân loại",
+      "priority": "Mức ưu tiên",
+      "title": "Tiêu đề",
+      "description": "Mô tả",
+      "submit": "Tạo phiếu",
+      "submitting": "Đang gửi…",
+      "cancel": "Hủy",
+      "created": "Đã tạo phiếu {{code}}",
+      "submitError": "Không tạo được phiếu. Nội dung bạn nhập vẫn được giữ, hãy thử lại.",
+      "invalid": "Vui lòng sửa các trường được đánh dấu.",
+      "errors": {
+        "required": "Bắt buộc nhập",
+        "blank": "Không được chỉ có khoảng trắng",
+        "maxlength": "Tối đa {{max}} ký tự"
+      }
+    },
+    "approve": {
+      "action": "Duyệt",
+      "done": "Đã duyệt phiếu {{code}}",
+      "conflictTitle": "Không duyệt được phiếu",
+      "reload": "Tải lại danh sách"
     }
   },
   "dashboard": {

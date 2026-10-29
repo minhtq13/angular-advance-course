@@ -18,6 +18,16 @@ export interface TicketSummary {
   subscriberName: string;
   assignee: string | null;
   createdAt: string;
+  /** Dung cho optimistic locking: gui kem khi ghi, backend tra 409 neu da cu. */
+  version: number;
+}
+
+export interface CreateTicketCommand {
+  subscriberId: number;
+  category: TicketCategory;
+  priority: TicketPriority;
+  title: string;
+  description?: string;
 }
 
 export interface TicketQuery {

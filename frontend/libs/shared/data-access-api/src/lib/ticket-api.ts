@@ -26,8 +26,18 @@ export class TicketApi {
     return this.http.get<Ticket>(`${this.baseUrl}/${id}`);
   }
 
-  create(request: CreateTicketRequest) {
-    return this.http.post<Ticket>(this.baseUrl, request);
+  /** idempotencyKey: gui lai cung key thi backend tra lai phieu da tao, khong tao phieu moi (buoi 2). */
+  create(request: CreateTicketRequest, idempotencyKey?: string) {
+    return this.http.post<Ticket>(this.baseUrl, request, {
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {},
+    });
+  }
+
+  /** Chi SUPERVISOR; version cu -> 409. */
+  approve(id: number, version: number) {
+    return this.http.post<Ticket>(`${this.baseUrl}/${id}/approve`, {
+      version,
+    });
   }
 
   update(id: number, request: UpdateTicketRequest) {

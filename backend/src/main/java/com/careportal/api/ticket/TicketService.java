@@ -80,6 +80,20 @@ public class TicketService {
         return mapper.toDto(repository.saveAndFlush(ticket));
     }
 
+    /** Hai Manager duyet cung mot phieu: nguoi gui sau mang version cu -> 409 error.staleData. */
+    @Transactional
+    public TicketDto approve(long id, long version) {
+        var ticket = find(id);
+        if (ticket.getVersion() != version) {
+            throw new ConflictException("error.staleData");
+        }
+        if (ticket.getStatus() != TicketStatus.RESOLVED) {
+            throw new ConflictException("error.ticketNotResolved");
+        }
+        ticket.setStatus(TicketStatus.CLOSED);
+        return mapper.toDto(repository.saveAndFlush(ticket));
+    }
+
     private Ticket find(long id) {
         return repository.findById(id).orElseThrow(() -> new NotFoundException("resource.ticket", id));
     }

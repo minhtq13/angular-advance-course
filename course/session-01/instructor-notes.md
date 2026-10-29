@@ -115,4 +115,4 @@ Chuẩn bị trước: một nhánh đã áp `bai2-goi-cuoc.patch` + `bai3-5-tic
 - Giao bài tập về nhà: [../bai-tap-ve-nha/buoi-01-bon-loai-lib-va-luat-phu-thuoc.html](../bai-tap-ve-nha/buoi-01-bon-loai-lib-va-luat-phu-thuoc.html) (khoảng 30 phút, nộp trước buổi 2). Nhắc học viên mở file bằng trình duyệt từ repo đã clone.
 - Thu sơ đồ phụ thuộc, ADR-0002 của các nhóm và bài tập về nhà để mở đầu buổi 2. Phần 4 của bài tập (`ThemeService` có nên nằm trong lib ui?) là chủ đề thảo luận đầu buổi 2.
 - Câu hỏi thảo luận Bài 5 ("tạo/duyệt phiếu: thêm method vào port hay tách port?") là cầu nối sang lab buổi 2.
-- Gắn tag `session01-end` sau khi áp đáp án. Đây cũng là điểm xuất phát `session02-start`.
+- Tag `session01-end` = đáp án đầy đủ. Buổi 2 bắt đầu từ `session02-start` (thêm phần backend phê duyệt, idempotency và mở rộng `TicketPort`).

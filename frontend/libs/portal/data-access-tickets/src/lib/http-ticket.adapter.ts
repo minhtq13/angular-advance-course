@@ -1,15 +1,19 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable, Provider } from '@angular/core';
-import { Ticket, TicketApi } from '@care/shared-data-access-api';
+import { ProblemDetail, Ticket, TicketApi } from '@care/shared-data-access-api';
 import {
+  CreateTicketCommand,
   PageQuery,
+  TicketConflictError,
   TicketPage,
   TicketPort,
   TicketQuery,
   TicketSummary,
+  TicketValidationError,
 } from '@care/portal-domain-tickets';
-import { map, Observable } from 'rxjs';
+import { catchError, map, Observable, throwError } from 'rxjs';
 
-/** Adapter HTTP: goi API that qua TicketApi va chuyen hinh dang Spring Page sang TicketPage. */
+/** Adapter HTTP: goi API that qua TicketApi, chuyen Spring Page sang TicketPage va loi HTTP sang loi nghiep vu. */
 @Injectable()
 export class HttpTicketAdapter extends TicketPort {
   private readonly api = inject(TicketApi);
@@ -21,6 +25,21 @@ export class HttpTicketAdapter extends TicketPort {
         total: res.totalElements,
       })),
     );
+  }
+
+  create(
+    command: CreateTicketCommand,
+    idempotencyKey: string,
+  ): Observable<TicketSummary> {
+    return this.api
+      .create(command, idempotencyKey)
+      .pipe(map(toSummary), catchError(toDomainError));
+  }
+
+  approve(id: number, version: number): Observable<TicketSummary> {
+    return this.api
+      .approve(id, version)
+      .pipe(map(toSummary), catchError(toDomainError));
   }
 }
 
@@ -37,7 +56,25 @@ export function toSummary(t: Ticket): TicketSummary {
     subscriberName: t.subscriberName,
     assignee: t.assignee,
     createdAt: t.createdAt,
+    version: t.version,
   };
+}
+
+/** 409 -> TicketConflictError, 400 -> TicketValidationError; loi khac (mang, 403, 500) giu nguyen. */
+export function toDomainError(error: unknown): Observable<never> {
+  if (error instanceof HttpErrorResponse) {
+    const problem = (error.error ?? {}) as ProblemDetail;
+    const message = problem.detail ?? error.message;
+    if (error.status === 409) {
+      return throwError(() => new TicketConflictError(message));
+    }
+    if (error.status === 400) {
+      return throwError(
+        () => new TicketValidationError(message, problem.errors ?? {}),
+      );
+    }
+  }
+  return throwError(() => error);
 }
 
 /** Noi TicketPort voi adapter HTTP. Goi o composition root (route cua app), khong goi trong feature. */

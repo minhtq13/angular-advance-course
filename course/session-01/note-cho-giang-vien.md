@@ -41,7 +41,7 @@ cd frontend && nvm use && npm ci && npm start       # http://localhost:4200
 
 Tài khoản đăng nhập (mật khẩu trùng tên đăng nhập): `agent1`, `supervisor1` (vai trò Manager của đề cương), `admin1`.
 
-Mã nguồn trong `frontend/` đang ở **trạng thái bắt đầu lab**, nên chưa có màn hình Gói cước và `TicketListPage` còn gọi `TicketApi` trực tiếp. Muốn xem bản đã làm xong, áp đáp án:
+Nhánh `main` đã đi tiếp sang các buổi sau. Để về điểm bắt đầu lab buổi 1 (chưa có Gói cước, `TicketListPage` còn gọi `TicketApi` trực tiếp): `git checkout session01-start`. Bản đã làm xong là tag `session01-end`, hoặc áp đáp án lên `session01-start`:
 
 ```bash
 git apply course/session-01/solution/bai2-goi-cuoc.patch
@@ -61,4 +61,4 @@ Muốn quay về trạng thái bắt đầu, chạy ngược thứ tự (xem hư
   - Dùng GitHub hay GitLab: lab Bài 5 có sẵn cả hai dạng job CI.
   - Nếu không cài được Docker, cần một máy chủ chung chạy backend; cách cấu hình nằm trong `instructor-notes.md`.
 - **Phạm vi nội dung hiện có:** slide chưa có ảnh minh họa chế độ tối và giao diện tiếng Anh, dù ứng dụng đã hỗ trợ cả hai.
-- **Tag git:** chưa có tag `session01-start` và `session01-end`. Học viên cần hai tag này để checkout đúng điểm bắt đầu lab.
+- **Tag git:** `session01-start` (điểm bắt đầu lab) và `session01-end` (đã áp 3 patch, cũng là `session02-start` về phía frontend).

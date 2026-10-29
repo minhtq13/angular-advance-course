@@ -40,7 +40,8 @@
     "dashboard": "Overview",
     "forbidden": "Access denied",
     "notFound": "Page not found",
-    "servicePlans": "Service plans"
+    "servicePlans": "Service plans",
+    "ticketNew": "New ticket"
   },
   "status": {
     "forbidden": "You do not have permission to access this feature.",
@@ -90,7 +91,8 @@
       "statusChanged": "Status changed to \"{{status}}\"",
       "recentTickets": "Recent tickets",
       "noTickets": "This subscriber has no tickets yet."
-    }
+    },
+    "createTicket": "New ticket"
   },
   "ticket": {
     "count": "Total: {{count}}",
@@ -108,7 +110,34 @@
       "priority": "Priority",
       "status": "Status",
       "assignee": "Assignee",
-      "createdAt": "Created on"
+      "createdAt": "Created on",
+      "actions": "Actions"
+    },
+    "new": "New ticket",
+    "form": {
+      "heading": "New service ticket",
+      "subscriberId": "Subscriber ID",
+      "category": "Category",
+      "priority": "Priority",
+      "title": "Title",
+      "description": "Description",
+      "submit": "Create ticket",
+      "submitting": "Submitting…",
+      "cancel": "Cancel",
+      "created": "Ticket {{code}} created",
+      "submitError": "Could not create the ticket. Your input is kept, please try again.",
+      "invalid": "Please fix the highlighted fields.",
+      "errors": {
+        "required": "Required",
+        "blank": "Must not be only spaces",
+        "maxlength": "At most {{max}} characters"
+      }
+    },
+    "approve": {
+      "action": "Approve",
+      "done": "Ticket {{code}} approved",
+      "conflictTitle": "Could not approve the ticket",
+      "reload": "Reload list"
     }
   },
   "dashboard": {
