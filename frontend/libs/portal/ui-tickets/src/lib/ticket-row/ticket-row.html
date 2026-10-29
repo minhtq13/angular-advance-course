@@ -1,0 +1,44 @@
+@let t = ticket();
+<td>{{ t.code }}</td>
+<td>
+  <a class="cell-link" [routerLink]="['/subscribers', t.subscriberId]"
+    >{{ t.subscriberMsisdn }}</a
+  >
+  <div class="muted">{{ t.subscriberName }}</div>
+</td>
+<td>{{ t.title }}</td>
+<td>{{ categoryLabel[t.category] | transloco }}</td>
+<td>
+  <nz-tag [nzColor]="priorityTag[t.priority].color"
+    >{{ priorityTag[t.priority].labelKey | transloco }}</nz-tag
+  >
+</td>
+<td>
+  <nz-tag [nzColor]="statusTag[t.status].color"
+    >{{ statusTag[t.status].labelKey | transloco }}</nz-tag
+  >
+</td>
+<td>
+  @if (t.assignee) { {{ t.assignee }} } @else {
+  <span class="muted">{{ 'common.unassigned' | transloco }}</span>
+  }
+</td>
+<td>
+  {{ t.createdAt | translocoDate: dateFormat }} {{ t.createdAt | translocoDate:
+  timeFormat }}
+</td>
+<td nzRight>
+  @if (canApprove()) {
+  <button
+    nz-button
+    nzSize="small"
+    type="button"
+    [nzLoading]="approving()"
+    [disabled]="approving()"
+    [attr.aria-label]="('ticket.approve.action' | transloco) + ' ' + t.code"
+    (click)="approve.emit(t)"
+  >
+    {{ 'ticket.approve.action' | transloco }}
+  </button>
+  }
+</td>

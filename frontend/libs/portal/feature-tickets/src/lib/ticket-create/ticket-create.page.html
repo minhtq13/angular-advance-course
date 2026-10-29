@@ -1,0 +1,150 @@
+<div class="page-header">
+  <h1>{{ 'ticket.form.heading' | transloco }}</h1>
+</div>
+
+<!-- Ngoai @if de trinh doc man hinh luon theo doi vung nay. -->
+<div aria-live="assertive">
+  @if (submitError(); as err) {
+  <nz-alert
+    nzType="error"
+    nzShowIcon
+    class="mb"
+    role="alert"
+    [nzMessage]="'text' in err ? err.text : (err.key | transloco)"
+  />
+  }
+</div>
+
+<form
+  class="panel form-panel"
+  nz-form
+  nzLayout="vertical"
+  [formGroup]="form"
+  (ngSubmit)="submit()"
+  novalidate
+>
+  <!-- Moi truong: label noi bang for/id, aria-invalid + aria-describedby tro toi loi. -->
+  @let subscriberErr = errorOf('subscriberId');
+  <nz-form-item>
+    <nz-form-label nzFor="tk-subscriber" nzRequired
+      >{{ 'ticket.form.subscriberId' | transloco }}</nz-form-label
+    >
+    <nz-form-control>
+      <input
+        nz-input
+        id="tk-subscriber"
+        type="number"
+        inputmode="numeric"
+        formControlName="subscriberId"
+        [attr.aria-invalid]="subscriberErr ? true : null"
+        [attr.aria-describedby]="subscriberErr ? 'tk-subscriber-error' : null"
+      />
+      @if (subscriberErr) {
+      <div class="field-error" id="tk-subscriber-error">
+        {{ 'text' in subscriberErr ? subscriberErr.text : (subscriberErr.key |
+        transloco: subscriberErr.params) }}
+      </div>
+      }
+    </nz-form-control>
+  </nz-form-item>
+
+  @let categoryErr = errorOf('category');
+  <nz-form-item>
+    <nz-form-label nzFor="tk-category" nzRequired
+      >{{ 'ticket.form.category' | transloco }}</nz-form-label
+    >
+    <nz-form-control>
+      <nz-select
+        nzId="tk-category"
+        formControlName="category"
+        [attr.aria-invalid]="categoryErr ? true : null"
+        [attr.aria-describedby]="categoryErr ? 'tk-category-error' : null"
+      >
+        @for (o of categoryOptions; track o.value) {
+        <nz-option [nzValue]="o.value" [nzLabel]="o.labelKey | transloco" />
+        }
+      </nz-select>
+      @if (categoryErr) {
+      <div class="field-error" id="tk-category-error">
+        {{ 'text' in categoryErr ? categoryErr.text : (categoryErr.key |
+        transloco: categoryErr.params) }}
+      </div>
+      }
+    </nz-form-control>
+  </nz-form-item>
+
+  <nz-form-item>
+    <nz-form-label nzFor="tk-priority" nzRequired
+      >{{ 'ticket.form.priority' | transloco }}</nz-form-label
+    >
+    <nz-form-control>
+      <nz-select nzId="tk-priority" formControlName="priority">
+        @for (o of priorityOptions; track o.value) {
+        <nz-option [nzValue]="o.value" [nzLabel]="o.labelKey | transloco" />
+        }
+      </nz-select>
+    </nz-form-control>
+  </nz-form-item>
+
+  @let titleErr = errorOf('title');
+  <nz-form-item>
+    <nz-form-label nzFor="tk-title" nzRequired
+      >{{ 'ticket.form.title' | transloco }}</nz-form-label
+    >
+    <nz-form-control>
+      <input
+        nz-input
+        id="tk-title"
+        formControlName="title"
+        [attr.maxlength]="titleMax"
+        [attr.aria-invalid]="titleErr ? true : null"
+        [attr.aria-describedby]="titleErr ? 'tk-title-error' : null"
+      />
+      @if (titleErr) {
+      <div class="field-error" id="tk-title-error">
+        {{ 'text' in titleErr ? titleErr.text : (titleErr.key | transloco:
+        titleErr.params) }}
+      </div>
+      }
+    </nz-form-control>
+  </nz-form-item>
+
+  @let descriptionErr = errorOf('description');
+  <nz-form-item>
+    <nz-form-label nzFor="tk-description"
+      >{{ 'ticket.form.description' | transloco }}</nz-form-label
+    >
+    <nz-form-control>
+      <textarea
+        nz-input
+        id="tk-description"
+        rows="4"
+        formControlName="description"
+        [attr.aria-invalid]="descriptionErr ? true : null"
+        [attr.aria-describedby]="descriptionErr ? 'tk-description-error' : null"
+      ></textarea>
+      @if (descriptionErr) {
+      <div class="field-error" id="tk-description-error">
+        {{ 'text' in descriptionErr ? descriptionErr.text : (descriptionErr.key
+        | transloco: descriptionErr.params) }}
+      </div>
+      }
+    </nz-form-control>
+  </nz-form-item>
+
+  <div class="actions">
+    <button
+      nz-button
+      nzType="primary"
+      type="submit"
+      [nzLoading]="submitting()"
+      [disabled]="submitting()"
+    >
+      {{ (submitting() ? 'ticket.form.submitting' : 'ticket.form.submit') |
+      transloco }}
+    </button>
+    <a nz-button routerLink="/tickets"
+      >{{ 'ticket.form.cancel' | transloco }}</a
+    >
+  </div>
+</form>

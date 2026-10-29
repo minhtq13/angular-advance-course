@@ -2,30 +2,28 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   inject,
   linkedSignal,
   signal,
 } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
+import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import {
+  TicketConflictError,
   TicketPort,
   TicketPriority,
   TicketStatus,
+  TicketSummary,
 } from '@care/portal-domain-tickets';
 import { AuthService } from '@care/shared-data-access-auth';
-import { DATE_FORMAT, TIME_FORMAT } from '@care/shared-util-i18n';
 import { TranslocoPipe } from '@jsverse/transloco';
-import {
-  TranslocoDatePipe,
-  TranslocoDecimalPipe,
-} from '@jsverse/transloco-locale';
+import { TranslocoDecimalPipe } from '@jsverse/transloco-locale';
 import {
   DEFAULT_PAGE,
   PageRequest,
   samePage,
-  TICKET_CATEGORY,
   TICKET_PRIORITY,
   TICKET_STATUS,
   toOptions,
@@ -37,13 +35,17 @@ import { NzIconDirective } from 'ng-zorro-antd/icon';
 import { NzCheckboxComponent } from 'ng-zorro-antd/checkbox';
 import { NzOptionComponent, NzSelectComponent } from 'ng-zorro-antd/select';
 import { NzTableModule, NzTableQueryParams } from 'ng-zorro-antd/table';
-import { NzTagComponent } from 'ng-zorro-antd/tag';
+import { TicketRow } from '@care/portal-ui-tickets';
+import { finalize } from 'rxjs';
+
+/** Thong bao tren trang: key dich (kem tham so) hoac chu da dich san tu backend. */
+type Notice =
+  { key: string; params?: Record<string, unknown> } | { text: string };
 
 @Component({
   selector: 'care-ticket-list-page',
   imports: [
     TranslocoPipe,
-    TranslocoDatePipe,
     TranslocoDecimalPipe,
     FormsModule,
     RouterLink,
@@ -54,7 +56,7 @@ import { NzTagComponent } from 'ng-zorro-antd/tag';
     NzSelectComponent,
     NzOptionComponent,
     NzTableModule,
-    NzTagComponent,
+    TicketRow,
   ],
   templateUrl: './ticket-list.page.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -63,12 +65,22 @@ export class TicketListPage {
   /** Chi phu thuoc hop dong; adapter (HTTP hay fake) do app/test cung cap. */
   private readonly tickets = inject(TicketPort);
   private readonly auth = inject(AuthService);
+  private readonly destroyRef = inject(DestroyRef);
 
-  protected readonly dateFormat = DATE_FORMAT;
-  protected readonly timeFormat = TIME_FORMAT;
-  protected readonly statusLabels = TICKET_STATUS;
-  protected readonly priorityLabels = TICKET_PRIORITY;
-  protected readonly categoryLabels = TICKET_CATEGORY;
+  /** Thong bao thanh cong: phieu vua tao (tu navigation state) hoac phieu vua duyet. */
+  protected readonly notice = signal<Notice | null>(
+    this.createdNotice(
+      inject(Router).currentNavigation()?.extras.state?.['created'],
+    ),
+  );
+  /** Loi khi duyet (409: du lieu da doi). Nguoi dung chon tai lai, khong tu dong ghi de man hinh. */
+  protected readonly approveError = signal<Notice | null>(null);
+  protected readonly approvingId = signal<number | null>(null);
+  /** Chi an/hien nut. Quyen that su do API kiem tra (agent goi thang API van nhan 403). */
+  protected readonly isManager = computed(() =>
+    this.auth.hasAnyRole('SUPERVISOR'),
+  );
+
   protected readonly statusOptions = toOptions(TICKET_STATUS);
   protected readonly priorityOptions = toOptions(TICKET_PRIORITY);
 
@@ -114,6 +126,46 @@ export class TicketListPage {
     this.status.set(null);
     this.priority.set(null);
     this.onlyMine.set(false);
+  }
+
+  protected approve(ticket: TicketSummary): void {
+    if (this.approvingId() !== null) return;
+    this.approvingId.set(ticket.id);
+    this.approveError.set(null);
+    this.notice.set(null);
+    // Gui version dang hien tren man hinh: neu nguoi khac da duyet/sua truoc, backend tra 409.
+    this.tickets
+      .approve(ticket.id, ticket.version)
+      .pipe(
+        finalize(() => this.approvingId.set(null)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (approved) => {
+          this.notice.set({
+            key: 'ticket.approve.done',
+            params: { code: approved.code },
+          });
+          this.result.reload();
+        },
+        error: (error: unknown) =>
+          this.approveError.set(
+            error instanceof TicketConflictError
+              ? { text: error.message }
+              : { key: 'common.genericError' },
+          ),
+      });
+  }
+
+  protected reloadAfterConflict(): void {
+    this.approveError.set(null);
+    this.result.reload();
+  }
+
+  private createdNotice(code: unknown): Notice | null {
+    return typeof code === 'string'
+      ? { key: 'ticket.form.created', params: { code } }
+      : null;
   }
 
   protected onQueryParams(query: NzTableQueryParams): void {
