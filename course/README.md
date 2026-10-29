@@ -52,7 +52,7 @@ xung đột cập nhật 409 (buổi 2), lỗi triển khai và rollback (buổi
 | Buổi | Chủ đề | Use case và lab | Sản phẩm đầu ra | Trạng thái |
 |---|---|---|---|---|
 | [01](session-01/) | Kiến trúc Angular cho dự án lớn | Tách `TicketListPage` thành `TicketPort` + HTTP adapter, thay bằng fake adapter; thêm màn hình Gói cước bằng lazy lib | Sơ đồ phụ thuộc, ADR-0002, luật import trên CI | Đã soạn |
-| [02](session-02/) | Component dùng lại và màn hình nghiệp vụ phức tạp | Trích `ticket-row`, tiêu đề chỉ khoảng trắng, giữ form khi lỗi, hai người duyệt cùng version | Component có hợp đồng rõ, form có test, xử lý 409 | Khung |
+| [02](session-02/) | Component dùng lại và màn hình nghiệp vụ phức tạp | Trích `ticket-row`, tiêu đề chỉ khoảng trắng, giữ form khi lỗi, hai người duyệt cùng version | Component có hợp đồng rõ, form có test, xử lý 409 | Đã soạn |
 | [03](session-03/) | Signals và RxJS cho luồng dữ liệu | Truy vấn cũ về muộn, khôi phục hủy request, luồng sống sau lỗi, subscription khi rời màn hình | Pipeline tìm kiếm có hủy, test theo trình tự sự kiện, bảng chọn operator | Khung |
 | [04](session-04/) | State Management và lựa chọn NgRx | Reload cùng query, bộ lọc trên URL, Back/Forward, làm mới sau ghi, xóa state khi đổi phiên | Ma trận chọn state, ADR, test nhất quán bộ lọc | Khung |
 | [05](session-05/) | Hiệu năng và quản lý bộ nhớ | Baseline, DOM thường so với virtual scroll, payload, heap sau 20 lần điều hướng | Bảng benchmark có dữ liệu thô, profile trước/sau, kết luận có điều kiện | Khung |

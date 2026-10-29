@@ -1,0 +1,434 @@
+diff --git a/frontend/apps/portal-e2e/src/ticket-flow.spec.ts b/frontend/apps/portal-e2e/src/ticket-flow.spec.ts
+new file mode 100644
+index 0000000..22af863
+--- /dev/null
++++ b/frontend/apps/portal-e2e/src/ticket-flow.spec.ts
+@@ -0,0 +1,91 @@
++import { expect, Page, test } from '@playwright/test';
++
++// Buoi 2: chay voi backend that (docker compose). Moi lan chay se dong mot phieu RESOLVED va tao mot phieu moi.
++
++async function login(page: Page, user: string, url: string) {
++  await page.goto(url);
++  await page.getByLabel('Tên đăng nhập').fill(user);
++  await page.getByLabel('Mật khẩu').fill(user);
++  await page.getByRole('button', { name: 'Đăng nhập' }).click();
++}
++
++test('agent tao phieu tu trang thue bao, tieu de khoang trang bi chan', async ({
++  page,
++}) => {
++  await login(page, 'agent1', '/subscribers/1');
++  await page.getByRole('link', { name: 'Tạo phiếu' }).click();
++  await expect(page).toHaveURL(/\/tickets\/new\?subscriberId=1/);
++  await expect(page.getByLabel('Mã thuê bao')).toHaveValue('1');
++  await page.locator('#tk-category').click();
++  await page
++    .getByTitle('Cước phí')
++    .or(page.locator('nz-option-item').first())
++    .first()
++    .click();
++  await page.getByLabel('Tiêu đề').fill('   ');
++  await page.getByRole('button', { name: 'Tạo phiếu' }).click();
++  await expect(page.locator('#tk-title-error')).toContainText('khoảng trắng');
++  await expect(page.getByLabel('Tiêu đề')).toBeFocused();
++
++  const [res] = await Promise.all([
++    page.waitForResponse(
++      (r) =>
++        r.url().endsWith('/api/tickets') && r.request().method() === 'POST',
++    ),
++    (async () => {
++      await page.getByLabel('Tiêu đề').fill('Phiếu tạo bằng E2E buổi 2');
++      await page.getByRole('button', { name: 'Tạo phiếu' }).click();
++    })(),
++  ]);
++  expect(res.status()).toBe(201);
++  expect(res.request().headers()['idempotency-key']).toMatch(/[0-9a-f-]{36}/);
++  expect(res.headers()['idempotent-replayed']).toBe('false');
++  await expect(page).toHaveURL(/\/tickets$/);
++  await expect(page.getByText(/Đã tạo phiếu TK-/)).toBeVisible();
++});
++
++async function resolvedList(page: Page) {
++  await login(page, 'supervisor1', '/tickets');
++  await expect(page.locator('tbody tr.ant-table-row').first()).toBeVisible();
++  await Promise.all([
++    page.waitForResponse((r) => r.url().includes('status=RESOLVED')),
++    (async () => {
++      await page.locator('#tk-status').click();
++      await page.locator('nz-option-item', { hasText: 'Đã xử lý' }).click();
++    })(),
++  ]);
++  const first = page.locator('tbody tr.ant-table-row').first();
++  return {
++    first,
++    code: (await first.locator('td').first().textContent())?.trim(),
++  };
++}
++
++test('hai manager duyet cung phieu: nguoi sau nhan 409, agent khong thay nut', async ({
++  browser,
++}) => {
++  const a = await (await browser.newContext()).newPage();
++  const b = await (await browser.newContext()).newPage();
++  const rowA = await resolvedList(a);
++  const rowB = await resolvedList(b);
++  expect(rowB.code).toBe(rowA.code);
++
++  await rowA.first.getByRole('button', { name: /Duyệt/ }).click();
++  await expect(a.getByText(`Đã duyệt phiếu ${rowA.code}`)).toBeVisible();
++
++  await rowB.first.getByRole('button', { name: /Duyệt/ }).click();
++  const alert = b.getByRole('alert');
++  await expect(alert).toContainText('Không duyệt được phiếu');
++  await expect(alert).toContainText('Dữ liệu đã bị người khác thay đổi');
++  await alert.getByRole('button', { name: 'Tải lại danh sách' }).click();
++  await expect(
++    b.locator('tbody tr.ant-table-row').first().locator('td').first(),
++  ).not.toHaveText(rowA.code ?? '');
++
++  const agent = await (await browser.newContext()).newPage();
++  await login(agent, 'agent1', '/tickets');
++  await expect(agent.locator('tbody tr.ant-table-row').first()).toBeVisible();
++  await expect(
++    agent.locator('tbody').getByRole('button', { name: /Duyệt/ }),
++  ).toHaveCount(0);
++});
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-create/ticket-create.page.spec.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-create/ticket-create.page.spec.ts
+index 211b8c3..6f180ec 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-create/ticket-create.page.spec.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-create/ticket-create.page.spec.ts
+@@ -138,4 +138,35 @@ describe('TicketCreatePage', () => {
+       state: { created: expect.stringMatching(/^TK-/) },
+     });
+   });
++
++  it('gui lai sau loi dung lai cung Idempotency-Key (backend khong tao phieu thu hai)', async () => {
++    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
++    port.failNext(new Error('timeout'));
++    const page = await render();
++    chooseCategory(page);
++    await page.type('tk-title', 'Cuoc bat thuong');
++    await page.submit();
++    await page.submit();
++
++    expect(port.createCalls).toHaveLength(2);
++    expect(port.createCalls[1].key).toBe(port.createCalls[0].key);
++  });
++
++  it('bam gui hai lan lien tiep khi dang gui: chi mot request', async () => {
++    const page = await render();
++    chooseCategory(page);
++    await page.type('tk-title', 'Cuoc bat thuong');
++    const button = page.el.querySelector(
++      'button[type=submit]',
++    ) as HTMLButtonElement;
++    // Fake tra ve dong bo nen gia lap "dang gui" bang cach chan navigate lai.
++    vi.spyOn(TestBed.inject(Router), 'navigate').mockReturnValue(
++      new Promise(() => undefined),
++    );
++    button.click();
++    button.click();
++    await page.fixture.whenStable();
++
++    expect(port.createCalls).toHaveLength(1);
++  });
+ });
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-create/ticket-create.page.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-create/ticket-create.page.ts
+index ad355ee..f075898 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-create/ticket-create.page.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-create/ticket-create.page.ts
+@@ -108,6 +108,12 @@ export class TicketCreatePage implements OnInit {
+   });
+ 
+   protected readonly submitting = signal(false);
++
++  /**
++   * Mot key cho mot lan "tao phieu". Gui lai sau loi mang dung lai key nay, nen neu request truoc
++   * thuc ra da toi server thi backend tra lai dung phieu do thay vi tao phieu thu hai.
++   */
++  private idempotencyKey = crypto.randomUUID();
+   /** Loi chung cua lan gui (dat tren form). null = khong co loi. */
+   protected readonly submitError = signal<FieldError | null>(null);
+ 
+@@ -117,7 +123,7 @@ export class TicketCreatePage implements OnInit {
+   }
+ 
+   protected submit(): void {
+-    // Chong nhap lap phia client: dang gui thi bo qua lan bam tiep theo.
++    // Chong nhap lap phia client. Khong thay duoc idempotency phia server (mang cham, tu dong gui lai, hai tab).
+     if (this.submitting()) return;
+     if (this.form.invalid) {
+       this.form.markAllAsTouched();
+@@ -138,12 +144,12 @@ export class TicketCreatePage implements OnInit {
+           title: value.title.trim(),
+           description: value.description.trim() || undefined,
+         },
+-        // TODO bai 5: moi lan gui mot key moi -> gui lai sau loi mang co the tao phieu trung.
+-        crypto.randomUUID(),
++        this.idempotencyKey,
+       )
+       .pipe(takeUntilDestroyed(this.destroyRef))
+       .subscribe({
+         next: (ticket) => {
++          this.idempotencyKey = crypto.randomUUID();
+           this.router.navigate(['/tickets'], {
+             state: { created: ticket.code },
+           });
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.html b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.html
+index ee8615e..c054faf 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.html
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.html
+@@ -10,17 +10,36 @@
+ </div>
+ 
+ <div aria-live="polite">
+-  @if (created(); as code) {
++  @if (notice(); as n) {
+   <nz-alert
+     nzType="success"
+     nzShowIcon
+     nzCloseable
+     class="mb"
+-    [nzMessage]="'ticket.form.created' | transloco: { code }"
++    [nzMessage]="'text' in n ? n.text : (n.key | transloco: n.params)"
+   />
+   }
+ </div>
+ 
++<div aria-live="assertive">
++  @if (approveError(); as err) {
++  <nz-alert
++    nzType="error"
++    nzShowIcon
++    class="mb"
++    role="alert"
++    [nzMessage]="'ticket.approve.conflictTitle' | transloco"
++    [nzDescription]="'text' in err ? err.text : (err.key | transloco)"
++    [nzAction]="reloadTpl"
++  />
++  <ng-template #reloadTpl>
++    <button nz-button nzSize="small" (click)="reloadAfterConflict()">
++      {{ 'ticket.approve.reload' | transloco }}
++    </button>
++  </ng-template>
++  }
++</div>
++
+ <div
+   class="filters"
+   role="search"
+@@ -123,7 +142,13 @@
+     </thead>
+     <tbody>
+       @for (t of rows(); track t.id) {
+-      <tr care-ticket-row [ticket]="t"></tr>
++      <tr
++        care-ticket-row
++        [ticket]="t"
++        [canApprove]="isManager() && t.status === 'RESOLVED'"
++        [approving]="approvingId() === t.id"
++        (approve)="approve($event)"
++      ></tr>
+       }
+     </tbody>
+   </nz-table>
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.spec.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.spec.ts
+index 3ddebfd..109f9d8 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.spec.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.spec.ts
+@@ -29,7 +29,10 @@ describe('TicketListPage', () => {
+         provideUi(),
+         provideI18nTesting(),
+         { provide: TicketPort, useValue: port },
+-        { provide: AuthService, useValue: { username: signal('agent1') } },
++        {
++          provide: AuthService,
++          useValue: { username: signal('agent1'), hasAnyRole: () => false },
++        },
+       ],
+     }).compileComponents();
+   });
+@@ -68,3 +71,71 @@ describe('TicketListPage', () => {
+     expect(codes(fixture.nativeElement)).toEqual(['TK-A']);
+   });
+ });
++
++// Buoi 2: Manager duyet phieu, hai nguoi duyet cung mot version.
++describe('TicketListPage - phe duyet', () => {
++  let port: InMemoryTicketAdapter;
++
++  beforeEach(async () => {
++    port = new InMemoryTicketAdapter().seed([
++      aTicket({ id: 101, code: 'TK-R', status: 'RESOLVED', version: 3 }),
++      aTicket({ id: 102, code: 'TK-N', status: 'NEW' }),
++    ]);
++    await TestBed.configureTestingModule({
++      imports: [TicketListPage],
++      providers: [
++        provideRouter([]),
++        provideUi(),
++        provideI18nTesting(),
++        { provide: TicketPort, useValue: port },
++        {
++          provide: AuthService,
++          useValue: {
++            username: signal('supervisor1'),
++            hasAnyRole: (...roles: string[]) => roles.includes('SUPERVISOR'),
++          },
++        },
++      ],
++    }).compileComponents();
++  });
++
++  const approveButtons = (el: HTMLElement) =>
++    [...el.querySelectorAll('tbody button')] as HTMLButtonElement[];
++
++  it('chi phieu RESOLVED co nut Duyet; duyet xong bao thanh cong va tai lai danh sach', async () => {
++    const fixture = TestBed.createComponent(TicketListPage);
++    await fixture.whenStable();
++    const el = fixture.nativeElement as HTMLElement;
++    expect(approveButtons(el)).toHaveLength(1);
++
++    approveButtons(el)[0].click();
++    await fixture.whenStable();
++
++    expect(port.approveCalls).toEqual([{ id: 101, version: 3 }]);
++    expect(el.textContent).toContain('Đã duyệt phiếu TK-R');
++    expect(approveButtons(el)).toHaveLength(0);
++  });
++
++  it('nguoi khac da duyet truoc (version cu): bao 409, giu man hinh, tai lai khi nguoi dung chon', async () => {
++    const fixture = TestBed.createComponent(TicketListPage);
++    await fixture.whenStable();
++    const el = fixture.nativeElement as HTMLElement;
++
++    // Manager thu hai duyet truoc tren may khac: phieu len version 4, man hinh nay van giu version 3.
++    port.approve(101, 3).subscribe();
++
++    approveButtons(el)[0].click();
++    await fixture.whenStable();
++
++    const alert = el.querySelector('[role=alert]');
++    expect(alert?.textContent).toContain('Không duyệt được phiếu');
++    expect(port.approveCalls.at(-1)).toEqual({ id: 101, version: 3 });
++    expect(approveButtons(el)).toHaveLength(1);
++
++    (alert?.querySelector('button') as HTMLButtonElement).click();
++    await fixture.whenStable();
++
++    expect(el.querySelector('[role=alert]')).toBeNull();
++    expect(approveButtons(el)).toHaveLength(0);
++  });
++});
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.ts
+index ef7417c..95b7a40 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.ts
+@@ -2,17 +2,20 @@ import {
+   ChangeDetectionStrategy,
+   Component,
+   computed,
++  DestroyRef,
+   inject,
+   linkedSignal,
+   signal,
+ } from '@angular/core';
+-import { rxResource } from '@angular/core/rxjs-interop';
++import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
+ import { FormsModule } from '@angular/forms';
+ import { Router, RouterLink } from '@angular/router';
+ import {
++  TicketConflictError,
+   TicketPort,
+   TicketPriority,
+   TicketStatus,
++  TicketSummary,
+ } from '@care/portal-domain-tickets';
+ import { AuthService } from '@care/shared-data-access-auth';
+ import { TranslocoPipe } from '@jsverse/transloco';
+@@ -33,6 +36,11 @@ import { NzCheckboxComponent } from 'ng-zorro-antd/checkbox';
+ import { NzOptionComponent, NzSelectComponent } from 'ng-zorro-antd/select';
+ import { NzTableModule, NzTableQueryParams } from 'ng-zorro-antd/table';
+ import { TicketRow } from '@care/portal-ui-tickets';
++import { finalize } from 'rxjs';
++
++/** Thong bao tren trang: key dich (kem tham so) hoac chu da dich san tu backend. */
++type Notice =
++  { key: string; params?: Record<string, unknown> } | { text: string };
+ 
+ @Component({
+   selector: 'care-ticket-list-page',
+@@ -57,11 +65,20 @@ export class TicketListPage {
+   /** Chi phu thuoc hop dong; adapter (HTTP hay fake) do app/test cung cap. */
+   private readonly tickets = inject(TicketPort);
+   private readonly auth = inject(AuthService);
++  private readonly destroyRef = inject(DestroyRef);
+ 
+-  /** Ma phieu vua tao, do trang tao phieu truyen qua navigation state. */
+-  protected readonly created = signal<string | null>(
+-    (inject(Router).currentNavigation()?.extras.state?.['created'] as
+-      string | undefined) ?? null,
++  /** Thong bao thanh cong: phieu vua tao (tu navigation state) hoac phieu vua duyet. */
++  protected readonly notice = signal<Notice | null>(
++    this.createdNotice(
++      inject(Router).currentNavigation()?.extras.state?.['created'],
++    ),
++  );
++  /** Loi khi duyet (409: du lieu da doi). Nguoi dung chon tai lai, khong tu dong ghi de man hinh. */
++  protected readonly approveError = signal<Notice | null>(null);
++  protected readonly approvingId = signal<number | null>(null);
++  /** Chi an/hien nut. Quyen that su do API kiem tra (agent goi thang API van nhan 403). */
++  protected readonly isManager = computed(() =>
++    this.auth.hasAnyRole('SUPERVISOR'),
+   );
+ 
+   protected readonly statusOptions = toOptions(TICKET_STATUS);
+@@ -111,6 +128,46 @@ export class TicketListPage {
+     this.onlyMine.set(false);
+   }
+ 
++  protected approve(ticket: TicketSummary): void {
++    if (this.approvingId() !== null) return;
++    this.approvingId.set(ticket.id);
++    this.approveError.set(null);
++    this.notice.set(null);
++    // Gui version dang hien tren man hinh: neu nguoi khac da duyet/sua truoc, backend tra 409.
++    this.tickets
++      .approve(ticket.id, ticket.version)
++      .pipe(
++        finalize(() => this.approvingId.set(null)),
++        takeUntilDestroyed(this.destroyRef),
++      )
++      .subscribe({
++        next: (approved) => {
++          this.notice.set({
++            key: 'ticket.approve.done',
++            params: { code: approved.code },
++          });
++          this.result.reload();
++        },
++        error: (error: unknown) =>
++          this.approveError.set(
++            error instanceof TicketConflictError
++              ? { text: error.message }
++              : { key: 'common.genericError' },
++          ),
++      });
++  }
++
++  protected reloadAfterConflict(): void {
++    this.approveError.set(null);
++    this.result.reload();
++  }
++
++  private createdNotice(code: unknown): Notice | null {
++    return typeof code === 'string'
++      ? { key: 'ticket.form.created', params: { code } }
++      : null;
++  }
++
+   protected onQueryParams(query: NzTableQueryParams): void {
+     this.page.set(toPageRequest(query));
+   }

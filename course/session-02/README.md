@@ -1,7 +1,7 @@
 # Buổi 02 — Component dùng lại và màn hình nghiệp vụ phức tạp
 
 **Thời lượng:** 4 giờ (review và use case 20', khái niệm 40', live demo 30', nghỉ 10', lab 120', review chéo 20')
-**Trạng thái tài liệu:** đã có khung theo đề cương; chưa soạn slide, lab chi tiết, đáp án.
+**Điểm bắt đầu:** `git checkout session02-start` · **Đáp án:** 3 patch trong `solution/`
 
 ## Theo đề cương
 
@@ -30,39 +30,50 @@ Sau buổi học, học viên có thể:
 - **Phê duyệt** (Manager = `supervisor1`): hai Manager mở cùng một phiếu `version = 3`; người thứ hai gửi sau nhận **409**
   `error.staleData`. Màn hình hiển thị dữ liệu mới nhất, cho người dùng chọn tải lại hoặc giữ lựa chọn của mình.
 
-## Dự kiến lab (120 phút)
+## Lab (120 phút)
 
 | Bài | Nội dung | Phút |
 |---|---|---|
-| 1 | Trích `ticket-row` sang lib `ui-tickets`, viết test hợp đồng input/output | 30 |
-| 2 | Form tạo phiếu typed, validator `notBlank`, test tiêu đề chỉ khoảng trắng | 35 |
-| 3 | Trạng thái gửi, giữ form khi lỗi 400/500, map lỗi field, focus lỗi đầu tiên | 25 |
-| 4 | Tái hiện hai người duyệt cùng version (2 trình duyệt), xử lý 409 | 20 |
-| 5 | Chống nhấp lặp: `exhaustMap` so với `Idempotency-Key`, chứng minh bằng tab Network | 10 |
+| 1 | Trích `ticket-row` sang lib `portal-ui-tickets` (`type:ui`), test hợp đồng | 30 |
+| 2 | Trang tạo phiếu: typed form, validator `notBlank`, test tiêu đề chỉ khoảng trắng | 35 |
+| 3 | Trạng thái gửi, giữ form khi lỗi, lỗi server theo trường, focus và `aria-live` | 25 |
+| 4 | Manager duyệt phiếu, xử lý 409, tái hiện bằng hai trình duyệt; agent gọi API nhận 403 | 20 |
+| 5 | Chống nhấp lặp và `Idempotency-Key`: giữ key khi gửi lại | 10 |
 
 ## Liên kết code
 
 | Khái niệm | File |
 |---|---|
 | Màn hình danh sách phiếu (container) | `frontend/libs/portal/feature-tickets/src/lib/ticket-list/` |
-| Port từ buổi 1 (mở rộng `create`, `approve`) | `libs/portal/domain-tickets` (sau `bai3-5-ticket-port.patch`) |
+| Port, lỗi nghiệp vụ, fake adapter | `frontend/libs/portal/domain-tickets/` |
+| Adapter HTTP chuyển 409/400 | `frontend/libs/portal/data-access-tickets/src/lib/http-ticket.adapter.ts` |
+| Endpoint duyệt, idempotency | `backend/.../ticket/TicketController.java`, `common/IdempotencyStore.java` |
 | API phiếu | `frontend/libs/shared/data-access-api/src/lib/ticket-api.ts` |
 | Kiểm tra version, ném 409 | `backend/.../ticket/TicketService.java` (`ConflictException("error.staleData")`) |
 | Định dạng lỗi chuẩn RFC 9457 | `backend/.../common/GlobalExceptionHandler.java` |
 
-## Cần chuẩn bị trước khi soạn chi tiết
+## Đã chuẩn bị ở `session02-start`
 
-- [ ] Backend: endpoint phê duyệt (ví dụ `POST /api/tickets/{id}/approve` có `version`), chỉ `SUPERVISOR` được gọi; cân nhắc thêm trạng thái `PENDING_APPROVAL`/`APPROVED` hoặc ánh xạ "duyệt" vào chuyển `RESOLVED → CLOSED`.
-- [ ] Backend: hỗ trợ header `Idempotency-Key` cho `POST /api/tickets` (lưu key + kết quả trong một bảng, trả lại kết quả cũ khi gửi trùng).
-- [ ] Backend: kiểm tra `@NotBlank` trên `title` có trim (`"   "` phải trả 400 có `errors.title`).
-- [ ] Frontend: mở rộng `TicketPort` + `HttpTicketAdapter` + `InMemoryTicketAdapter` với `create`, `approve` (nối tiếp câu hỏi thảo luận Bài 5 buổi 1).
+- Backend: `POST /api/tickets/{id}/approve` (chỉ `SUPERVISOR`, `RESOLVED` → `CLOSED`, version cũ hoặc sai trạng thái → 409);
+  header `Idempotency-Key` cho `POST /api/tickets` (lưu trong bộ nhớ, trả `Idempotent-Replayed`); `@NotBlank` title đã chặn khoảng trắng.
+  Test: `backend/src/test/java/com/careportal/api/TicketApiTests.java`.
+- Frontend: `TicketPort.create/approve`, `TicketConflictError`, `TicketValidationError`, adapter HTTP chuyển 409/400 sang lỗi nghiệp vụ,
+  fake adapter mô phỏng version và idempotency, key i18n vi/en.
 
 ## Tài liệu
 
 | | |
 |---|---|
-| Slide | `slides/` (chưa soạn) |
-| Lab | `lab/` (chưa soạn) |
-| Đáp án | `solution/` (chưa soạn) |
-| Ghi chú giảng viên | [instructor-notes.md](instructor-notes.md) |
-| Bài tập về nhà | `../bai-tap-ve-nha/buoi-02-<chu-de>.html` (chưa soạn) |
+| Slide | [slides/slides.md](slides/slides.md) (nguồn Marp) · `buoi-02-component-va-form.pptx` · `buoi-02-component-va-form.pdf` |
+| Lab | [lab/README.md](lab/README.md) |
+| Đáp án | [solution/README.md](solution/README.md) + 3 file `.patch` |
+| Ghi chú giảng viên | [instructor-notes.md](instructor-notes.md) · [note-cho-giang-vien.md](note-cho-giang-vien.md) |
+| Bài tập về nhà | [../bai-tap-ve-nha/buoi-02-hop-dong-component-va-form.html](../bai-tap-ve-nha/buoi-02-hop-dong-component-va-form.html) |
+
+## Sửa slide
+
+```bash
+cd course/session-02/slides
+npx @marp-team/marp-cli@4 slides.md --pptx --allow-local-files -o buoi-02-component-va-form.pptx
+npx @marp-team/marp-cli@4 slides.md --pdf  --allow-local-files -o buoi-02-component-va-form.pdf
+```

@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BTVN Buổi 2 · Hợp đồng component và form nghiệp vụ</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600&display=swap" />
+    <link rel="stylesheet" href="assets/lesson.css" />
+  </head>
+  <body>
+    <main>
+      <p class="kicker">Bài tập về nhà · Buổi 2 · Component dùng lại và màn hình nghiệp vụ phức tạp</p>
+      <h1>Hợp đồng component và form nghiệp vụ</h1>
+      <dl class="homework-meta">
+        <dt>Làm sau</dt>
+        <dd>Buổi 2 (<a href="../session-02/slides/buoi-02-component-va-form.pdf">slide</a> · <a href="../session-02/lab/README.md">lab</a>)</dd>
+        <dt>Hạn nộp</dt>
+        <dd>Trước buổi 3</dd>
+        <dt>Thời gian</dt>
+        <dd>Khoảng 30 phút</dd>
+        <dt>Cần</dt>
+        <dd>Trình duyệt và giấy bút. Không cần chạy dự án.</dd>
+      </dl>
+
+      <div class="goal">
+        <p><strong>Mục tiêu:</strong> dùng được ba quyết định của buổi 2 cho một màn hình <em>mới</em>: hợp đồng component, xử lý lỗi form và
+          gửi lại an toàn (409, idempotency).</p>
+        <p>Làm phần 0 trước khi mở slide. Cố nhớ lại, kể cả khi nhớ sai, giúp nhớ lâu hơn đọc lại.</p>
+      </div>
+
+      <h2>Phần 0 · Khởi động: viết ra giấy (4 phút)</h2>
+      <p>Không mở tài liệu. Viết ra:</p>
+      <ol>
+        <li>Container và component hiển thị khác nhau ở ba điểm nào?</li>
+        <li>Vì sao <code>Validators.required</code> không chặn được tiêu đề <code>"   "</code>?</li>
+        <li>Khi API trả lỗi, form phải làm gì với dữ liệu người dùng đã nhập? Lỗi của từng trường hiển thị thế nào?</li>
+        <li>Disable nút gửi chặn được gì, không chặn được gì?</li>
+      </ol>
+      <details>
+        <summary>Ôn lại sau khi đã viết xong</summary>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Câu</th><th>Ý chính</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>Container inject service/port, biết người dùng, giữ state và gọi API. Component hiển thị chỉ có <code>input()</code>/<code>output()</code>, không inject service, không biết dữ liệu đến từ đâu.</td></tr>
+              <tr><td>2</td><td><code>required</code> chỉ kiểm tra rỗng. Cần validator riêng (<code>notBlank</code>) ở client và <code>@NotBlank</code> ở server.</td></tr>
+              <tr><td>3</td><td>Giữ nguyên (không <code>reset()</code>). Lỗi server gắn vào control bằng <code>setErrors</code>, có <code>aria-invalid</code> + <code>aria-describedby</code>, focus vào trường lỗi đầu tiên; lỗi chung nằm trong vùng <code>aria-live</code>.</td></tr>
+              <tr><td>4</td><td>Chặn double-click trong cùng tab. Không chặn request đã tới server nhưng mất response, retry tự động, hai tab, tải lại trang rồi gửi lại. Cần <code>Idempotency-Key</code> ở server.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+
+      <h2>Phần 1 · Đặt code vào đúng chỗ (6 câu)</h2>
+      <p>Ghi lại điểm cuối cùng để nộp.</p>
+      <div class="quiz" id="quiz-hop-dong" data-quiz>
+        <script type="application/json">
+          {
+            "questions": [
+              {
+                "prompt": "TicketRow cần biết người dùng có quyền duyệt hay không. Cách nào đúng?",
+                "options": [
+                  "Inject AuthService vào TicketRow, gọi hasAnyRole('SUPERVISOR')",
+                  "Container tính canApprove và truyền vào qua input()",
+                  "TicketRow đọc token trong sessionStorage",
+                  "Luôn hiện nút, để API trả 403"
+                ],
+                "answer": 1,
+                "explain": "Component hiển thị không biết ai đang đăng nhập. Container tính canApprove (vai trò + trạng thái phiếu) rồi truyền vào; API vẫn kiểm tra quyền thật."
+              },
+              {
+                "prompt": "Input nào nên là input.required()?",
+                "options": ["ticket", "canApprove", "approving", "Cả ba"],
+                "answer": 0,
+                "explain": "Không có phiếu thì không có gì để hiển thị, không có giá trị mặc định hợp lý. canApprove và approving có mặc định an toàn là false."
+              },
+              {
+                "prompt": "Component dòng bảng đặt selector thế nào để bảng vẫn hợp lệ?",
+                "options": ["care-ticket-row", "tr[care-ticket-row]", "[careTicketRow] trên div", "td[care-ticket-row]"],
+                "answer": 1,
+                "explain": "Selector thuộc tính trên <tr> giữ cấu trúc tbody > tr > td; trình đọc màn hình đọc đúng hàng và cột."
+              },
+              {
+                "prompt": "API trả 400 kèm errors.title = 'Tiêu đề đã bị cấm'. Làm gì?",
+                "options": [
+                  "form.reset() rồi hiện thông báo",
+                  "Lưu lỗi vào một signal riêng, không đụng tới control",
+                  "control.setErrors({ ...control.errors, server: message }) và markAsTouched()",
+                  "Gọi lại API với tiêu đề đã trim"
+                ],
+                "answer": 2,
+                "explain": "Gắn lỗi vào đúng control: hiển thị cùng chỗ với lỗi client, có aria-invalid, và tự mất khi người dùng sửa giá trị (validator chạy lại)."
+              },
+              {
+                "prompt": "Form có control description = new FormControl('', { nonNullable: true }). form.reset() đưa description về giá trị gì?",
+                "options": ["null", "''", "undefined", "Giữ nguyên giá trị đang nhập"],
+                "answer": 1,
+                "explain": "nonNullable: reset() về giá trị khởi tạo ('') và kiểu của control là string, không có | null."
+              },
+              {
+                "prompt": "Validator notBlank nên trả gì với chuỗi rỗng ''?",
+                "options": ["{ blank: true }", "{ required: true }", "null", "Ném lỗi"],
+                "answer": 2,
+                "explain": "Để Validators.required báo lỗi cho chuỗi rỗng. Nếu notBlank cũng báo thì một trường hiện hai lỗi cùng lúc."
+              }
+            ]
+          }
+        </script>
+      </div>
+
+      <h2>Phần 2 · Gửi lại có an toàn không? (5 tình huống)</h2>
+      <p>Đọc tình huống, đoán trước rồi mới chọn.</p>
+      <div class="quiz" id="quiz-gui-lai" data-quiz>
+        <script type="application/json">
+          {
+            "questions": [
+              {
+                "prompt": "Agent bấm Tạo phiếu, mạng chậm, 30 giây sau báo timeout. Agent bấm Tạo phiếu lần nữa. Code sinh Idempotency-Key mới trong mỗi lần submit(). Kết quả có thể là?",
+                "options": ["Luôn chỉ một phiếu", "Có thể hai phiếu giống nhau", "Backend trả 409", "Backend trả 403"],
+                "answer": 1,
+                "explain": "Request đầu có thể đã tới server và tạo phiếu; chỉ response bị mất. Key mới khiến server coi lần gửi sau là yêu cầu khác."
+              },
+              {
+                "prompt": "Nên sinh Idempotency-Key khi nào?",
+                "options": ["Mỗi lần bấm gửi", "Một lần cho một lần thao tác (khi mở form), đổi sau khi thành công", "Một lần cho cả phiên đăng nhập", "Lấy từ mã phiếu"],
+                "answer": 1,
+                "explain": "Gửi lại cùng thao tác dùng cùng key; thao tác mới (sau khi thành công) dùng key mới. Một key cho cả phiên thì phiếu thứ hai sẽ bị coi là gửi lại phiếu thứ nhất."
+              },
+              {
+                "prompt": "Gửi lại cùng Idempotency-Key nhưng đã sửa tiêu đề. Backend Care Portal trả gì?",
+                "options": ["201, tạo phiếu mới", "201, trả lại phiếu cũ", "409 error.idempotencyKeyReused", "400"],
+                "answer": 2,
+                "explain": "Cùng key nhưng nội dung khác là dấu hiệu lỗi ở client; server từ chối thay vì đoán ý người dùng."
+              },
+              {
+                "prompt": "Manager bấm Duyệt, timeout, bấm Duyệt lần nữa (cùng version). Lần trước thực ra đã thành công. Lần sau nhận gì?",
+                "options": ["200, phiếu bị đóng hai lần", "409 vì version đã tăng", "403", "500"],
+                "answer": 1,
+                "explain": "Version đã tăng sau lần duyệt đầu, nên lần gửi lại bị 409. Lệnh duyệt an toàn khi gửi lại nhờ version, nhưng UI cần giải thích cho người dùng."
+              },
+              {
+                "prompt": "Nhận 409 khi duyệt. Màn hình nên làm gì?",
+                "options": [
+                  "Tự lấy version mới rồi gửi lại ngay",
+                  "Im lặng tải lại danh sách",
+                  "Báo dữ liệu đã thay đổi, giữ màn hình, cho người dùng chọn tải lại",
+                  "Đăng xuất người dùng"
+                ],
+                "answer": 2,
+                "explain": "Người khác có thể đã có lý do để thay đổi. Tự gửi lại là ghi đè mù; im lặng thì người dùng tưởng thao tác của mình đã thành công."
+              }
+            ]
+          }
+        </script>
+      </div>
+
+      <h2>Phần 3 · Vận dụng: màn hình Đổi gói cước (12 phút)</h2>
+      <p>Nghiệp vụ mới, chưa có trong dự án. Trên trang chi tiết thuê bao, Agent bấm <strong>Đổi gói cước</strong>:</p>
+      <ul>
+        <li>Hiện danh sách gói cùng loại thuê bao (trả trước/trả sau) dạng thẻ; gói hiện tại được đánh dấu, không chọn được.</li>
+        <li>Chọn gói mới, chọn <em>ngày hiệu lực</em> (không được trước hôm nay), nhập <em>lý do</em> (bắt buộc, không chỉ khoảng trắng, tối đa 500 ký tự).</li>
+        <li>API: <code>POST /api/subscribers/{id}/plan-changes</code> với <code>{ planCode, effectiveDate, reason, version }</code>.
+          <code>version</code> là version của thuê bao. Trả 400 (lỗi theo trường), 409 (thuê bao đã bị người khác sửa), 201.</li>
+      </ul>
+      <p><strong>Viết ra (giấy hoặc file):</strong></p>
+      <ol class="steps">
+        <li><strong>Hợp đồng component</strong> <code>care-plan-picker</code> (lib ui hiển thị danh sách thẻ gói): các <code>input()</code>, <code>output()</code>, cái nào bắt buộc.</li>
+        <li><strong>Form typed</strong>: tên control, kiểu, validator. Validator nào phải tự viết?</li>
+        <li><strong>Bảng xử lý kết quả</strong> cho 201, 400, 409, timeout: người dùng thấy gì, form giữ gì, focus ở đâu.</li>
+        <li>Lệnh này cần <code>Idempotency-Key</code> không, khi đã có <code>version</code>? Giải thích trong 2 câu.</li>
+      </ol>
+      <details>
+        <summary>Đáp án tham khảo (chỉ mở sau khi đã viết)</summary>
+        <p><strong>1. Hợp đồng</strong></p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Thành phần</th><th>Kiểu</th><th>Ghi chú</th></tr></thead>
+            <tbody>
+              <tr><td><code>plans = input.required&lt;ServicePlan[]&gt;()</code></td><td>bắt buộc</td><td>Container lọc theo loại thuê bao trước khi truyền</td></tr>
+              <tr><td><code>currentCode = input.required&lt;string&gt;()</code></td><td>bắt buộc</td><td>Đánh dấu và vô hiệu gói hiện tại</td></tr>
+              <tr><td><code>selected = model&lt;string | null&gt;(null)</code></td><td>hai chiều</td><td>Hoặc <code>input</code> + <code>output&lt;string&gt;()</code>; <code>model</code> hợp lý vì đây là ô chọn. Nếu dùng với Reactive Forms thì cài <code>ControlValueAccessor</code></td></tr>
+              <tr><td><code>disabled = input(false)</code></td><td>tùy chọn</td><td>Khi đang gửi</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><strong>2. Form</strong>: <code>planCode: FormControl&lt;string | null&gt;</code> (<code>required</code>); <code>effectiveDate: FormControl&lt;Date | null&gt;</code>
+          (<code>required</code>, validator tự viết <code>notBefore(today)</code>); <code>reason: FormControl&lt;string&gt;</code> nonNullable
+          (<code>required</code>, <code>notBlank</code>, <code>maxLength(500)</code>). <code>version</code> không phải control: lấy từ dữ liệu thuê bao khi mở form.
+          Nhớ: so sánh ngày theo múi giờ Việt Nam, không theo <code>toISOString()</code> (UTC).</p>
+        <p><strong>3. Kết quả</strong></p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Kết quả</th><th>Người dùng thấy</th><th>Form</th></tr></thead>
+            <tbody>
+              <tr><td>201</td><td>Về trang chi tiết, thông báo "Đã đổi sang gói …"</td><td>Không còn</td></tr>
+              <tr><td>400</td><td>Lỗi chung đầu form + lỗi từng trường</td><td>Giữ nguyên, focus trường lỗi đầu tiên</td></tr>
+              <tr><td>409</td><td>"Thông tin thuê bao vừa được người khác cập nhật", nút Tải lại</td><td>Giữ lựa chọn để người dùng so sánh sau khi tải lại</td></tr>
+              <tr><td>Timeout / mất mạng</td><td>"Chưa rõ yêu cầu đã được ghi nhận chưa", nút Thử lại</td><td>Giữ nguyên; thử lại dùng <em>cùng</em> key</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><strong>4.</strong> Có <code>version</code> thì gửi lại không làm đổi gói hai lần (lần sau bị 409). Nhưng người dùng sẽ thấy 409 cho chính thao tác
+          đã thành công của mình, rất khó hiểu. <code>Idempotency-Key</code> cho phép server trả lại đúng kết quả lần đầu. Không bắt buộc, nhưng nên có với
+          thao tác người dùng hay gửi lại khi mạng chậm.</p>
+      </details>
+
+      <h2>Phần 4 · Trả nợ kỹ thuật: nhãn hiển thị dùng chung (8 phút)</h2>
+      <p>
+        Sau lab, nhãn và màu trạng thái phiếu (<code>NEW → "Mới", màu xanh</code>…) đang nằm ở <strong>hai nơi</strong>:
+        <code>shared-data-access-api</code> (dùng cho bộ lọc và dashboard admin) và <code>portal-ui-tickets</code> (vì lib ui không được import data-access).
+        Thiết kế một lib để cả hai nơi và <code>admin-feature-dashboard</code> cùng dùng. Thêm lib của bạn vào ô bên dưới rồi kiểm tra các import cần thiết.
+      </p>
+      <ol class="steps">
+        <li>Thêm lib, đặt tên theo quy ước <code>&lt;scope&gt;-&lt;type&gt;-&lt;tên&gt;</code>.</li>
+        <li>Kiểm tra: <code>portal-ui-tickets</code> → lib của bạn; <code>shared-data-access-api</code> → lib của bạn;
+          <code>admin-feature-dashboard</code> → lib của bạn; lib của bạn → <code>portal-domain-tickets</code> (để lấy kiểu <code>TicketStatus</code>).</li>
+        <li>Nếu import cuối bị chặn, kiểu <code>TicketStatus</code> nên đặt ở đâu?</li>
+      </ol>
+      <div id="checker-nhan" data-boundary-checker data-allow-add>
+        <script type="application/json">
+          {
+            "projects": [
+              { "name": "portal", "tags": ["scope:portal", "type:app"] },
+              { "name": "portal-feature-tickets", "tags": ["scope:portal", "type:feature"] },
+              { "name": "admin-feature-dashboard", "tags": ["scope:admin", "type:feature"] },
+              { "name": "portal-ui-tickets", "tags": ["scope:portal", "type:ui"] },
+              { "name": "portal-data-access-tickets", "tags": ["scope:portal", "type:data-access"] },
+              { "name": "portal-domain-tickets", "tags": ["scope:portal", "type:domain"] },
+              { "name": "shared-data-access-api", "tags": ["scope:shared", "type:data-access"] },
+              { "name": "shared-util-config", "tags": ["scope:shared", "type:util"] }
+            ],
+            "constraints": [
+              { "sourceTag": "type:app", "onlyDependOnLibsWithTags": ["type:feature", "type:ui", "type:data-access", "type:domain", "type:util"] },
+              { "sourceTag": "type:feature", "onlyDependOnLibsWithTags": ["type:ui", "type:data-access", "type:domain", "type:util"] },
+              { "sourceTag": "type:ui", "onlyDependOnLibsWithTags": ["type:ui", "type:domain", "type:util"] },
+              { "sourceTag": "type:data-access", "onlyDependOnLibsWithTags": ["type:data-access", "type:domain", "type:util"] },
+              { "sourceTag": "type:domain", "onlyDependOnLibsWithTags": ["type:domain", "type:util"] },
+              { "sourceTag": "type:util", "onlyDependOnLibsWithTags": ["type:util"] },
+              { "sourceTag": "scope:portal", "onlyDependOnLibsWithTags": ["scope:portal", "scope:shared"] },
+              { "sourceTag": "scope:admin", "onlyDependOnLibsWithTags": ["scope:admin", "scope:shared"] },
+              { "sourceTag": "scope:shared", "onlyDependOnLibsWithTags": ["scope:shared"] }
+            ],
+            "exercises": []
+          }
+        </script>
+      </div>
+      <details>
+        <summary>Đáp án tham khảo (chỉ mở sau khi đã thử)</summary>
+        <p>
+          Một hướng: <code>shared-util-ticket-labels</code> <strong>[scope:shared, type:util]</strong>. Cả ba nơi import được nó
+          (ui → util, data-access → util, feature admin → shared). Nhưng lib này <strong>không</strong> import được <code>portal-domain-tickets</code>:
+          util chỉ được import util, và shared không được import portal.
+        </p>
+        <p>
+          Vì vậy kiểu <code>TicketStatus</code> (chỉ là union chuỗi) nên chuyển xuống chính lib util này (hoặc một lib <code>shared-util-*</code> chứa kiểu dùng chung),
+          rồi <code>portal-domain-tickets</code> import lại từ đó: domain → util được phép. Hệ quả: một nguồn sự thật cho cả kiểu lẫn nhãn,
+          xóa được <code>ticket-tags.ts</code> và <code>labels.ts</code> phần phiếu.
+        </p>
+        <p>
+          Hướng sai hay gặp: đặt nhãn vào <code>portal-domain-tickets</code>. Domain không nên chứa key dịch và màu hiển thị (đó là chuyện trình bày), và
+          admin (scope:admin) không import được lib scope:portal.
+        </p>
+      </details>
+
+      <h2>Nộp bài</h2>
+      <p>Gửi giảng viên qua kênh của lớp, <strong>trước buổi 3</strong>:</p>
+      <ol>
+        <li>Điểm phần 1 và phần 2 (chụp dòng kết quả cuối mỗi phần).</li>
+        <li>Bài viết phần 3 (ảnh chụp giấy hoặc file).</li>
+        <li>Tên lib, tag của bạn ở phần 4 và câu trả lời cho bước 3.</li>
+      </ol>
+      <p class="meta">Một ngày trước buổi 3, làm lại phần 2 (tải lại trang) mà không mở phần ôn tập.</p>
+
+      <h2>Đọc thêm</h2>
+      <p>
+        <strong>Nguồn chính:</strong> <a href="https://angular.dev/guide/forms/typed-forms">Angular — Typed Forms</a> (khoảng 10 phút) và
+        <a href="https://angular.dev/guide/components/inputs">Angular — Accepting data with input properties</a>.
+      </p>
+      <p>
+        Thêm: <a href="https://www.rfc-editor.org/rfc/rfc9457">RFC 9457 — Problem Details for HTTP APIs</a> (định dạng lỗi backend đang dùng) ·
+        <a href="https://datatracker.ietf.org/doc/draft-ietf-httpapi-idempotency-key-header/">IETF draft — The Idempotency-Key HTTP Header Field</a> ·
+        <a href="https://www.w3.org/WAI/tutorials/forms/notifications/">W3C WAI — Form notifications</a>.
+      </p>
+
+      <div class="callout">
+        <p><strong>Còn chỗ nào chưa rõ?</strong> Hỏi giảng viên, hoặc hỏi trợ lý AI (Claude Code) ngay trong repo — ví dụ:
+          “vì sao lần duyệt thứ hai bị 409 mà không phải 403?”.</p>
+      </div>
+
+      <footer>Khóa Angular nâng cao · Bài tập về nhà buổi 2 · Dự án mẫu Care Portal</footer>
+    </main>
+    <script src="assets/quiz.js"></script>
+    <script src="assets/boundary-checker.js"></script>
+  </body>
+</html>

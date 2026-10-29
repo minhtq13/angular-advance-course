@@ -1,0 +1,617 @@
+diff --git a/frontend/eslint.config.mjs b/frontend/eslint.config.mjs
+index 59c1857..7cabd67 100644
+--- a/frontend/eslint.config.mjs
++++ b/frontend/eslint.config.mjs
+@@ -40,8 +40,9 @@ export default [
+               bannedExternalImports: ['@angular/common/http'],
+             },
+             {
++              // Buoi 2: ui duoc dung kieu cua domain (TypeScript thuan, khong Angular) lam input.
+               sourceTag: 'type:ui',
+-              onlyDependOnLibsWithTags: ['type:ui', 'type:util'],
++              onlyDependOnLibsWithTags: ['type:ui', 'type:domain', 'type:util'],
+             },
+             {
+               sourceTag: 'type:data-access',
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.html b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.html
+index 674e1cc..6bb879a 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.html
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.html
+@@ -83,7 +83,7 @@
+     [nzPageIndex]="page().page + 1"
+     [nzPageSize]="page().size"
+     [nzLoading]="result.isLoading()"
+-    [nzScroll]="{ x: '1100px' }"
++    [nzScroll]="{ x: '1300px' }"
+     [nzNoResult]="emptyTpl"
+     (nzQueryParams)="onQueryParams($event)"
+   >
+@@ -103,40 +103,13 @@
+         <th nzColumnKey="createdAt" [nzSortFn]="true" nzWidth="150px">
+           {{ 'ticket.col.createdAt' | transloco }}
+         </th>
++        <!-- Co dinh ben phai: man hinh hep van thay nut Duyet. -->
++        <th nzWidth="100px" nzRight>{{ 'ticket.col.actions' | transloco }}</th>
+       </tr>
+     </thead>
+     <tbody>
+       @for (t of rows(); track t.id) {
+-      <tr>
+-        <td>{{ t.code }}</td>
+-        <td>
+-          <a class="cell-link" [routerLink]="['/subscribers', t.subscriberId]"
+-            >{{ t.subscriberMsisdn }}</a
+-          >
+-          <div class="muted">{{ t.subscriberName }}</div>
+-        </td>
+-        <td>{{ t.title }}</td>
+-        <td>{{ categoryLabels[t.category] | transloco }}</td>
+-        <td>
+-          <nz-tag [nzColor]="priorityLabels[t.priority].color"
+-            >{{ priorityLabels[t.priority].labelKey | transloco }}</nz-tag
+-          >
+-        </td>
+-        <td>
+-          <nz-tag [nzColor]="statusLabels[t.status].color"
+-            >{{ statusLabels[t.status].labelKey | transloco }}</nz-tag
+-          >
+-        </td>
+-        <td>
+-          @if (t.assignee) { {{ t.assignee }} } @else {
+-          <span class="muted">{{ 'common.unassigned' | transloco }}</span>
+-          }
+-        </td>
+-        <td>
+-          {{ t.createdAt | translocoDate: dateFormat }} {{ t.createdAt |
+-          translocoDate: timeFormat }}
+-        </td>
+-      </tr>
++      <tr care-ticket-row [ticket]="t"></tr>
+       }
+     </tbody>
+   </nz-table>
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.ts
+index f634a03..1a6e389 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.ts
+@@ -8,24 +8,18 @@ import {
+ } from '@angular/core';
+ import { rxResource } from '@angular/core/rxjs-interop';
+ import { FormsModule } from '@angular/forms';
+-import { RouterLink } from '@angular/router';
+ import {
+   TicketPort,
+   TicketPriority,
+   TicketStatus,
+ } from '@care/portal-domain-tickets';
+ import { AuthService } from '@care/shared-data-access-auth';
+-import { DATE_FORMAT, TIME_FORMAT } from '@care/shared-util-i18n';
+ import { TranslocoPipe } from '@jsverse/transloco';
+-import {
+-  TranslocoDatePipe,
+-  TranslocoDecimalPipe,
+-} from '@jsverse/transloco-locale';
++import { TranslocoDecimalPipe } from '@jsverse/transloco-locale';
+ import {
+   DEFAULT_PAGE,
+   PageRequest,
+   samePage,
+-  TICKET_CATEGORY,
+   TICKET_PRIORITY,
+   TICKET_STATUS,
+   toOptions,
+@@ -37,16 +31,14 @@ import { NzIconDirective } from 'ng-zorro-antd/icon';
+ import { NzCheckboxComponent } from 'ng-zorro-antd/checkbox';
+ import { NzOptionComponent, NzSelectComponent } from 'ng-zorro-antd/select';
+ import { NzTableModule, NzTableQueryParams } from 'ng-zorro-antd/table';
+-import { NzTagComponent } from 'ng-zorro-antd/tag';
++import { TicketRow } from '@care/portal-ui-tickets';
+ 
+ @Component({
+   selector: 'care-ticket-list-page',
+   imports: [
+     TranslocoPipe,
+-    TranslocoDatePipe,
+     TranslocoDecimalPipe,
+     FormsModule,
+-    RouterLink,
+     NzAlertComponent,
+     NzButtonComponent,
+     NzIconDirective,
+@@ -54,7 +46,7 @@ import { NzTagComponent } from 'ng-zorro-antd/tag';
+     NzSelectComponent,
+     NzOptionComponent,
+     NzTableModule,
+-    NzTagComponent,
++    TicketRow,
+   ],
+   templateUrl: './ticket-list.page.html',
+   changeDetection: ChangeDetectionStrategy.OnPush,
+@@ -64,11 +56,6 @@ export class TicketListPage {
+   private readonly tickets = inject(TicketPort);
+   private readonly auth = inject(AuthService);
+ 
+-  protected readonly dateFormat = DATE_FORMAT;
+-  protected readonly timeFormat = TIME_FORMAT;
+-  protected readonly statusLabels = TICKET_STATUS;
+-  protected readonly priorityLabels = TICKET_PRIORITY;
+-  protected readonly categoryLabels = TICKET_CATEGORY;
+   protected readonly statusOptions = toOptions(TICKET_STATUS);
+   protected readonly priorityOptions = toOptions(TICKET_PRIORITY);
+ 
+diff --git a/frontend/libs/portal/ui-tickets/README.md b/frontend/libs/portal/ui-tickets/README.md
+new file mode 100644
+index 0000000..04404ad
+--- /dev/null
++++ b/frontend/libs/portal/ui-tickets/README.md
+@@ -0,0 +1,7 @@
++# portal-ui-tickets
++
++This library was generated with [Nx](https://nx.dev).
++
++## Running unit tests
++
++Run `nx test portal-ui-tickets` to execute the unit tests.
+diff --git a/frontend/libs/portal/ui-tickets/eslint.config.mjs b/frontend/libs/portal/ui-tickets/eslint.config.mjs
+new file mode 100644
+index 0000000..7e32ac6
+--- /dev/null
++++ b/frontend/libs/portal/ui-tickets/eslint.config.mjs
+@@ -0,0 +1,35 @@
++import nx from '@nx/eslint-plugin';
++import baseConfig from '../../../eslint.config.mjs';
++
++export default [
++  ...nx.configs['flat/angular'],
++  ...nx.configs['flat/angular-template'],
++  ...baseConfig,
++  {
++    files: ['**/*.ts'],
++    rules: {
++      '@angular-eslint/directive-selector': [
++        'error',
++        {
++          type: 'attribute',
++          prefix: 'care',
++          style: 'camelCase',
++        },
++      ],
++      // Dong bang dung selector thuoc tinh (tr[care-ticket-row]) de giu cau truc table hop le.
++      '@angular-eslint/component-selector': [
++        'error',
++        {
++          type: ['element', 'attribute'],
++          prefix: 'care',
++          style: 'kebab-case',
++        },
++      ],
++    },
++  },
++  {
++    files: ['**/*.html'],
++    // Override or add rules here
++    rules: {},
++  },
++];
+diff --git a/frontend/libs/portal/ui-tickets/project.json b/frontend/libs/portal/ui-tickets/project.json
+new file mode 100644
+index 0000000..f97c2dc
+--- /dev/null
++++ b/frontend/libs/portal/ui-tickets/project.json
+@@ -0,0 +1,10 @@
++{
++  "name": "portal-ui-tickets",
++  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
++  "sourceRoot": "libs/portal/ui-tickets/src",
++  "prefix": "care",
++  "projectType": "library",
++  "tags": ["scope:portal", "type:ui"],
++  "// targets": "to see all targets run: nx show project portal-ui-tickets --web",
++  "targets": {}
++}
+diff --git a/frontend/libs/portal/ui-tickets/src/index.ts b/frontend/libs/portal/ui-tickets/src/index.ts
+new file mode 100644
+index 0000000..b6270ed
+--- /dev/null
++++ b/frontend/libs/portal/ui-tickets/src/index.ts
+@@ -0,0 +1,2 @@
++export * from './lib/ticket-row/ticket-row';
++export * from './lib/ticket-tags';
+diff --git a/frontend/libs/portal/ui-tickets/src/lib/ticket-row/ticket-row.html b/frontend/libs/portal/ui-tickets/src/lib/ticket-row/ticket-row.html
+new file mode 100644
+index 0000000..d6a8f68
+--- /dev/null
++++ b/frontend/libs/portal/ui-tickets/src/lib/ticket-row/ticket-row.html
+@@ -0,0 +1,44 @@
++@let t = ticket();
++<td>{{ t.code }}</td>
++<td>
++  <a class="cell-link" [routerLink]="['/subscribers', t.subscriberId]"
++    >{{ t.subscriberMsisdn }}</a
++  >
++  <div class="muted">{{ t.subscriberName }}</div>
++</td>
++<td>{{ t.title }}</td>
++<td>{{ categoryLabel[t.category] | transloco }}</td>
++<td>
++  <nz-tag [nzColor]="priorityTag[t.priority].color"
++    >{{ priorityTag[t.priority].labelKey | transloco }}</nz-tag
++  >
++</td>
++<td>
++  <nz-tag [nzColor]="statusTag[t.status].color"
++    >{{ statusTag[t.status].labelKey | transloco }}</nz-tag
++  >
++</td>
++<td>
++  @if (t.assignee) { {{ t.assignee }} } @else {
++  <span class="muted">{{ 'common.unassigned' | transloco }}</span>
++  }
++</td>
++<td>
++  {{ t.createdAt | translocoDate: dateFormat }} {{ t.createdAt | translocoDate:
++  timeFormat }}
++</td>
++<td nzRight>
++  @if (canApprove()) {
++  <button
++    nz-button
++    nzSize="small"
++    type="button"
++    [nzLoading]="approving()"
++    [disabled]="approving()"
++    [attr.aria-label]="('ticket.approve.action' | transloco) + ' ' + t.code"
++    (click)="approve.emit(t)"
++  >
++    {{ 'ticket.approve.action' | transloco }}
++  </button>
++  }
++</td>
+diff --git a/frontend/libs/portal/ui-tickets/src/lib/ticket-row/ticket-row.spec.ts b/frontend/libs/portal/ui-tickets/src/lib/ticket-row/ticket-row.spec.ts
+new file mode 100644
+index 0000000..e83030e
+--- /dev/null
++++ b/frontend/libs/portal/ui-tickets/src/lib/ticket-row/ticket-row.spec.ts
+@@ -0,0 +1,83 @@
++import { Component, signal } from '@angular/core';
++import { TestBed } from '@angular/core/testing';
++import { provideRouter } from '@angular/router';
++import { TicketSummary } from '@care/portal-domain-tickets';
++import { aTicket } from '@care/portal-domain-tickets/testing';
++import { provideI18nTesting } from '@care/shared-util-i18n/testing';
++import { TicketRow } from './ticket-row';
++
++// Test hop dong: dua input vao, kiem tra DOM va output; khong co service nao.
++@Component({
++  imports: [TicketRow],
++  template: `<table>
++    <tbody>
++      <tr
++        care-ticket-row
++        [ticket]="ticket()"
++        [canApprove]="canApprove()"
++        [approving]="approving()"
++        (approve)="approved.push($event)"
++      ></tr>
++    </tbody>
++  </table>`,
++})
++class Host {
++  readonly ticket = signal<TicketSummary>(
++    aTicket({ code: 'TK-9', status: 'RESOLVED', assignee: null }),
++  );
++  readonly canApprove = signal(false);
++  readonly approving = signal(false);
++  readonly approved: TicketSummary[] = [];
++}
++
++describe('TicketRow', () => {
++  beforeEach(() =>
++    TestBed.configureTestingModule({
++      imports: [Host],
++      providers: [provideRouter([]), provideI18nTesting()],
++    }),
++  );
++
++  async function render() {
++    const fixture = TestBed.createComponent(Host);
++    await fixture.whenStable();
++    return fixture;
++  }
++
++  it('render 9 o, dung ma phieu va nhan "Chua giao" khi chua co nguoi xu ly', async () => {
++    const fixture = await render();
++    const cells = fixture.nativeElement.querySelectorAll('td');
++    expect(cells).toHaveLength(9);
++    expect(cells[0].textContent.trim()).toBe('TK-9');
++    expect(cells[6].textContent).toContain('Chưa giao');
++  });
++
++  it('chi hien nut Duyet khi canApprove; bam thi phat approve voi dung phieu', async () => {
++    const fixture = await render();
++    expect(fixture.nativeElement.querySelector('button')).toBeNull();
++
++    fixture.componentInstance.canApprove.set(true);
++    await fixture.whenStable();
++    (
++      fixture.nativeElement.querySelector('button') as HTMLButtonElement
++    ).click();
++
++    expect(fixture.componentInstance.approved.map((t) => t.code)).toEqual([
++      'TK-9',
++    ]);
++  });
++
++  it('dang duyet thi nut bi vo hieu, khong phat them su kien', async () => {
++    const fixture = await render();
++    fixture.componentInstance.canApprove.set(true);
++    fixture.componentInstance.approving.set(true);
++    await fixture.whenStable();
++
++    const button = fixture.nativeElement.querySelector(
++      'button',
++    ) as HTMLButtonElement;
++    expect(button.disabled).toBe(true);
++    button.click();
++    expect(fixture.componentInstance.approved).toEqual([]);
++  });
++});
+diff --git a/frontend/libs/portal/ui-tickets/src/lib/ticket-row/ticket-row.ts b/frontend/libs/portal/ui-tickets/src/lib/ticket-row/ticket-row.ts
+new file mode 100644
+index 0000000..207abce
+--- /dev/null
++++ b/frontend/libs/portal/ui-tickets/src/lib/ticket-row/ticket-row.ts
+@@ -0,0 +1,49 @@
++import {
++  ChangeDetectionStrategy,
++  Component,
++  input,
++  output,
++} from '@angular/core';
++import { RouterLink } from '@angular/router';
++import { TicketSummary } from '@care/portal-domain-tickets';
++import { DATE_FORMAT, TIME_FORMAT } from '@care/shared-util-i18n';
++import { TranslocoPipe } from '@jsverse/transloco';
++import { TranslocoDatePipe } from '@jsverse/transloco-locale';
++import { NzButtonComponent } from 'ng-zorro-antd/button';
++import { NzTableModule } from 'ng-zorro-antd/table';
++import { NzTagComponent } from 'ng-zorro-antd/tag';
++import { CATEGORY_LABEL, PRIORITY_TAG, STATUS_TAG } from '../ticket-tags';
++
++/**
++ * Mot dong phieu yeu cau trong bang. Component hien thi: chi nhan input va phat output,
++ * khong inject service, khong biet ai dang dang nhap (container quyet dinh canApprove).
++ * Selector dang thuoc tinh tren <tr> de DOM van la bang hop le (tbody > tr > td).
++ */
++@Component({
++  selector: 'tr[care-ticket-row]',
++  imports: [
++    RouterLink,
++    TranslocoPipe,
++    TranslocoDatePipe,
++    NzButtonComponent,
++    NzTableModule,
++    NzTagComponent,
++  ],
++  templateUrl: './ticket-row.html',
++  changeDetection: ChangeDetectionStrategy.OnPush,
++})
++export class TicketRow {
++  readonly ticket = input.required<TicketSummary>();
++  /** Hien nut Duyet. Container tinh tu vai tro + trang thai phieu. */
++  readonly canApprove = input(false);
++  /** Dang gui yeu cau duyet dong nay: nut quay va khong bam lai duoc. */
++  readonly approving = input(false);
++
++  readonly approve = output<TicketSummary>();
++
++  protected readonly dateFormat = DATE_FORMAT;
++  protected readonly timeFormat = TIME_FORMAT;
++  protected readonly statusTag = STATUS_TAG;
++  protected readonly priorityTag = PRIORITY_TAG;
++  protected readonly categoryLabel = CATEGORY_LABEL;
++}
+diff --git a/frontend/libs/portal/ui-tickets/src/lib/ticket-tags.ts b/frontend/libs/portal/ui-tickets/src/lib/ticket-tags.ts
+new file mode 100644
+index 0000000..a62328d
+--- /dev/null
++++ b/frontend/libs/portal/ui-tickets/src/lib/ticket-tags.ts
+@@ -0,0 +1,37 @@
++import {
++  TicketCategory,
++  TicketPriority,
++  TicketStatus,
++} from '@care/portal-domain-tickets';
++
++export type TagColor =
++  'success' | 'processing' | 'warning' | 'error' | 'default';
++
++export interface TicketTag {
++  /** Key dich (Transloco), khong phai chu hien thi. */
++  labelKey: string;
++  color: TagColor;
++}
++
++// Trung voi TICKET_STATUS/TICKET_PRIORITY trong shared-data-access-api: lib ui khong duoc import data-access.
++// No ky thuat: bai tap ve nha buoi 2 thiet ke lai cho nhan hien thi dung chung (lib nao, tag gi).
++export const STATUS_TAG: Record<TicketStatus, TicketTag> = {
++  NEW: { labelKey: 'enum.ticketStatus.NEW', color: 'processing' },
++  IN_PROGRESS: { labelKey: 'enum.ticketStatus.IN_PROGRESS', color: 'warning' },
++  RESOLVED: { labelKey: 'enum.ticketStatus.RESOLVED', color: 'success' },
++  CLOSED: { labelKey: 'enum.ticketStatus.CLOSED', color: 'default' },
++};
++
++export const PRIORITY_TAG: Record<TicketPriority, TicketTag> = {
++  LOW: { labelKey: 'enum.ticketPriority.LOW', color: 'default' },
++  MEDIUM: { labelKey: 'enum.ticketPriority.MEDIUM', color: 'processing' },
++  HIGH: { labelKey: 'enum.ticketPriority.HIGH', color: 'warning' },
++  URGENT: { labelKey: 'enum.ticketPriority.URGENT', color: 'error' },
++};
++
++export const CATEGORY_LABEL: Record<TicketCategory, string> = {
++  BILLING: 'enum.ticketCategory.BILLING',
++  NETWORK: 'enum.ticketCategory.NETWORK',
++  SERVICE: 'enum.ticketCategory.SERVICE',
++  OTHER: 'enum.ticketCategory.OTHER',
++};
+diff --git a/frontend/libs/portal/ui-tickets/src/test-setup.ts b/frontend/libs/portal/ui-tickets/src/test-setup.ts
+new file mode 100644
+index 0000000..17b7965
+--- /dev/null
++++ b/frontend/libs/portal/ui-tickets/src/test-setup.ts
+@@ -0,0 +1,5 @@
++import '@angular/compiler';
++import '@analogjs/vitest-angular/setup-snapshots';
++import { setupTestBed } from '@analogjs/vitest-angular/setup-testbed';
++
++setupTestBed();
+diff --git a/frontend/libs/portal/ui-tickets/tsconfig.json b/frontend/libs/portal/ui-tickets/tsconfig.json
+new file mode 100644
+index 0000000..bb320af
+--- /dev/null
++++ b/frontend/libs/portal/ui-tickets/tsconfig.json
+@@ -0,0 +1,28 @@
++{
++  "extends": "../../../tsconfig.base.json",
++  "compilerOptions": {
++    "isolatedModules": true,
++    "strict": true,
++    "noImplicitOverride": true,
++    "noPropertyAccessFromIndexSignature": true,
++    "noImplicitReturns": true,
++    "noFallthroughCasesInSwitch": true,
++    "module": "preserve"
++  },
++  "angularCompilerOptions": {
++    "enableI18nLegacyMessageIdFormat": false,
++    "strictInjectionParameters": true,
++    "strictInputAccessModifiers": true,
++    "strictTemplates": true
++  },
++  "files": [],
++  "include": [],
++  "references": [
++    {
++      "path": "./tsconfig.lib.json"
++    },
++    {
++      "path": "./tsconfig.spec.json"
++    }
++  ]
++}
+diff --git a/frontend/libs/portal/ui-tickets/tsconfig.lib.json b/frontend/libs/portal/ui-tickets/tsconfig.lib.json
+new file mode 100644
+index 0000000..a9b98ba
+--- /dev/null
++++ b/frontend/libs/portal/ui-tickets/tsconfig.lib.json
+@@ -0,0 +1,26 @@
++{
++  "extends": "./tsconfig.json",
++  "compilerOptions": {
++    "outDir": "../../../dist/out-tsc",
++    "declaration": true,
++    "declarationMap": true,
++    "inlineSources": true,
++    "types": []
++  },
++  "include": ["src/**/*.ts"],
++  "exclude": [
++    "src/**/*.spec.ts",
++    "src/**/*.test.ts",
++    "vite.config.ts",
++    "vite.config.mts",
++    "vitest.config.ts",
++    "vitest.config.mts",
++    "src/**/*.test.tsx",
++    "src/**/*.spec.tsx",
++    "src/**/*.test.js",
++    "src/**/*.spec.js",
++    "src/**/*.test.jsx",
++    "src/**/*.spec.jsx",
++    "src/test-setup.ts"
++  ]
++}
+diff --git a/frontend/libs/portal/ui-tickets/tsconfig.spec.json b/frontend/libs/portal/ui-tickets/tsconfig.spec.json
+new file mode 100644
+index 0000000..5785a8a
+--- /dev/null
++++ b/frontend/libs/portal/ui-tickets/tsconfig.spec.json
+@@ -0,0 +1,29 @@
++{
++  "extends": "./tsconfig.json",
++  "compilerOptions": {
++    "outDir": "../../../dist/out-tsc",
++    "types": [
++      "vitest/globals",
++      "vitest/importMeta",
++      "vite/client",
++      "node",
++      "vitest"
++    ]
++  },
++  "include": [
++    "vite.config.ts",
++    "vite.config.mts",
++    "vitest.config.ts",
++    "vitest.config.mts",
++    "src/**/*.test.ts",
++    "src/**/*.spec.ts",
++    "src/**/*.test.tsx",
++    "src/**/*.spec.tsx",
++    "src/**/*.test.js",
++    "src/**/*.spec.js",
++    "src/**/*.test.jsx",
++    "src/**/*.spec.jsx",
++    "src/**/*.d.ts"
++  ],
++  "files": ["src/test-setup.ts"]
++}
+diff --git a/frontend/libs/portal/ui-tickets/vite.config.mts b/frontend/libs/portal/ui-tickets/vite.config.mts
+new file mode 100644
+index 0000000..b922428
+--- /dev/null
++++ b/frontend/libs/portal/ui-tickets/vite.config.mts
+@@ -0,0 +1,29 @@
++/// <reference types='vitest' />
++import { defineConfig } from 'vite';
++import angular from '@analogjs/vite-plugin-angular';
++
++export default defineConfig(() => ({
++  root: import.meta.dirname,
++  cacheDir: '../../../node_modules/.vite/libs/portal/ui-tickets',
++  resolve: {
++    tsconfigPaths: true,
++  },
++  plugins: [angular()],
++  // Uncomment this if you are using workers.
++  // worker: {
++  //  plugins: [],
++  // },
++  test: {
++    name: 'portal-ui-tickets',
++    watch: false,
++    globals: true,
++    environment: 'jsdom',
++    include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
++    setupFiles: ['src/test-setup.ts'],
++    reporters: ['default'],
++    coverage: {
++      reportsDirectory: '../../../coverage/libs/portal/ui-tickets',
++      provider: 'v8' as const,
++    },
++  },
++}));
+diff --git a/frontend/tsconfig.base.json b/frontend/tsconfig.base.json
+index 2eb8c47..86f240f 100644
+--- a/frontend/tsconfig.base.json
++++ b/frontend/tsconfig.base.json
+@@ -48,7 +48,8 @@
+       ],
+       "@care/portal-data-access-tickets": [
+         "./libs/portal/data-access-tickets/src/index.ts"
+-      ]
++      ],
++      "@care/portal-ui-tickets": ["./libs/portal/ui-tickets/src/index.ts"]
+     }
+   },
+   "exclude": ["node_modules", "tmp"]

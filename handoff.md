@@ -27,16 +27,14 @@ Viết cho: người hoặc phiên Claude Code sẽ làm tiếp dự án này.
 | Bài tập về nhà | File HTML tự chấm trong `course/bai-tap-ve-nha/`, đặt tên `buoi-XX-<chu-de>.html`, làm khoảng 30 phút, nộp trước buổi kế tiếp | Người dùng yêu cầu chuyển bài làm bằng `/teach` thành bài tập về nhà |
 
 ## 3. Trạng thái hiện tại
-- Nhánh `main` khớp với `origin/main` ở commit `99fc10f`. Các thay đổi ngày 2026-10-28 (cập nhật theo đề cương) **chưa commit**.
-- **Buổi 1 đã soạn lại theo đề cương:** slide 34 trang (thêm Clean Architecture, phạm vi DI, port/adapter, fake, luật CI, monorepo/tách thư viện; đã xuất lại PDF và PPTX), lab 5 bài 120' + review chéo ADR, 3 patch đáp án:
-  - `bai2-goi-cuoc.patch` (giữ nguyên),
-  - `bai3-5-ticket-port.patch` (mới: `portal-domain-tickets`, `portal-data-access-tickets`, fake adapter + test, luật `type:domain`, `no-restricted-imports`, `.github/workflows/ci.yml`, `docs/adr/0002`),
-  - `mo-rong-runtime-config.patch` (đổi tên từ `bai4-runtime-config.patch`, giờ là bài mở rộng).
-  Đã kiểm tra: áp cả 3 theo thứ tự thì `nx run-many -t lint test build` pass 15 project; gỡ theo thứ tự ngược thì về đúng trạng thái đầu.
-- Code trong `frontend/` đang ở **trạng thái bắt đầu lab buổi 1**: chưa có Gói cước, `TicketListPage` còn inject `TicketApi`.
-- Có thêm ở trạng thái gốc: `docs/adr/` (README + ADR-0001 ng-zorro), `course/_templates/` (adr, test-matrix, benchmark, ai-review, release-checklist, instructor-notes 4 giờ).
-- **Buổi 2–10:** `README.md` và `instructor-notes.md` đã viết theo đề cương (nội dung, mục tiêu, use case trên Care Portal, kế hoạch lab 120', liên kết code, danh sách "cần chuẩn bị"). Chưa có slide, lab chi tiết, đáp án.
-- Chú thích "buổi N" trong code đã đổi theo thứ tự mới (hiệu năng = 5, bảo mật = 6, CI/CD = 9).
+- **Mô hình git theo tag** (người dùng chốt 2026-10-29): `sessionXX-start` là điểm bắt đầu lab, đáp án của buổi XX là patch trong
+  `course/session-XX/solution/`. Khi chuẩn bị buổi kế tiếp: áp patch, commit "Áp đáp án buổi XX (sessionXX-end)", gắn tag, rồi commit
+  phần chuẩn bị của buổi sau và gắn `session(XX+1)-start`. Tài liệu `course/` luôn mới nhất trên `main`.
+- Tag hiện có: `session01-start` (5a7ad8c), `session01-end` (c825bd8), `session02-start`. `main` đang ở **trạng thái bắt đầu lab buổi 2**.
+- **Buổi 1, buổi 2 đã soạn đủ**: slide (PDF, PPTX), lab 5 bài 120', đáp án dạng patch, `instructor-notes.md`, `note-cho-giang-vien.md`, bài tập về nhà.
+  - Buổi 2 có 3 patch: `bai1-ticket-row`, `bai2-3-form-tao-phieu`, `bai4-5-duyet-va-idempotency`. Đã kiểm tra gate pass sau **từng** patch (16 project), áp/gỡ sạch, và spec E2E `ticket-flow.spec.ts` pass với backend thật.
+  - Backend ở `session02-start`: `POST /api/tickets/{id}/approve` (chỉ SUPERVISOR), `IdempotencyStore` (trong bộ nhớ), `TicketApiTests` (19 test backend pass).
+- **Buổi 3–10:** `README.md` và `instructor-notes.md` có khung theo đề cương. Chưa có slide, lab chi tiết, đáp án.
 - **Libs hiện có:**
   - `admin/feature-dashboard`
   - `portal/feature-{subscribers,tickets}`
@@ -49,8 +47,8 @@ Viết cho: người hoặc phiên Claude Code sẽ làm tiếp dự án này.
   Tài khoản đăng nhập là `agent1`, `supervisor1` và `admin1`, mật khẩu trùng tên đăng nhập.
 
 ## 4. Việc còn dở
-1. **Commit** các thay đổi ngày 2026-10-28 (khi người dùng yêu cầu), rồi tạo git tag `session01-start` và `session01-end` (end = sau khi áp 3 patch).
-2. **Soạn buổi 2** (component dùng lại, form, 409) đủ slide, lab, đáp án, ghi chú và bài tập về nhà. Trước đó làm phần backend trong `course/session-02/README.md` mục "Cần chuẩn bị": endpoint phê duyệt chỉ `SUPERVISOR`, `Idempotency-Key`, `@NotBlank` có trim. Điểm xuất phát buổi 2 = sau đáp án buổi 1 (đã có `TicketPort`).
+1. **Push tag** lên origin khi người dùng đồng ý (`git push origin main --tags`).
+2. **Soạn buổi 3** (Signals và RxJS). Bắt đầu bằng: áp 3 patch buổi 2 → commit + tag `session02-end`; chuẩn bị điểm bắt đầu (fake adapter có độ trễ theo query, commit cố ý dùng `mergeMap`) → tag `session03-start`.
 3. **Buổi 6** cần backend refresh rotation có trạng thái và phát hiện token reuse (hiện refresh token stateless).
 4. **Buổi 7:** thêm service `keycloak` vào `infra/docker-compose.yml` dưới `profiles: [sso]` + realm export; auth hỗ trợ 2 chế độ.
 5. **Buổi 10:** tạo fixture Angular 21 (`fixtures/legacy-a21/`).
@@ -101,6 +99,8 @@ npx @marp-team/marp-cli@4 slides.md --pptx --allow-local-files -o buoi-XX-....pp
 npx @marp-team/marp-cli@4 slides.md --pdf  --allow-local-files -o buoi-XX-....pdf
 ```
 Trước khi ghi đè PPTX, phải kiểm tra file khóa `~$...` và tiến trình PowerPoint. Đã từng ghi đè nhầm khi file đang mở trong PowerPoint.
+
+**Backend test:** VS Code (extension Java) ghi đè `backend/target/classes` không có bean MapStruct → `./mvnw test` lỗi `No qualifying bean ...Mapper`. Chạy test trong bản sao (`rsync -a --exclude target backend/ <scratch>/` rồi `./mvnw test` ở đó) hoặc đóng VS Code.
 
 **Đáp án lab dạng patch:** cách đang dùng là tạo `git worktree` tạm ở HEAD, áp các patch trước đó, commit tạm, chép file đã làm vào rồi `git diff --cached`. Mỗi lần tạo lại phải kiểm tra `git apply` rồi `git apply -R` vẫn chạy được, và chạy gate trong worktree (symlink `frontend/node_modules`, `NX_DAEMON=false`). Nếu sửa một dòng code nằm trong vùng context của patch thì phải sửa cả dòng đó trong file patch.
 

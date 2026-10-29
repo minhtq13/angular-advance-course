@@ -1,0 +1,705 @@
+diff --git a/frontend/libs/portal/feature-subscribers/src/lib/subscriber-detail/subscriber-detail.page.html b/frontend/libs/portal/feature-subscribers/src/lib/subscriber-detail/subscriber-detail.page.html
+index 3ae95e7..5b67476 100644
+--- a/frontend/libs/portal/feature-subscribers/src/lib/subscriber-detail/subscriber-detail.page.html
++++ b/frontend/libs/portal/feature-subscribers/src/lib/subscriber-detail/subscriber-detail.page.html
+@@ -34,6 +34,13 @@
+   <nz-tag [nzColor]="statusLabels[s.status].color"
+     >{{ statusLabels[s.status].labelKey | transloco }}</nz-tag
+   >
++  <a
++    nz-button
++    class="page-action"
++    routerLink="/tickets/new"
++    [queryParams]="{ subscriberId: s.id }"
++    >{{ 'subscriber.createTicket' | transloco }}</a
++  >
+ </div>
+ 
+ <div class="panel detail-panel">
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-create/not-blank.validator.spec.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-create/not-blank.validator.spec.ts
+new file mode 100644
+index 0000000..bc809a3
+--- /dev/null
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-create/not-blank.validator.spec.ts
+@@ -0,0 +1,21 @@
++import { FormControl, Validators } from '@angular/forms';
++import { notBlank } from './not-blank.validator';
++
++describe('notBlank', () => {
++  it.each([
++    ['   ', { blank: true }],
++    ['\t\n', { blank: true }],
++    ['  a ', null],
++    ['', null],
++    [null, null],
++  ])('%j -> %j', (value, expected) => {
++    expect(notBlank(new FormControl(value))).toEqual(expected);
++  });
++
++  it('di cung required: chuoi rong chi bao required, khoang trang chi bao blank', () => {
++    const control = new FormControl('', [Validators.required, notBlank]);
++    expect(Object.keys(control.errors ?? {})).toEqual(['required']);
++    control.setValue('   ');
++    expect(Object.keys(control.errors ?? {})).toEqual(['blank']);
++  });
++});
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-create/not-blank.validator.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-create/not-blank.validator.ts
+new file mode 100644
+index 0000000..d48aa94
+--- /dev/null
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-create/not-blank.validator.ts
+@@ -0,0 +1,13 @@
++import { AbstractControl, ValidationErrors } from '@angular/forms';
++
++/**
++ * Chuoi chi gom khoang trang -> loi `blank`. Validators.required coi "   " la hop le
++ * vi chi kiem tra rong. Chuoi rong de cho required bao loi, tranh hien hai loi cung luc.
++ */
++export function notBlank(
++  control: AbstractControl<string | null>,
++): ValidationErrors | null {
++  const value = control.value;
++  if (typeof value !== 'string' || value.length === 0) return null;
++  return value.trim().length === 0 ? { blank: true } : null;
++}
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-create/ticket-create.page.html b/frontend/libs/portal/feature-tickets/src/lib/ticket-create/ticket-create.page.html
+new file mode 100644
+index 0000000..298a9f7
+--- /dev/null
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-create/ticket-create.page.html
+@@ -0,0 +1,150 @@
++<div class="page-header">
++  <h1>{{ 'ticket.form.heading' | transloco }}</h1>
++</div>
++
++<!-- Ngoai @if de trinh doc man hinh luon theo doi vung nay. -->
++<div aria-live="assertive">
++  @if (submitError(); as err) {
++  <nz-alert
++    nzType="error"
++    nzShowIcon
++    class="mb"
++    role="alert"
++    [nzMessage]="'text' in err ? err.text : (err.key | transloco)"
++  />
++  }
++</div>
++
++<form
++  class="panel form-panel"
++  nz-form
++  nzLayout="vertical"
++  [formGroup]="form"
++  (ngSubmit)="submit()"
++  novalidate
++>
++  <!-- Moi truong: label noi bang for/id, aria-invalid + aria-describedby tro toi loi. -->
++  @let subscriberErr = errorOf('subscriberId');
++  <nz-form-item>
++    <nz-form-label nzFor="tk-subscriber" nzRequired
++      >{{ 'ticket.form.subscriberId' | transloco }}</nz-form-label
++    >
++    <nz-form-control>
++      <input
++        nz-input
++        id="tk-subscriber"
++        type="number"
++        inputmode="numeric"
++        formControlName="subscriberId"
++        [attr.aria-invalid]="subscriberErr ? true : null"
++        [attr.aria-describedby]="subscriberErr ? 'tk-subscriber-error' : null"
++      />
++      @if (subscriberErr) {
++      <div class="field-error" id="tk-subscriber-error">
++        {{ 'text' in subscriberErr ? subscriberErr.text : (subscriberErr.key |
++        transloco: subscriberErr.params) }}
++      </div>
++      }
++    </nz-form-control>
++  </nz-form-item>
++
++  @let categoryErr = errorOf('category');
++  <nz-form-item>
++    <nz-form-label nzFor="tk-category" nzRequired
++      >{{ 'ticket.form.category' | transloco }}</nz-form-label
++    >
++    <nz-form-control>
++      <nz-select
++        nzId="tk-category"
++        formControlName="category"
++        [attr.aria-invalid]="categoryErr ? true : null"
++        [attr.aria-describedby]="categoryErr ? 'tk-category-error' : null"
++      >
++        @for (o of categoryOptions; track o.value) {
++        <nz-option [nzValue]="o.value" [nzLabel]="o.labelKey | transloco" />
++        }
++      </nz-select>
++      @if (categoryErr) {
++      <div class="field-error" id="tk-category-error">
++        {{ 'text' in categoryErr ? categoryErr.text : (categoryErr.key |
++        transloco: categoryErr.params) }}
++      </div>
++      }
++    </nz-form-control>
++  </nz-form-item>
++
++  <nz-form-item>
++    <nz-form-label nzFor="tk-priority" nzRequired
++      >{{ 'ticket.form.priority' | transloco }}</nz-form-label
++    >
++    <nz-form-control>
++      <nz-select nzId="tk-priority" formControlName="priority">
++        @for (o of priorityOptions; track o.value) {
++        <nz-option [nzValue]="o.value" [nzLabel]="o.labelKey | transloco" />
++        }
++      </nz-select>
++    </nz-form-control>
++  </nz-form-item>
++
++  @let titleErr = errorOf('title');
++  <nz-form-item>
++    <nz-form-label nzFor="tk-title" nzRequired
++      >{{ 'ticket.form.title' | transloco }}</nz-form-label
++    >
++    <nz-form-control>
++      <input
++        nz-input
++        id="tk-title"
++        formControlName="title"
++        [attr.maxlength]="titleMax"
++        [attr.aria-invalid]="titleErr ? true : null"
++        [attr.aria-describedby]="titleErr ? 'tk-title-error' : null"
++      />
++      @if (titleErr) {
++      <div class="field-error" id="tk-title-error">
++        {{ 'text' in titleErr ? titleErr.text : (titleErr.key | transloco:
++        titleErr.params) }}
++      </div>
++      }
++    </nz-form-control>
++  </nz-form-item>
++
++  @let descriptionErr = errorOf('description');
++  <nz-form-item>
++    <nz-form-label nzFor="tk-description"
++      >{{ 'ticket.form.description' | transloco }}</nz-form-label
++    >
++    <nz-form-control>
++      <textarea
++        nz-input
++        id="tk-description"
++        rows="4"
++        formControlName="description"
++        [attr.aria-invalid]="descriptionErr ? true : null"
++        [attr.aria-describedby]="descriptionErr ? 'tk-description-error' : null"
++      ></textarea>
++      @if (descriptionErr) {
++      <div class="field-error" id="tk-description-error">
++        {{ 'text' in descriptionErr ? descriptionErr.text : (descriptionErr.key
++        | transloco: descriptionErr.params) }}
++      </div>
++      }
++    </nz-form-control>
++  </nz-form-item>
++
++  <div class="actions">
++    <button
++      nz-button
++      nzType="primary"
++      type="submit"
++      [nzLoading]="submitting()"
++      [disabled]="submitting()"
++    >
++      {{ (submitting() ? 'ticket.form.submitting' : 'ticket.form.submit') |
++      transloco }}
++    </button>
++    <a nz-button routerLink="/tickets"
++      >{{ 'ticket.form.cancel' | transloco }}</a
++    >
++  </div>
++</form>
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-create/ticket-create.page.spec.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-create/ticket-create.page.spec.ts
+new file mode 100644
+index 0000000..211b8c3
+--- /dev/null
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-create/ticket-create.page.spec.ts
+@@ -0,0 +1,141 @@
++import { TestBed } from '@angular/core/testing';
++import { provideRouter, Router } from '@angular/router';
++import { TicketPort, TicketValidationError } from '@care/portal-domain-tickets';
++import { InMemoryTicketAdapter } from '@care/portal-domain-tickets/testing';
++import { provideUi } from '@care/shared-ui-layout';
++import { provideI18nTesting } from '@care/shared-util-i18n/testing';
++import { TicketCreatePage } from './ticket-create.page';
++
++describe('TicketCreatePage', () => {
++  let port: InMemoryTicketAdapter;
++
++  beforeEach(async () => {
++    port = new InMemoryTicketAdapter();
++    await TestBed.configureTestingModule({
++      imports: [TicketCreatePage],
++      providers: [
++        provideRouter([]),
++        provideUi(),
++        provideI18nTesting(),
++        { provide: TicketPort, useValue: port },
++      ],
++    }).compileComponents();
++  });
++
++  async function render(subscriberId = '12') {
++    const fixture = TestBed.createComponent(TicketCreatePage);
++    fixture.componentRef.setInput('subscriberId', subscriberId);
++    await fixture.whenStable();
++    const el = fixture.nativeElement as HTMLElement;
++    const input = (id: string) =>
++      el.querySelector(`#${id}`) as HTMLInputElement;
++    const type = async (id: string, value: string) => {
++      input(id).value = value;
++      input(id).dispatchEvent(new Event('input'));
++      await fixture.whenStable();
++    };
++    const submit = async () => {
++      (el.querySelector('button[type=submit]') as HTMLButtonElement).click();
++      await fixture.whenStable();
++    };
++    return { fixture, el, input, type, submit };
++  }
++
++  /** nz-select khong co input that de go: dat gia tri qua form control. */
++  function chooseCategory(page: {
++    fixture: { componentInstance: TicketCreatePage };
++  }) {
++    (
++      page.fixture.componentInstance as unknown as {
++        form: { controls: { category: { setValue(v: string): void } } };
++      }
++    ).form.controls.category.setValue('BILLING');
++  }
++
++  it('lay subscriberId tu query param', async () => {
++    const { input } = await render('12');
++    expect(input('tk-subscriber').value).toBe('12');
++  });
++
++  it('tieu de chi co khoang trang: khong goi API, bao loi dung truong va dua focus toi do', async () => {
++    const page = await render();
++    chooseCategory(page);
++    await page.type('tk-title', '    ');
++    await page.submit();
++
++    expect(port.createCalls).toEqual([]);
++    expect(page.input('tk-title').getAttribute('aria-invalid')).toBe('true');
++    expect(page.el.querySelector('#tk-title-error')?.textContent).toContain(
++      'Không được chỉ có khoảng trắng',
++    );
++    expect(page.input('tk-title').getAttribute('aria-describedby')).toBe(
++      'tk-title-error',
++    );
++    expect(document.activeElement).toBe(page.input('tk-title'));
++  });
++
++  it('server tra loi tung truong: giu nguyen noi dung form, hien loi server dung truong', async () => {
++    port.failNext(
++      new TicketValidationError('Dữ liệu không hợp lệ', {
++        title: 'Tiêu đề đã bị cấm',
++      }),
++    );
++    const page = await render();
++    chooseCategory(page);
++    await page.type('tk-title', 'Mat song 4G');
++    await page.type('tk-description', 'Tu sang nay');
++    await page.submit();
++
++    expect(port.createCalls).toHaveLength(1);
++    expect(page.input('tk-title').value).toBe('Mat song 4G');
++    expect(page.input('tk-description').value).toBe('Tu sang nay');
++    expect(page.el.querySelector('#tk-title-error')?.textContent).toContain(
++      'Tiêu đề đã bị cấm',
++    );
++    expect(page.el.querySelector('[role=alert]')?.textContent).toContain(
++      'Dữ liệu không hợp lệ',
++    );
++
++    // Sua lai gia tri -> loi server tu mat.
++    await page.type('tk-title', 'Mat song 4G tai nha');
++    expect(page.el.querySelector('#tk-title-error')).toBeNull();
++  });
++
++  it('loi mang: giu form, bao loi chung, nut gui bam lai duoc', async () => {
++    port.failNext(new Error('network'));
++    const page = await render();
++    chooseCategory(page);
++    await page.type('tk-title', 'Cuoc bat thuong');
++    await page.submit();
++
++    expect(page.el.querySelector('[role=alert]')?.textContent).toContain(
++      'Không tạo được phiếu',
++    );
++    expect(page.input('tk-title').value).toBe('Cuoc bat thuong');
++    expect(
++      (page.el.querySelector('button[type=submit]') as HTMLButtonElement)
++        .disabled,
++    ).toBe(false);
++  });
++
++  it('thanh cong: gui lenh da trim va chuyen ve danh sach kem ma phieu', async () => {
++    const navigate = vi
++      .spyOn(TestBed.inject(Router), 'navigate')
++      .mockResolvedValue(true);
++    const page = await render('12');
++    chooseCategory(page);
++    await page.type('tk-title', '  Cuoc bat thuong  ');
++    await page.submit();
++
++    expect(port.createCalls[0].command).toEqual({
++      subscriberId: 12,
++      category: 'BILLING',
++      priority: 'MEDIUM',
++      title: 'Cuoc bat thuong',
++      description: undefined,
++    });
++    expect(navigate).toHaveBeenCalledWith(['/tickets'], {
++      state: { created: expect.stringMatching(/^TK-/) },
++    });
++  });
++});
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-create/ticket-create.page.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-create/ticket-create.page.ts
+new file mode 100644
+index 0000000..ad355ee
+--- /dev/null
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-create/ticket-create.page.ts
+@@ -0,0 +1,203 @@
++import {
++  afterNextRender,
++  ChangeDetectionStrategy,
++  Component,
++  DestroyRef,
++  ElementRef,
++  inject,
++  Injector,
++  input,
++  OnInit,
++  signal,
++} from '@angular/core';
++import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
++import {
++  AbstractControl,
++  FormControl,
++  FormGroup,
++  ReactiveFormsModule,
++  Validators,
++} from '@angular/forms';
++import { Router, RouterLink } from '@angular/router';
++import {
++  TicketCategory,
++  TicketPort,
++  TicketPriority,
++  TicketValidationError,
++} from '@care/portal-domain-tickets';
++import {
++  TICKET_CATEGORY,
++  TICKET_PRIORITY,
++  toOptions,
++} from '@care/shared-data-access-api';
++import { TranslocoPipe } from '@jsverse/transloco';
++import { NzAlertComponent } from 'ng-zorro-antd/alert';
++import { NzButtonComponent } from 'ng-zorro-antd/button';
++import { NzFormModule } from 'ng-zorro-antd/form';
++import { NzInputModule } from 'ng-zorro-antd/input';
++import { NzOptionComponent, NzSelectComponent } from 'ng-zorro-antd/select';
++import { notBlank } from './not-blank.validator';
++
++const TITLE_MAX = 200;
++const DESCRIPTION_MAX = 4000;
++
++type FieldName =
++  'subscriberId' | 'category' | 'priority' | 'title' | 'description';
++
++/** Thong bao loi cua mot truong: key dich (loi client) hoac chu da dich san (loi server). */
++type FieldError =
++  { key: string; params?: Record<string, unknown> } | { text: string };
++
++/** "?subscriberId=12" -> 12; thieu hoac sai -> undefined. */
++function toId(value: unknown): number | undefined {
++  const id = Number(value);
++  return Number.isInteger(id) && id > 0 ? id : undefined;
++}
++
++@Component({
++  selector: 'care-ticket-create-page',
++  imports: [
++    ReactiveFormsModule,
++    RouterLink,
++    TranslocoPipe,
++    NzAlertComponent,
++    NzButtonComponent,
++    NzFormModule,
++    NzInputModule,
++    NzSelectComponent,
++    NzOptionComponent,
++  ],
++  templateUrl: './ticket-create.page.html',
++  changeDetection: ChangeDetectionStrategy.OnPush,
++})
++export class TicketCreatePage implements OnInit {
++  private readonly tickets = inject(TicketPort);
++  private readonly router = inject(Router);
++  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
++  private readonly injector = inject(Injector);
++  private readonly destroyRef = inject(DestroyRef);
++
++  /** Tu query param (withComponentInputBinding): /tickets/new?subscriberId=12 */
++  readonly subscriberId = input<number | undefined, unknown>(undefined, {
++    transform: toId,
++  });
++
++  protected readonly categoryOptions = toOptions(TICKET_CATEGORY);
++  protected readonly priorityOptions = toOptions(TICKET_PRIORITY);
++  protected readonly titleMax = TITLE_MAX;
++
++  protected readonly form = new FormGroup({
++    subscriberId: new FormControl<number | null>(null, Validators.required),
++    category: new FormControl<TicketCategory | null>(null, Validators.required),
++    priority: new FormControl<TicketPriority>('MEDIUM', {
++      nonNullable: true,
++      validators: Validators.required,
++    }),
++    title: new FormControl('', {
++      nonNullable: true,
++      validators: [
++        Validators.required,
++        notBlank,
++        Validators.maxLength(TITLE_MAX),
++      ],
++    }),
++    description: new FormControl('', {
++      nonNullable: true,
++      validators: Validators.maxLength(DESCRIPTION_MAX),
++    }),
++  });
++
++  protected readonly submitting = signal(false);
++  /** Loi chung cua lan gui (dat tren form). null = khong co loi. */
++  protected readonly submitError = signal<FieldError | null>(null);
++
++  ngOnInit(): void {
++    const id = this.subscriberId();
++    if (id !== undefined) this.form.controls.subscriberId.setValue(id);
++  }
++
++  protected submit(): void {
++    // Chong nhap lap phia client: dang gui thi bo qua lan bam tiep theo.
++    if (this.submitting()) return;
++    if (this.form.invalid) {
++      this.form.markAllAsTouched();
++      this.submitError.set({ key: 'ticket.form.invalid' });
++      this.focusFirstInvalid();
++      return;
++    }
++
++    const value = this.form.getRawValue();
++    this.submitting.set(true);
++    this.submitError.set(null);
++    this.tickets
++      .create(
++        {
++          subscriberId: value.subscriberId as number,
++          category: value.category as TicketCategory,
++          priority: value.priority,
++          title: value.title.trim(),
++          description: value.description.trim() || undefined,
++        },
++        // TODO bai 5: moi lan gui mot key moi -> gui lai sau loi mang co the tao phieu trung.
++        crypto.randomUUID(),
++      )
++      .pipe(takeUntilDestroyed(this.destroyRef))
++      .subscribe({
++        next: (ticket) => {
++          this.router.navigate(['/tickets'], {
++            state: { created: ticket.code },
++          });
++        },
++        // Khong reset form: nguoi dung sua hoac gui lai ma khong phai nhap lai.
++        error: (error: unknown) => {
++          this.submitting.set(false);
++          if (error instanceof TicketValidationError) {
++            this.applyServerErrors(error.fieldErrors);
++            this.submitError.set({ text: error.message });
++            this.focusFirstInvalid();
++          } else {
++            this.submitError.set({ key: 'ticket.form.submitError' });
++          }
++        },
++      });
++  }
++
++  /** Loi dau tien cua truong, chi hien sau khi nguoi dung da cham vao (hoac da bam gui). */
++  protected errorOf(name: FieldName): FieldError | null {
++    const control: AbstractControl = this.form.controls[name];
++    if (!control.touched || !control.errors) return null;
++    const errors = control.errors;
++    if (errors['server']) return { text: errors['server'] as string };
++    if (errors['required']) return { key: 'ticket.form.errors.required' };
++    if (errors['blank']) return { key: 'ticket.form.errors.blank' };
++    if (errors['maxlength']) {
++      return {
++        key: 'ticket.form.errors.maxlength',
++        params: { max: errors['maxlength'].requiredLength },
++      };
++    }
++    return null;
++  }
++
++  /** Loi tu server gan vao dung truong; tu mat khi nguoi dung sua gia tri (validator chay lai). */
++  private applyServerErrors(
++    fieldErrors: Readonly<Record<string, string>>,
++  ): void {
++    for (const [field, message] of Object.entries(fieldErrors)) {
++      const control = this.form.get(field);
++      if (!control) continue;
++      control.setErrors({ ...control.errors, server: message });
++      control.markAsTouched();
++    }
++  }
++
++  private focusFirstInvalid(): void {
++    afterNextRender(
++      () =>
++        this.host.nativeElement
++          .querySelector<HTMLElement>('[aria-invalid="true"]')
++          ?.focus(),
++      { injector: this.injector },
++    );
++  }
++}
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.html b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.html
+index 151991b..ee8615e 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.html
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.html
+@@ -4,6 +4,21 @@
+     >{{ 'ticket.count' | transloco: { count: (total() | translocoDecimal) }
+     }}</span
+   >
++  <a nz-button nzType="primary" class="page-action" routerLink="/tickets/new"
++    >{{ 'ticket.new' | transloco }}</a
++  >
++</div>
++
++<div aria-live="polite">
++  @if (created(); as code) {
++  <nz-alert
++    nzType="success"
++    nzShowIcon
++    nzCloseable
++    class="mb"
++    [nzMessage]="'ticket.form.created' | transloco: { code }"
++  />
++  }
+ </div>
+ 
+ <div
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.ts
+index 1a6e389..ef7417c 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.ts
+@@ -8,6 +8,7 @@ import {
+ } from '@angular/core';
+ import { rxResource } from '@angular/core/rxjs-interop';
+ import { FormsModule } from '@angular/forms';
++import { Router, RouterLink } from '@angular/router';
+ import {
+   TicketPort,
+   TicketPriority,
+@@ -39,6 +40,7 @@ import { TicketRow } from '@care/portal-ui-tickets';
+     TranslocoPipe,
+     TranslocoDecimalPipe,
+     FormsModule,
++    RouterLink,
+     NzAlertComponent,
+     NzButtonComponent,
+     NzIconDirective,
+@@ -56,6 +58,12 @@ export class TicketListPage {
+   private readonly tickets = inject(TicketPort);
+   private readonly auth = inject(AuthService);
+ 
++  /** Ma phieu vua tao, do trang tao phieu truyen qua navigation state. */
++  protected readonly created = signal<string | null>(
++    (inject(Router).currentNavigation()?.extras.state?.['created'] as
++      string | undefined) ?? null,
++  );
++
+   protected readonly statusOptions = toOptions(TICKET_STATUS);
+   protected readonly priorityOptions = toOptions(TICKET_PRIORITY);
+ 
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket.routes.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket.routes.ts
+index a90ff0a..dbcad5e 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket.routes.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket.routes.ts
+@@ -1,6 +1,14 @@
+ import { Route } from '@angular/router';
+ 
+ export const ticketRoutes: Route[] = [
++  {
++    path: 'new',
++    title: 'title.ticketNew',
++    loadComponent: () =>
++      import('./ticket-create/ticket-create.page').then(
++        (m) => m.TicketCreatePage,
++      ),
++  },
+   {
+     path: '',
+     title: 'title.tickets',
+diff --git a/frontend/libs/shared/ui-layout/src/styles/_base.scss b/frontend/libs/shared/ui-layout/src/styles/_base.scss
+index 7b3c58a..2c75e0d 100644
+--- a/frontend/libs/shared/ui-layout/src/styles/_base.scss
++++ b/frontend/libs/shared/ui-layout/src/styles/_base.scss
+@@ -14,6 +14,7 @@
+   --care-border: #e5e7eb;
+   --care-focus: #0958d9;
+   --care-placeholder: #6b7280; // 4.8:1 (mac dinh ng-zorro #bfbfbf chi 1.8:1)
++  --care-danger: #cf1322; // chu loi: 5.6:1 tren trang, 5.2:1 tren --care-bg (#ff4d4f cua ng-zorro chi 3.3:1)
+ 
+   // Khoang cach theo nhip 4px
+   --care-space-1: 4px;
+@@ -117,6 +118,7 @@ html[data-theme='dark'] {
+   --care-border: #303030;
+   --care-focus: #69b1ff;
+   --care-placeholder: #8c8c8c; // 5.5:1
++  --care-danger: #ff7875; // 7.2:1 tren be mat
+   // Toi thi bong do khong thay -> dung vien mo de tach lop.
+   --care-shadow: 0 0 0 1px #262626;
+ 
+@@ -179,6 +181,11 @@ html[data-theme='dark'] {
+   }
+ }
+ 
++// Nut thao tac chinh cua trang, day ve ben phai tieu de.
++.page-action {
++  margin-left: auto;
++}
++
+ .section-title {
+   margin: var(--care-space-6) 0 var(--care-space-3);
+   font-size: 16px;
+@@ -249,6 +256,18 @@ html[data-theme='dark'] {
+   }
+ }
+ 
++.form-panel {
++  max-width: 720px;
++  padding: var(--care-space-5);
++}
++
++// Loi tung truong form (thay cho nzErrorTip: mau mac dinh khong dat 4.5:1, va can id de aria-describedby).
++.field-error {
++  margin-top: var(--care-space-1);
++  color: var(--care-danger);
++  font-size: 13px;
++}
++
+ .actions {
+   display: flex;
+   flex-wrap: wrap;
