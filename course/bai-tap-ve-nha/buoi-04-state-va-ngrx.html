@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BTVN Buổi 4 · State và NgRx</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600&display=swap" />
+    <link rel="stylesheet" href="assets/lesson.css" />
+  </head>
+  <body>
+    <main>
+      <p class="kicker">Bài tập về nhà · Buổi 4 · State Management và lựa chọn NgRx</p>
+      <h1>State nào, để ở đâu, sống bao lâu</h1>
+      <dl class="homework-meta">
+        <dt>Làm sau</dt>
+        <dd>Buổi 4 (<a href="../session-04/slides/buoi-04-state-va-ngrx.pdf">slide</a> · <a href="../session-04/lab/README.md">lab</a>)</dd>
+        <dt>Hạn nộp</dt>
+        <dd>Trước buổi 5</dd>
+        <dt>Thời gian</dt>
+        <dd>Khoảng 30 phút</dd>
+        <dt>Cần</dt>
+        <dd>Trình duyệt và giấy bút. Không cần chạy dự án.</dd>
+      </dl>
+
+      <div class="goal">
+        <p><strong>Mục tiêu:</strong> phân loại state cho một màn hình <em>mới</em>, chọn nơi đặt và vòng đời đúng, và biết khi nào Global Store đáng chi phí.</p>
+        <p>Làm phần 0 trước khi mở slide.</p>
+      </div>
+
+      <h2>Phần 0 · Khởi động: viết ra giấy (4 phút)</h2>
+      <ol>
+        <li>Năm loại state và mỗi loại một ví dụ trong Care Portal.</li>
+        <li>Năm câu hỏi của ma trận lựa chọn state.</li>
+        <li>Vì sao "URL là nguồn sự thật" tốt hơn đồng bộ hai chiều signal ↔ URL?</li>
+        <li>Store <code>providedIn: 'root'</code> chứa dữ liệu người dùng cần thêm điều gì?</li>
+      </ol>
+      <details>
+        <summary>Ôn lại sau khi đã viết xong</summary>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Câu</th><th>Ý chính</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>Local UI (<code>approvingId</code>), feature (kết quả trang Phiếu), URL (bộ lọc), session (người đăng nhập, thuê bao xem gần đây), server (danh sách phiếu).</td></tr>
+              <tr><td>2</td><td>Phạm vi (ai đọc), vòng đời (mất khi nào), số nơi ghi, cần giữ khi F5/chia sẻ, cần truy vết.</td></tr>
+              <tr><td>3</td><td>Một nguồn sự thật: mọi thay đổi (chọn, Back/Forward, mở link, F5) đi một đường. Hai chiều dễ vòng lặp và lệch nhau.</td></tr>
+              <tr><td>4</td><td>Xóa khi đổi phiên (đăng xuất, hết phiên, người khác đăng nhập). Không thì rò dữ liệu giữa người dùng.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+
+      <h2>Phần 1 · State này thuộc loại nào? (6 câu)</h2>
+      <div class="quiz" id="quiz-loai-state" data-quiz>
+        <script type="application/json">
+          {
+            "questions": [
+              {
+                "prompt": "Tab đang mở (Thông tin / Phiếu / Lịch sử cước) trên trang chi tiết thuê bao. Trưởng nhóm muốn gửi link mở thẳng tab Lịch sử cước.",
+                "options": ["Local UI: signal trong component", "URL: query param ?tab=", "Session: store root", "Server state"],
+                "answer": 1,
+                "explain": "Cần chia sẻ link và Back được → URL. Nếu không ai cần chia sẻ thì signal trong component là đủ."
+              },
+              {
+                "prompt": "Popover xác nhận 'Bạn chắc chắn tạm ngưng thuê bao?' đang mở hay đóng.",
+                "options": ["Local UI", "URL", "Session", "Global Store"],
+                "answer": 0,
+                "explain": "Chỉ một component cần biết, mất khi đóng là đúng."
+              },
+              {
+                "prompt": "Danh sách quyền (roles) của người đang đăng nhập.",
+                "options": ["Local UI", "URL", "Session", "Feature"],
+                "answer": 2,
+                "explain": "Cả app cần, mất khi đăng xuất: session state (AuthService)."
+              },
+              {
+                "prompt": "Danh sách gói cước (8 gói, gần như không đổi), dùng ở 3 màn hình.",
+                "options": ["Copy vào từng component", "Server state có cache dùng chung (shareReplay / store root)", "URL", "localStorage vĩnh viễn"],
+                "answer": 1,
+                "explain": "Vẫn là server state, nhưng ít đổi: cache dùng chung, có cách làm mới khi cần. localStorage vĩnh viễn dễ thành dữ liệu cũ."
+              },
+              {
+                "prompt": "Nháp ghi chú phiếu đang gõ dở; người dùng lỡ đóng tab thì muốn khôi phục khi mở lại (cùng máy).",
+                "options": ["URL", "sessionStorage/localStorage theo người dùng", "Global Store", "signal trong component"],
+                "answer": 1,
+                "explain": "Giữ qua tải lại cho một người, một máy: storage. Nhớ gắn với username và xóa khi đổi phiên."
+              },
+              {
+                "prompt": "Bộ đếm 'số phiếu chưa xử lý' trên header, phải cập nhật khi duyệt phiếu ở trang Phiếu, khi tạo phiếu ở trang Tạo phiếu, và khi Manager khác thao tác.",
+                "options": ["signal trong header", "Server state chung (store root) + làm mới sau mỗi thao tác ghi / định kỳ", "URL", "Local UI"],
+                "answer": 1,
+                "explain": "Nhiều nơi ghi, nhiều nơi đọc, dữ liệu thay đổi từ người khác: store dùng chung và chiến lược làm mới. Đây cũng là dấu hiệu bắt đầu cân nhắc Global Store nếu loại state này tăng lên."
+              }
+            ]
+          }
+        </script>
+      </div>
+
+      <h2>Phần 2 · Phạm vi DI và vòng đời (5 câu)</h2>
+      <div class="quiz" id="quiz-pham-vi" data-quiz>
+        <script type="application/json">
+          {
+            "questions": [
+              {
+                "prompt": "TicketListStore khai báo providers: [TicketListStore] trong TicketListPage. Rời trang Phiếu sang Thuê bao rồi quay lại. Store?",
+                "options": ["Giữ nguyên state cũ", "Là store mới, tải lại dữ liệu", "Lỗi NullInjector", "Giữ nếu có shareReplay"],
+                "answer": 1,
+                "explain": "Provider ở component sống theo component. Quay lại là instance mới."
+              },
+              {
+                "prompt": "Đổi TicketListStore sang { providedIn: 'root' }. Hậu quả nào KHÔNG xảy ra?",
+                "options": ["Quay lại trang thấy ngay kết quả cũ", "Đổi phiên có thể thấy kết quả của người trước", "Bộ lọc tự giữ khi F5", "Cần thêm cách làm mới dữ liệu cũ"],
+                "answer": 2,
+                "explain": "F5 tải lại toàn bộ app: store root cũng mất. Chỉ URL (hoặc storage) giữ được qua F5."
+              },
+              {
+                "prompt": "Trong withMethods viết: setX() { const r = inject(Router); ... }. Chuyện gì xảy ra khi gọi setX()?",
+                "options": ["Chạy bình thường", "NG0203: inject() ngoài injection context", "Router là undefined", "Lỗi biên dịch"],
+                "answer": 1,
+                "explain": "inject chỉ chạy trong injection context: tham số factory của withMethods/withComputed/withProps, không phải trong thân method."
+              },
+              {
+                "prompt": "Store nhận rxMethod với một signal (store._load(computed(...))). Trong test, sau TestBed.inject(Store), port chưa được gọi. Vì sao?",
+                "options": ["rxMethod lỗi", "Effect chưa chạy: cần TestBed.tick()", "Thiếu provideHttpClient", "switchMap chưa subscribe"],
+                "answer": 1,
+                "explain": "rxMethod theo dõi signal bằng effect; effect chạy khi tick."
+              },
+              {
+                "prompt": "Bấm 'Thử lại' khi URL không đổi. Vì sao phải gọi store.reload() thay vì router.navigate tới cùng URL?",
+                "options": ["navigate chậm hơn", "Router mặc định bỏ qua điều hướng tới cùng URL, nên filters không đổi và không tải lại", "reload rẻ hơn", "navigate xóa bộ lọc"],
+                "answer": 1,
+                "explain": "onSameUrlNavigation mặc định 'ignore'. Tải lại cùng query là hành động riêng."
+              }
+            ]
+          }
+        </script>
+      </div>
+
+      <h2>Phần 3 · Vận dụng: màn hình Lịch sử cước (12 phút)</h2>
+      <p>Trang chi tiết thuê bao thêm tab <strong>Lịch sử cước</strong>:</p>
+      <ul>
+        <li>Chọn kỳ cước (tháng/năm), loại cước (thoại, data, SMS, tất cả), phân trang 50 dòng.</li>
+        <li>Nút <em>Xuất Excel</em> (chạy nền, có thể mất 30 giây; người dùng có thể rời trang).</li>
+        <li>Banner "Thuê bao có khiếu nại cước đang mở" hiển thị trên mọi tab của thuê bao đó.</li>
+        <li>Manager có thể điều chỉnh một dòng cước (ghi); sau đó tổng cước kỳ phải cập nhật.</li>
+      </ul>
+      <p><strong>Viết ra:</strong></p>
+      <ol class="steps">
+        <li>Bảng ma trận: mỗi mẩu state (kỳ, loại, trang, danh sách dòng cước, tổng cước, trạng thái xuất Excel, banner khiếu nại, dòng đang điều chỉnh) → loại, nơi đặt, vòng đời.</li>
+        <li>URL của tab này trông thế nào? Giá trị nào không ghi lên URL?</li>
+        <li>Sau khi điều chỉnh một dòng: cần làm mới những gì, gọi API mấy lần?</li>
+        <li>Trạng thái "đang xuất Excel" đặt ở đâu để người dùng rời trang rồi quay lại vẫn thấy? Khi đăng xuất thì sao?</li>
+      </ol>
+      <details>
+        <summary>Đáp án tham khảo (chỉ mở sau khi đã viết)</summary>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>State</th><th>Loại</th><th>Đặt ở</th></tr></thead>
+            <tbody>
+              <tr><td>Kỳ, loại cước, trang</td><td>URL</td><td><code>/subscribers/12?tab=billing&amp;period=2026-10&amp;kind=DATA&amp;page=2</code></td></tr>
+              <tr><td>Dòng cước, tổng cước</td><td>Server</td><td>SignalStore ở component tab, đọc URL, <code>rxMethod</code> + <code>switchMap</code></td></tr>
+              <tr><td>Banner khiếu nại</td><td>Server, dùng chung các tab</td><td>Store cung cấp ở route <code>:id</code> (sống khi còn ở thuê bao đó)</td></tr>
+              <tr><td>Dòng đang điều chỉnh</td><td>Local UI</td><td><code>signal</code> trong component</td></tr>
+              <tr><td>Đang xuất Excel</td><td>Session</td><td>Store root, gắn với username, xóa khi đổi phiên</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ol>
+          <li>Xem bảng.</li>
+          <li>Không ghi giá trị mặc định: kỳ hiện tại, <code>kind=ALL</code>, <code>page=1</code>. Kiểm tra <code>period</code> đúng định dạng và không ở tương lai.</li>
+          <li>Làm mới trang dòng cước đang xem và tổng cước của kỳ: tốt nhất API điều chỉnh trả về tổng mới, hoặc một lần <code>reload()</code> lấy cả hai. Không tải lại banner nếu điều chỉnh không đổi khiếu nại.</li>
+          <li>Store root (vì component tab sẽ bị hủy khi rời trang), lưu id tác vụ để hỏi trạng thái; xóa khi đổi phiên, giống <code>RecentSubscribers</code>. Tác vụ ở server vẫn chạy; người dùng sau không được thấy kết quả của người trước.</li>
+        </ol>
+      </details>
+
+      <h2>Phần 4 · SignalStore hay Global Store? (5 phút)</h2>
+      <p>Với mỗi tình huống, chọn và viết một câu lý do:</p>
+      <ol>
+        <li>Một trang danh sách có bộ lọc và phân trang, một team phụ trách.</li>
+        <li>Giỏ hàng gói cước: thêm từ 4 màn hình, header hiện số lượng, trang thanh toán đọc, cần log mọi thay đổi để đối soát khiếu nại.</li>
+        <li>Wizard đăng ký thuê bao 5 bước, chỉ dùng trong wizard.</li>
+      </ol>
+      <details>
+        <summary>Đáp án tham khảo</summary>
+        <ol>
+          <li>SignalStore ở component (đúng như trang Phiếu).</li>
+          <li>Global Store đáng cân nhắc: nhiều màn hình cùng ghi, cần truy vết từng thay đổi (action là log tự nhiên). SignalStore root cũng làm được nhưng phải tự xây phần log.</li>
+          <li>SignalStore cung cấp ở route của wizard: sống qua các bước, mất khi rời wizard.</li>
+        </ol>
+      </details>
+
+      <h2>Nộp bài</h2>
+      <p>Gửi giảng viên qua kênh của lớp, <strong>trước buổi 5</strong>:</p>
+      <ol>
+        <li>Điểm phần 1 và phần 2.</li>
+        <li>Bài viết phần 3 và phần 4.</li>
+      </ol>
+      <p class="meta">Một ngày trước buổi 5, làm lại phần 2 mà không mở phần ôn tập.</p>
+
+      <h2>Đọc thêm</h2>
+      <p>
+        <strong>Nguồn chính:</strong> <a href="https://ngrx.io/guide/signals/signal-store">NgRx — SignalStore</a> (khoảng 15 phút) và
+        <a href="https://ngrx.io/guide/signals/rxjs-integration">NgRx — RxJS integration (rxMethod)</a>.
+      </p>
+      <p>
+        Thêm: <a href="https://ngrx.io/guide/store/why">NgRx — Why use NgRx Store</a> (khi nào cần Global Store) ·
+        <a href="https://angular.dev/guide/routing/read-route-state">Angular — Read route state</a> ·
+        ADR của lớp: <code>docs/adr/0003-state-trang-phieu.md</code> (nhánh <code>session04-end</code>).
+      </p>
+
+      <div class="callout">
+        <p><strong>Còn chỗ nào chưa rõ?</strong> Hỏi giảng viên, hoặc hỏi trợ lý AI ngay trong repo — ví dụ:
+          “vì sao TicketListStore đọc bộ lọc từ URL mà không giữ trong state?”.</p>
+      </div>
+
+      <footer>Khóa Angular nâng cao · Bài tập về nhà buổi 4 · Dự án mẫu Care Portal</footer>
+    </main>
+    <script src="assets/quiz.js"></script>
+  </body>
+</html>

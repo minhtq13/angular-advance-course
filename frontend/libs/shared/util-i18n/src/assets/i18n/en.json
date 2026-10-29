@@ -92,7 +92,8 @@
       "recentTickets": "Recent tickets",
       "noTickets": "This subscriber has no tickets yet."
     },
-    "createTicket": "New ticket"
+    "createTicket": "New ticket",
+    "recent": "Recently viewed"
   },
   "ticket": {
     "count": "Total: {{count}}",

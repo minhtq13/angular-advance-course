@@ -8,7 +8,7 @@ import {
   input,
   signal,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import {
   ControlValueAccessor,
   FormsModule,
@@ -18,7 +18,7 @@ import { Subscriber, SubscriberApi } from '@care/shared-data-access-api';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { NzOptionComponent, NzSelectComponent } from 'ng-zorro-antd/select';
 import { map, Observable, Subject } from 'rxjs';
-import { idleLookup, lookup, LookupState } from './lookup';
+import { idleLookup, lookup } from './lookup';
 
 export interface SubscriberOption {
   id: number;
@@ -58,8 +58,14 @@ export class SubscriberPicker implements ControlValueAccessor {
   readonly describedBy = input<string | null>(null);
 
   private readonly terms = new Subject<string>();
-  protected readonly state =
-    signal<LookupState<SubscriberOption>>(idleLookup());
+  /**
+   * toSignal dang ky trong injection context va tu huy dang ky khi component bi huy:
+   * request dang chay bi huy theo (switchMap -> unsubscribe -> abort XHR).
+   */
+  protected readonly state = toSignal(
+    this.terms.pipe(lookup((term) => this.search(term))),
+    { initialValue: idleLookup<SubscriberOption>() },
+  );
 
   protected readonly selected = signal<SubscriberOption | null>(null);
   protected readonly disabled = signal(false);
@@ -74,12 +80,6 @@ export class SubscriberPicker implements ControlValueAccessor {
 
   private onChange: (id: number | null) => void = () => undefined;
   protected onTouched: () => void = () => undefined;
-
-  constructor() {
-    this.terms
-      .pipe(lookup((term) => this.search(term)))
-      .subscribe((state) => this.state.set(state));
-  }
 
   protected onSearch(term: string): void {
     this.terms.next(term);

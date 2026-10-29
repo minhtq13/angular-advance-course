@@ -1,0 +1,195 @@
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-create/ticket-create.page.html b/frontend/libs/portal/feature-tickets/src/lib/ticket-create/ticket-create.page.html
+index 2712210..34804c5 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-create/ticket-create.page.html
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-create/ticket-create.page.html
+@@ -140,7 +140,7 @@
+       {{ (submitting() ? 'ticket.form.submitting' : 'ticket.form.submit') |
+       transloco }}
+     </button>
+-    <a nz-button routerLink="/tickets"
++    <a nz-button [routerLink]="backUrl()"
+       >{{ 'ticket.form.cancel' | transloco }}</a
+     >
+   </div>
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-create/ticket-create.page.spec.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-create/ticket-create.page.spec.ts
+index 5e27aa6..2d5acdf 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-create/ticket-create.page.spec.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-create/ticket-create.page.spec.ts
+@@ -132,7 +132,7 @@ describe('TicketCreatePage', () => {
+ 
+   it('thanh cong: gui lenh da trim va chuyen ve danh sach kem ma phieu', async () => {
+     const navigate = vi
+-      .spyOn(TestBed.inject(Router), 'navigate')
++      .spyOn(TestBed.inject(Router), 'navigateByUrl')
+       .mockResolvedValue(true);
+     const page = await render('12');
+     chooseCategory(page);
+@@ -146,13 +146,32 @@ describe('TicketCreatePage', () => {
+       title: 'Cuoc bat thuong',
+       description: undefined,
+     });
+-    expect(navigate).toHaveBeenCalledWith(['/tickets'], {
+-      state: { created: expect.stringMatching(/^TK-/) },
+-    });
++    expect(navigate).toHaveBeenCalledWith(
++      TestBed.inject(Router).parseUrl('/tickets'),
++      { state: { created: expect.stringMatching(/^TK-/) } },
++    );
++  });
++
++  it.each([
++    ['/tickets?status=RESOLVED&page=2', '/tickets?status=RESOLVED&page=2'],
++    ['https://evil.example/phish', '/tickets'],
++    ['//evil.example', '/tickets'],
++    ['/admin/dashboard', '/tickets'],
++  ])('returnUrl %s -> tao xong quay ve %s', async (returnUrl, expected) => {
++    const navigate = vi
++      .spyOn(TestBed.inject(Router), 'navigateByUrl')
++      .mockResolvedValue(true);
++    const page = await render('12');
++    page.fixture.componentRef.setInput('returnUrl', returnUrl);
++    chooseCategory(page);
++    await page.type('tk-title', 'Cuoc bat thuong');
++    await page.submit();
++
++    expect(String(navigate.mock.calls[0][0])).toBe(expected);
+   });
+ 
+   it('gui lai sau loi dung lai cung Idempotency-Key (backend khong tao phieu thu hai)', async () => {
+-    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
++    vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+     port.failNext(new Error('timeout'));
+     const page = await render();
+     chooseCategory(page);
+@@ -171,8 +190,8 @@ describe('TicketCreatePage', () => {
+     const button = page.el.querySelector(
+       'button[type=submit]',
+     ) as HTMLButtonElement;
+-    // Fake tra ve dong bo nen gia lap "dang gui" bang cach chan navigate lai.
+-    vi.spyOn(TestBed.inject(Router), 'navigate').mockReturnValue(
++    // Fake tra ve dong bo nen gia lap "dang gui" bang cach chan navigateByUrl lai.
++    vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockReturnValue(
+       new Promise(() => undefined),
+     );
+     button.click();
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-create/ticket-create.page.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-create/ticket-create.page.ts
+index 5b61020..ce911bf 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-create/ticket-create.page.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-create/ticket-create.page.ts
+@@ -1,6 +1,7 @@
+ import {
+   afterNextRender,
+   ChangeDetectionStrategy,
++  computed,
+   Component,
+   DestroyRef,
+   ElementRef,
+@@ -25,6 +26,7 @@ import {
+   TicketPriority,
+   TicketValidationError,
+ } from '@care/portal-domain-tickets';
++import { safeReturnUrl } from '@care/shared-data-access-auth';
+ import {
+   TICKET_CATEGORY,
+   TICKET_PRIORITY,
+@@ -49,6 +51,17 @@ type FieldName =
+ type FieldError =
+   { key: string; params?: Record<string, unknown> } | { text: string };
+ 
++const LIST_URL = '/tickets';
++
++/**
++ * Chi quay ve danh sach phieu (kem bo loc cua no); URL khac -> danh sach mac dinh.
++ * returnUrl den tu query param: khong tin, chong open redirect.
++ */
++function backToList(url: unknown): string {
++  const safe = safeReturnUrl(url);
++  return safe === LIST_URL || safe.startsWith(`${LIST_URL}?`) ? safe : LIST_URL;
++}
++
+ /** "?subscriberId=12" -> 12; thieu hoac sai -> undefined. */
+ function toId(value: unknown): number | undefined {
+   const id = Number(value);
+@@ -83,6 +96,11 @@ export class TicketCreatePage implements OnInit {
+   readonly subscriberId = input<number | undefined, unknown>(undefined, {
+     transform: toId,
+   });
++  /** Danh sach (kem bo loc) de quay ve sau khi tao hoac khi bam Huy: /tickets/new?returnUrl=%2Ftickets%3Fstatus%3DNEW */
++  readonly returnUrl = input<string>();
++  protected readonly backUrl = computed(() =>
++    this.router.parseUrl(backToList(this.returnUrl())),
++  );
+ 
+   protected readonly categoryOptions = toOptions(TICKET_CATEGORY);
+   protected readonly priorityOptions = toOptions(TICKET_PRIORITY);
+@@ -152,7 +170,8 @@ export class TicketCreatePage implements OnInit {
+       .subscribe({
+         next: (ticket) => {
+           this.idempotencyKey = crypto.randomUUID();
+-          this.router.navigate(['/tickets'], {
++          // Ve dung danh sach dang loc; danh sach tai lai tu server nen thay ngay phieu moi.
++          this.router.navigateByUrl(this.backUrl(), {
+             state: { created: ticket.code },
+           });
+         },
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.html b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.html
+index 5c92585..18d9075 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.html
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.html
+@@ -4,7 +4,12 @@
+     >{{ 'ticket.count' | transloco: { count: (store.total() | translocoDecimal)
+     } }}</span
+   >
+-  <a nz-button nzType="primary" class="page-action" routerLink="/tickets/new"
++  <a
++    nz-button
++    nzType="primary"
++    class="page-action"
++    routerLink="/tickets/new"
++    [queryParams]="{ returnUrl: store.listUrl() }"
+     >{{ 'ticket.new' | transloco }}</a
+   >
+ </div>
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.spec.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.spec.ts
+index 109f9d8..5ac70ef 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.spec.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.spec.ts
+@@ -107,11 +107,16 @@ describe('TicketListPage - phe duyet', () => {
+     await fixture.whenStable();
+     const el = fixture.nativeElement as HTMLElement;
+     expect(approveButtons(el)).toHaveLength(1);
++    const before = port.calls.at(-1);
++    const searches = port.calls.length;
+ 
+     approveButtons(el)[0].click();
+     await fixture.whenStable();
+ 
+     expect(port.approveCalls).toEqual([{ id: 101, version: 3 }]);
++    // Lam moi sau ghi: dung mot lan, dung bo loc va trang dang xem.
++    expect(port.calls).toHaveLength(searches + 1);
++    expect(port.calls.at(-1)).toEqual(before);
+     expect(el.textContent).toContain('Đã duyệt phiếu TK-R');
+     expect(approveButtons(el)).toHaveLength(0);
+   });
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.ts
+index 48b5a2c..01a6def 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.ts
+@@ -72,6 +72,17 @@ export const TicketListStore = signalStore(
+       ),
+     };
+   }),
++  withComputed(({ _router, _route, filters, page }) => ({
++    /** URL danh sach hien tai (kem bo loc) de man hinh khac quay ve, vd sau khi tao phieu. */
++    listUrl: computed(() =>
++      _router.serializeUrl(
++        _router.createUrlTree([], {
++          relativeTo: _route,
++          queryParams: toQueryParams(filters(), page()),
++        }),
++      ),
++    ),
++  })),
+   withMethods((store, tickets = inject(TicketPort)) => {
+     // switchMap: doi bo loc nhanh thi huy request cu (buoi 3). catchError ben trong: loi khong lam chet luong.
+     const load = rxMethod<{ query: TicketQuery; page: PageRequest }>(

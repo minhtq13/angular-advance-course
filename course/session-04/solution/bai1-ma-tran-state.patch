@@ -1,0 +1,51 @@
+diff --git a/docs/ma-tran-state.md b/docs/ma-tran-state.md
+new file mode 100644
+index 0000000..93d18b9
+--- /dev/null
++++ b/docs/ma-tran-state.md
+@@ -0,0 +1,45 @@
++# Ma trận lựa chọn state — Care Portal
++
++Mỗi mẩu state được phân loại theo 5 câu hỏi, rồi mới chọn công cụ. Không bắt đầu từ thư viện.
++
++| Câu hỏi | Ý nghĩa |
++|---|---|
++| **Phạm vi** | Ai cần đọc: một component, một màn hình, cả app, hay người khác (qua link)? |
++| **Vòng đời** | Mất khi nào: đóng component, rời route, đăng xuất, đóng tab, không bao giờ? |
++| **Số nơi ghi** | Một nơi hay nhiều nơi cùng thay đổi? |
++| **Chia sẻ / tải lại** | Có cần giữ khi F5, gửi link cho đồng nghiệp, Back/Forward? |
++| **Truy vết** | Có cần biết ai đổi gì, lúc nào (debug, audit, time-travel)? |
++
++## Năm loại state
++
++| Loại | Ví dụ | Công cụ thường dùng |
++|---|---|---|
++| **Local UI** | Dropdown đang mở, nút đang quay, thông báo vừa hiện | `signal` trong component |
++| **Feature** | Bộ lọc + kết quả của một màn hình, trạng thái đang tải | SignalStore cung cấp ở component/route |
++| **URL** | Bộ lọc, trang, sort, id đang xem | Query/path params; store **đọc từ** URL |
++| **Session** | Người đăng nhập, quyền, dữ liệu gắn với người dùng | Service/SignalStore `providedIn: 'root'`, **xóa khi đổi phiên** |
++| **Server** | Danh sách phiếu, chi tiết thuê bao | `rxResource` / store tải qua port; làm mới sau ghi; không coi là sự thật vĩnh viễn |
++
++## Áp dụng cho Care Portal
++
++| State | Phạm vi | Vòng đời | Nơi ghi | Tải lại / chia sẻ | Loại | Công cụ (sau buổi 4) |
++|---|---|---|---|---|---|---|
++| `approvingId`, thông báo "Đã duyệt" | Một trang | Rời trang | 1 | Không | Local UI | `signal` trong `TicketListPage` |
++| Bộ lọc phiếu (trạng thái, ưu tiên, của tôi), trang, sort | Một trang + người nhận link | Theo URL | Nhiều (select, checkbox, bảng, Back) | **Có** | URL | Query params; `TicketListStore` đọc từ URL |
++| Danh sách phiếu + tổng + đang tải/lỗi | Một trang | Rời trang | 1 (store) | Không (tải lại từ server) | Server | `TicketListStore` (`rxMethod` + `switchMap`) |
++| Người đăng nhập, vai trò, token | Cả app | Đăng xuất / đóng tab | 1 (`AuthService`) | Giữ khi F5 (sessionStorage) | Session | `AuthService` |
++| Thuê bao xem gần đây | Cả app | **Đăng xuất / đổi người** | 1 | Không | Session | `RecentSubscribers` (SignalStore root, tự xóa khi đổi phiên) |
++| Ngôn ngữ, theme | Cả app | Không bao giờ (localStorage) | 1 | Có (thiết bị) | Tùy chọn người dùng | `LanguageService`, `ThemeService` |
++| Nội dung form tạo phiếu | Một trang | Rời trang | 1 | Không | Local UI | Reactive Forms |
++| Từ khóa ô chọn thuê bao | Một component | Rời trang | 1 | Không | Local UI + server | `Subject` + `lookup()` + `toSignal` |
++
++## Khi nào cần Global Store (NgRx Store)?
++
++| Dấu hiệu | Có trong Care Portal? |
++|---|---|
++| Nhiều màn hình không liên quan cùng ghi vào một state | Chưa |
++| Cần audit/time-travel (Redux DevTools) cho nghiệp vụ phức tạp | Chưa |
++| Nhiều team, cần quy ước action/reducer chặt để tránh ghi state tùy tiện | Có thể, khi dự án lớn hơn |
++| Luồng side effect dài, nhiều bước, cần test riêng từng bước | Chưa |
++
++Kết luận hiện tại: SignalStore theo màn hình + URL + service session là đủ. Xem `docs/adr/0003-state-trang-phieu.md`.

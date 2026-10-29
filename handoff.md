@@ -37,7 +37,11 @@ Viết cho: người hoặc phiên Claude Code sẽ làm tiếp dự án này.
 - **Buổi 3 đã soạn và đã commit (2026-10-29):** `main` ở code `session03-start` (đáp án buổi 2 + chuẩn bị buổi 3) kèm tài liệu buổi 3; nhánh `session03-start` và `session03-end` đã push.
   - Chuẩn bị: backend `care.demo.slow-short-query` (`DEMO_SLOW_SHORT_QUERY`), `SubscriberPicker` (CVA) thay ô nhập mã thuê bao, `lookup()` có 4 lỗi cố ý.
   - Đáp án 3 patch: `bai2-3-switchmap-va-test-thu-tu`, `bai4-luong-song-sau-loi`, `bai5-huy-dang-ky`. Test mới đỏ trước khi sửa, xanh sau khi sửa; tái hiện được trên trình duyệt thật.
-- **Buổi 4–10:** `README.md` và `instructor-notes.md` có khung theo đề cương. Chưa có slide, lab chi tiết, đáp án.
+- **Buổi 4 đã soạn, commit và push (2026-10-29):** `main` ở code `session04-start` (đáp án buổi 3 + chuẩn bị buổi 4) kèm tài liệu buổi 4; nhánh `session04-start`, `session04-end` đã push.
+  - Chuẩn bị: `RecentSubscribers` (thuê bao xem gần đây, `providedIn: 'root'`, cố ý chưa xóa khi đổi phiên).
+  - Đáp án 5 patch: ma trận state, `TicketListStore` (SignalStore), bộ lọc trên URL + ADR-0003, làm mới sau ghi (`returnUrl`), xóa state khi đổi phiên.
+    Đã kiểm tra trên trình duyệt thật: F5/Back/link giữ bộ lọc; rò thuê bao giữa agent1 → supervisor1 có ở điểm bắt đầu, hết sau Bài 5.
+- **Buổi 5–10:** `README.md` và `instructor-notes.md` có khung theo đề cương. Chưa có slide, lab chi tiết, đáp án.
 - **Libs hiện có:**
   - `admin/feature-dashboard`
   - `portal/feature-{subscribers,tickets}`
@@ -51,7 +55,7 @@ Viết cho: người hoặc phiên Claude Code sẽ làm tiếp dự án này.
 
 ## 4. Việc còn dở
 1. Chỉ commit/push khi người dùng bảo rõ (xem memory `no-commit-without-asking`).
-2. **Soạn buổi 4** (State và NgRx), bắt đầu từ `session03-end`.
+2. **Soạn buổi 5** (Hiệu năng và bộ nhớ), bắt đầu từ `session04-end`.
 3. **Buổi 6** cần backend refresh rotation có trạng thái và phát hiện token reuse (hiện refresh token stateless).
 4. **Buổi 7:** thêm service `keycloak` vào `infra/docker-compose.yml` dưới `profiles: [sso]` + realm export; auth hỗ trợ 2 chế độ.
 5. **Buổi 10:** tạo fixture Angular 21 (`fixtures/legacy-a21/`).

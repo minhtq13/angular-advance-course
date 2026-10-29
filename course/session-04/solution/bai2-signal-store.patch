@@ -1,0 +1,445 @@
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.html b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.html
+index ae55387..5c92585 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.html
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.html
+@@ -1,8 +1,8 @@
+ <div class="page-header">
+   <h1>{{ 'nav.tickets' | transloco }}</h1>
+   <span class="muted tabular" role="status"
+-    >{{ 'ticket.count' | transloco: { count: (total() | translocoDecimal) }
+-    }}</span
++    >{{ 'ticket.count' | transloco: { count: (store.total() | translocoDecimal)
++    } }}</span
+   >
+   <a nz-button nzType="primary" class="page-action" routerLink="/tickets/new"
+     >{{ 'ticket.new' | transloco }}</a
+@@ -51,8 +51,8 @@
+       nzId="tk-status"
+       nzAllowClear
+       [nzPlaceHolder]="'common.all' | transloco"
+-      [ngModel]="status()"
+-      (ngModelChange)="status.set($event)"
++      [ngModel]="store.filters().status"
++      (ngModelChange)="store.setFilters({ status: $event })"
+     >
+       @for (o of statusOptions; track o.value) {
+       <nz-option [nzValue]="o.value" [nzLabel]="o.labelKey | transloco" />
+@@ -65,8 +65,8 @@
+       nzId="tk-priority"
+       nzAllowClear
+       [nzPlaceHolder]="'common.all' | transloco"
+-      [ngModel]="priority()"
+-      (ngModelChange)="priority.set($event)"
++      [ngModel]="store.filters().priority"
++      (ngModelChange)="store.setFilters({ priority: $event })"
+     >
+       @for (o of priorityOptions; track o.value) {
+       <nz-option [nzValue]="o.value" [nzLabel]="o.labelKey | transloco" />
+@@ -76,19 +76,19 @@
+   <div class="filters-actions">
+     <label
+       nz-checkbox
+-      [ngModel]="onlyMine()"
+-      (ngModelChange)="onlyMine.set($event)"
++      [ngModel]="store.filters().onlyMine"
++      (ngModelChange)="store.setFilters({ onlyMine: $event })"
+       >{{ 'ticket.onlyMine' | transloco }}</label
+     >
+-    @if (hasFilters()) {
+-    <button nz-button nzType="link" (click)="clearFilters()">
++    @if (store.hasFilters()) {
++    <button nz-button nzType="link" (click)="store.clearFilters()">
+       {{ 'common.clearFilters' | transloco }}
+     </button>
+     }
+   </div>
+ </div>
+ 
+-@if (result.error()) {
++@if (store.status() === 'error') {
+ <nz-alert
+   nzType="error"
+   nzShowIcon
+@@ -99,7 +99,7 @@
+   role="alert"
+ />
+ <ng-template #retryTpl>
+-  <button nz-button nzSize="small" (click)="result.reload()">
++  <button nz-button nzSize="small" (click)="store.reload()">
+     <nz-icon nzType="reload" aria-hidden="true" /> {{ 'common.retry' | transloco
+     }}
+   </button>
+@@ -112,11 +112,11 @@
+     nzShowSizeChanger
+     [nzPageSizeOptions]="[20, 50, 100]"
+     [nzFrontPagination]="false"
+-    [nzData]="rows()"
+-    [nzTotal]="total()"
+-    [nzPageIndex]="page().page + 1"
+-    [nzPageSize]="page().size"
+-    [nzLoading]="result.isLoading()"
++    [nzData]="store.items()"
++    [nzTotal]="store.total()"
++    [nzPageIndex]="store.page().page + 1"
++    [nzPageSize]="store.page().size"
++    [nzLoading]="store.status() === 'loading'"
+     [nzScroll]="{ x: '1300px' }"
+     [nzNoResult]="emptyTpl"
+     (nzQueryParams)="onQueryParams($event)"
+@@ -142,7 +142,7 @@
+       </tr>
+     </thead>
+     <tbody>
+-      @for (t of rows(); track t.id) {
++      @for (t of store.items(); track t.id) {
+       <tr
+         care-ticket-row
+         [ticket]="t"
+@@ -158,8 +158,8 @@
+ <ng-template #emptyTpl>
+   <div class="empty-state">
+     <p>{{ 'ticket.empty' | transloco }}</p>
+-    @if (hasFilters()) {
+-    <button nz-button (click)="clearFilters()">
++    @if (store.hasFilters()) {
++    <button nz-button (click)="store.clearFilters()">
+       {{ 'common.clearFilters' | transloco }}
+     </button>
+     }
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.ts
+index 95b7a40..b6a7f30 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.ts
+@@ -4,26 +4,20 @@ import {
+   computed,
+   DestroyRef,
+   inject,
+-  linkedSignal,
+   signal,
+ } from '@angular/core';
+-import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
++import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+ import { FormsModule } from '@angular/forms';
+ import { Router, RouterLink } from '@angular/router';
+ import {
+   TicketConflictError,
+   TicketPort,
+-  TicketPriority,
+-  TicketStatus,
+   TicketSummary,
+ } from '@care/portal-domain-tickets';
+ import { AuthService } from '@care/shared-data-access-auth';
+ import { TranslocoPipe } from '@jsverse/transloco';
+ import { TranslocoDecimalPipe } from '@jsverse/transloco-locale';
+ import {
+-  DEFAULT_PAGE,
+-  PageRequest,
+-  samePage,
+   TICKET_PRIORITY,
+   TICKET_STATUS,
+   toOptions,
+@@ -36,6 +30,7 @@ import { NzCheckboxComponent } from 'ng-zorro-antd/checkbox';
+ import { NzOptionComponent, NzSelectComponent } from 'ng-zorro-antd/select';
+ import { NzTableModule, NzTableQueryParams } from 'ng-zorro-antd/table';
+ import { TicketRow } from '@care/portal-ui-tickets';
++import { TicketListStore } from './ticket-list.store';
+ import { finalize } from 'rxjs';
+ 
+ /** Thong bao tren trang: key dich (kem tham so) hoac chu da dich san tu backend. */
+@@ -60,6 +55,7 @@ type Notice =
+   ],
+   templateUrl: './ticket-list.page.html',
+   changeDetection: ChangeDetectionStrategy.OnPush,
++  providers: [TicketListStore],
+ })
+ export class TicketListPage {
+   /** Chi phu thuoc hop dong; adapter (HTTP hay fake) do app/test cung cap. */
+@@ -84,49 +80,8 @@ export class TicketListPage {
+   protected readonly statusOptions = toOptions(TICKET_STATUS);
+   protected readonly priorityOptions = toOptions(TICKET_PRIORITY);
+ 
+-  protected readonly status = signal<TicketStatus | null>(null);
+-  protected readonly priority = signal<TicketPriority | null>(null);
+-  protected readonly onlyMine = signal(false);
+-
+-  private readonly filters = computed(() => ({
+-    status: this.status(),
+-    priority: this.priority(),
+-    assignee: this.onlyMine() ? this.auth.username() : null,
+-  }));
+-
+-  protected readonly page = linkedSignal<
+-    ReturnType<typeof this.filters>,
+-    PageRequest
+-  >({
+-    source: this.filters,
+-    computation: (_, previous) => ({
+-      ...(previous?.value ?? DEFAULT_PAGE),
+-      page: 0,
+-    }),
+-    equal: samePage,
+-  });
+-
+-  protected readonly result = rxResource({
+-    params: () => ({ search: this.filters(), page: this.page() }),
+-    stream: ({ params }) => this.tickets.search(params.search, params.page),
+-  });
+-
+-  protected readonly rows = computed(() =>
+-    this.result.hasValue() ? this.result.value().items : [],
+-  );
+-  protected readonly total = computed(() =>
+-    this.result.hasValue() ? this.result.value().total : 0,
+-  );
+-
+-  protected readonly hasFilters = computed(
+-    () => this.status() !== null || this.priority() !== null || this.onlyMine(),
+-  );
+-
+-  protected clearFilters(): void {
+-    this.status.set(null);
+-    this.priority.set(null);
+-    this.onlyMine.set(false);
+-  }
++  /** Bo loc, trang va ket qua nam trong store; component chi giu state UI cuc bo (thong bao, dang duyet). */
++  protected readonly store = inject(TicketListStore);
+ 
+   protected approve(ticket: TicketSummary): void {
+     if (this.approvingId() !== null) return;
+@@ -146,7 +101,7 @@ export class TicketListPage {
+             key: 'ticket.approve.done',
+             params: { code: approved.code },
+           });
+-          this.result.reload();
++          this.store.reload();
+         },
+         error: (error: unknown) =>
+           this.approveError.set(
+@@ -159,7 +114,7 @@ export class TicketListPage {
+ 
+   protected reloadAfterConflict(): void {
+     this.approveError.set(null);
+-    this.result.reload();
++    this.store.reload();
+   }
+ 
+   private createdNotice(code: unknown): Notice | null {
+@@ -169,6 +124,6 @@ export class TicketListPage {
+   }
+ 
+   protected onQueryParams(query: NzTableQueryParams): void {
+-    this.page.set(toPageRequest(query));
++    this.store.setPage(toPageRequest(query));
+   }
+ }
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.spec.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.spec.ts
+new file mode 100644
+index 0000000..c68ea1f
+--- /dev/null
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.spec.ts
+@@ -0,0 +1,76 @@
++import { signal } from '@angular/core';
++import { TestBed } from '@angular/core/testing';
++import { TicketPort } from '@care/portal-domain-tickets';
++import {
++  aTicket,
++  InMemoryTicketAdapter,
++} from '@care/portal-domain-tickets/testing';
++import { AuthService } from '@care/shared-data-access-auth';
++import { throwError } from 'rxjs';
++import { TicketListStore } from './ticket-list.store';
++
++describe('TicketListStore', () => {
++  let port: InMemoryTicketAdapter;
++
++  function setup() {
++    port = new InMemoryTicketAdapter().seed([
++      aTicket({ status: 'NEW', assignee: 'agent1' }),
++      aTicket({ status: 'RESOLVED', assignee: 'agent2' }),
++    ]);
++    TestBed.configureTestingModule({
++      providers: [
++        TicketListStore,
++        { provide: TicketPort, useValue: port },
++        { provide: AuthService, useValue: { username: signal('agent1') } },
++      ],
++    });
++    const store = TestBed.inject(TicketListStore);
++    TestBed.tick();
++    return store;
++  }
++
++  it('tai trang dau khi khoi tao', () => {
++    const store = setup();
++    expect(port.calls).toHaveLength(1);
++    expect(store.items()).toHaveLength(2);
++    expect(store.status()).toBe('done');
++  });
++
++  it('doi bo loc -> ve trang 0, giu kich thuoc trang, tai lai mot lan', () => {
++    const store = setup();
++    store.setPage({ page: 3, size: 50, sort: 'id,desc' });
++    TestBed.tick();
++    store.setFilters({ status: 'RESOLVED', onlyMine: true });
++    TestBed.tick();
++
++    expect(port.calls.at(-1)).toEqual({
++      query: { status: 'RESOLVED', priority: null, assignee: 'agent1' },
++      page: { page: 0, size: 50, sort: 'id,desc' },
++    });
++    expect(port.calls).toHaveLength(3);
++  });
++
++  it('setPage cung trang khong goi API lai', () => {
++    const store = setup();
++    store.setPage({ ...store.page() });
++    TestBed.tick();
++    expect(port.calls).toHaveLength(1);
++  });
++
++  it('API loi -> status error, reload dung query cu thi tai lai duoc', () => {
++    const store = setup();
++    const search = vi.spyOn(port, 'search');
++    search.mockReturnValueOnce(throwError(() => new Error('500')));
++    store.setFilters({ priority: 'HIGH' });
++    TestBed.tick();
++    expect(store.status()).toBe('error');
++
++    store.reload();
++    expect(store.status()).toBe('done');
++    expect(search.mock.calls.at(-1)?.[0]).toEqual({
++      status: null,
++      priority: 'HIGH',
++      assignee: null,
++    });
++  });
++});
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.ts
+new file mode 100644
+index 0000000..af4f342
+--- /dev/null
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.ts
+@@ -0,0 +1,123 @@
++import { computed, inject } from '@angular/core';
++import {
++  TicketPort,
++  TicketPriority,
++  TicketQuery,
++  TicketStatus,
++  TicketSummary,
++} from '@care/portal-domain-tickets';
++import {
++  DEFAULT_PAGE,
++  PageRequest,
++  samePage,
++} from '@care/shared-data-access-api';
++import { AuthService } from '@care/shared-data-access-auth';
++import {
++  patchState,
++  signalStore,
++  withComputed,
++  withHooks,
++  withMethods,
++  withState,
++} from '@ngrx/signals';
++import { rxMethod } from '@ngrx/signals/rxjs-interop';
++import { catchError, EMPTY, pipe, switchMap, tap } from 'rxjs';
++
++export interface TicketFilters {
++  status: TicketStatus | null;
++  priority: TicketPriority | null;
++  onlyMine: boolean;
++}
++
++export const NO_FILTERS: TicketFilters = {
++  status: null,
++  priority: null,
++  onlyMine: false,
++};
++
++interface TicketListState {
++  filters: TicketFilters;
++  page: PageRequest;
++  items: TicketSummary[];
++  total: number;
++  status: 'loading' | 'done' | 'error';
++}
++
++/**
++ * State cua man hinh danh sach phieu: bo loc, trang, ket qua tu server.
++ * Cung cap o component (providers: [TicketListStore]) -> moi lan vao man hinh la mot store moi.
++ */
++export const TicketListStore = signalStore(
++  withState<TicketListState>({
++    filters: NO_FILTERS,
++    page: DEFAULT_PAGE,
++    items: [],
++    total: 0,
++    status: 'loading',
++  }),
++  withComputed(({ filters }, auth = inject(AuthService)) => ({
++    query: computed((): TicketQuery => ({
++      status: filters.status(),
++      priority: filters.priority(),
++      assignee: filters.onlyMine() ? auth.username() : null,
++    })),
++    hasFilters: computed(
++      () =>
++        filters.status() !== null ||
++        filters.priority() !== null ||
++        filters.onlyMine(),
++    ),
++  })),
++  withMethods((store, tickets = inject(TicketPort)) => {
++    // switchMap: doi bo loc nhanh thi huy request cu (buoi 3). catchError ben trong: loi khong lam chet luong.
++    const load = rxMethod<{ query: TicketQuery; page: PageRequest }>(
++      pipe(
++        tap(() => patchState(store, { status: 'loading' })),
++        switchMap(({ query, page }) =>
++          tickets.search(query, page).pipe(
++            tap(({ items, total }) =>
++              patchState(store, { items, total, status: 'done' }),
++            ),
++            catchError(() => {
++              patchState(store, { status: 'error' });
++              return EMPTY;
++            }),
++          ),
++        ),
++      ),
++    );
++
++    return {
++      /** Doi bo loc -> ve trang dau, giu kich thuoc trang va sort. */
++      setFilters(change: Partial<TicketFilters>): void {
++        patchState(store, (s) => ({
++          filters: { ...s.filters, ...change },
++          page: { ...s.page, page: 0 },
++        }));
++      },
++      clearFilters(): void {
++        patchState(store, (s) => ({
++          filters: NO_FILTERS,
++          page: { ...s.page, page: 0 },
++        }));
++      },
++      setPage(page: PageRequest): void {
++        // nz-table phat lai cung trang khi khoi tao: bo qua de khong goi API trung.
++        if (!samePage(page, store.page())) patchState(store, { page });
++      },
++      /** Tai lai dung query va trang hien tai (nut Thu lai, sau khi duyet). */
++      reload(): void {
++        load({ query: store.query(), page: store.page() });
++      },
++      _load: load,
++    };
++  }),
++  withHooks({
++    onInit(store) {
++      // Truyen signal vao rxMethod: moi lan query/trang doi la tai lai.
++      store._load(
++        computed(() => ({ query: store.query(), page: store.page() })),
++      );
++    },
++  }),
++);

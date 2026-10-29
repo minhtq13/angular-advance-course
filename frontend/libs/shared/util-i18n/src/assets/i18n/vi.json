@@ -92,7 +92,8 @@
       "recentTickets": "Phiếu yêu cầu gần đây",
       "noTickets": "Thuê bao này chưa có phiếu yêu cầu nào."
     },
-    "createTicket": "Tạo phiếu"
+    "createTicket": "Tạo phiếu",
+    "recent": "Xem gần đây"
   },
   "ticket": {
     "count": "{{count}} phiếu",

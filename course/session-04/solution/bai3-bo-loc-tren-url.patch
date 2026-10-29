@@ -1,0 +1,586 @@
+diff --git a/docs/adr/0003-state-trang-phieu.md b/docs/adr/0003-state-trang-phieu.md
+new file mode 100644
+index 0000000..cf9ecd5
+--- /dev/null
++++ b/docs/adr/0003-state-trang-phieu.md
+@@ -0,0 +1,42 @@
++# ADR-0003: State trang Phiếu yêu cầu: URL là nguồn sự thật, SignalStore theo màn hình
++
++- **Trạng thái:** Đã chấp nhận
++- **Ngày:** <ngày học buổi 4>
++- **Người quyết định:** <nhóm>
++
++## Bối cảnh
++
++Bộ lọc (trạng thái, ưu tiên, "của tôi"), trang và sort của danh sách phiếu nằm trong `signal` của component. Quan sát được:
++- F5 mất bộ lọc; gửi link cho đồng nghiệp không mở đúng danh sách.
++- Back sau khi đổi bộ lọc rời khỏi trang thay vì về bộ lọc trước.
++- Logic bộ lọc, phân trang, tải dữ liệu, xử lý lỗi dồn trong component; khó test riêng.
++
++## Các phương án đã xem xét
++
++| Phương án | Ưu điểm | Nhược điểm |
++|---|---|---|
++| Giữ signal trong component | Ít code | Không giải quyết F5, link, Back |
++| Store `providedIn: 'root'` giữ bộ lọc | Giữ khi chuyển màn hình | Vẫn mất khi F5; không chia sẻ được; phải tự xóa khi đổi phiên |
++| Đồng bộ hai chiều signal ↔ URL (effect ghi URL, subscribe URL ghi signal) | Giữ nguyên code cũ | Hai nguồn sự thật, dễ vòng lặp và lệch nhau |
++| NgRx Global Store + router-store | Truy vết đầy đủ, DevTools | Nhiều code (action, reducer, selector, effect) cho một màn hình |
++| **URL là nguồn sự thật; `TicketListStore` (SignalStore) cung cấp ở component đọc URL, điều hướng để đổi** | Một nguồn sự thật; F5, link, Back/Forward đúng; store test riêng được | Mọi thay đổi bộ lọc đi qua router (bất đồng bộ); phải kiểm tra giá trị URL |
++
++## Quyết định
++
++- Bộ lọc, trang, sort nằm trên query params (`status`, `priority`, `mine`, `page` đếm từ 1, `size`, `sort`); giá trị mặc định không ghi lên URL.
++- `TicketListStore` (SignalStore, `providers: [TicketListStore]` ở `TicketListPage`): `filters`/`page` là `computed` từ URL;
++  `setFilters`/`setPage` gọi `router.navigate` (mỗi lần đổi là một mục lịch sử); server state (`items`, `total`, `status`) tải bằng
++  `rxMethod` + `switchMap`.
++- Giá trị URL không hợp lệ bị bỏ qua (`ticket-url.ts`): URL là input người dùng sửa tay được.
++- State UI cục bộ (thông báo, đang duyệt) vẫn là `signal` trong component.
++
++## Hệ quả
++
++- **Tốt:** F5, link chia sẻ, Back/Forward đều ra đúng danh sách; store và hàm đọc URL có test riêng (`ticket-list.store.spec.ts`,
++  `ticket-url.spec.ts`, `ticket-list.url.spec.ts`).
++- **Phải chấp nhận:** đổi bộ lọc tạo mục lịch sử mới; nếu người dùng thấy Back "quá nhiều bước" thì cân nhắc `replaceUrl` cho thay đổi trang.
++- **Cách kiểm chứng:** test tính nhất quán bộ lọc (URL → request, đổi bộ lọc → URL, Back/Forward, URL sai).
++
++## Khi nào xem lại
++
++Khi nhiều màn hình cần cùng một bộ lọc, hoặc cần audit/time-travel trên thay đổi state: cân nhắc Global Store.
+diff --git a/docs/adr/README.md b/docs/adr/README.md
+index e18f953..760222b 100644
+--- a/docs/adr/README.md
++++ b/docs/adr/README.md
+@@ -8,3 +8,4 @@ viết ADR mới và ghi "Thay thế bởi ADR-MMMM" vào ADR cũ.
+ |---|---|---|
+ | [0001](0001-dung-ng-zorro-thay-primeng.md) | Dùng ng-zorro-antd thay PrimeNG | Đã chấp nhận |
+ | [0002](0002-tach-ticket-port.md) | Màn hình phiếu yêu cầu gọi dữ liệu qua TicketPort | Đã chấp nhận |
++| [0003](0003-state-trang-phieu.md) | State trang Phiếu: URL là nguồn sự thật, SignalStore theo màn hình | Đã chấp nhận |
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.spec.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.spec.ts
+index c68ea1f..dae9bba 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.spec.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.spec.ts
+@@ -1,5 +1,6 @@
+ import { signal } from '@angular/core';
+ import { TestBed } from '@angular/core/testing';
++import { provideRouter, Router } from '@angular/router';
+ import { TicketPort } from '@care/portal-domain-tickets';
+ import {
+   aTicket,
+@@ -19,6 +20,7 @@ describe('TicketListStore', () => {
+     ]);
+     TestBed.configureTestingModule({
+       providers: [
++        provideRouter([]),
+         TicketListStore,
+         { provide: TicketPort, useValue: port },
+         { provide: AuthService, useValue: { username: signal('agent1') } },
+@@ -26,23 +28,24 @@ describe('TicketListStore', () => {
+     });
+     const store = TestBed.inject(TicketListStore);
+     TestBed.tick();
+-    return store;
++    return { store, router: TestBed.inject(Router) };
+   }
+ 
+   it('tai trang dau khi khoi tao', () => {
+-    const store = setup();
++    const { store } = setup();
+     expect(port.calls).toHaveLength(1);
+     expect(store.items()).toHaveLength(2);
+     expect(store.status()).toBe('done');
+   });
+ 
+-  it('doi bo loc -> ve trang 0, giu kich thuoc trang, tai lai mot lan', () => {
+-    const store = setup();
+-    store.setPage({ page: 3, size: 50, sort: 'id,desc' });
++  it('doi bo loc -> ghi len URL, ve trang dau, giu kich thuoc trang', async () => {
++    const { store, router } = setup();
++    await store.setPage({ page: 3, size: 50, sort: 'id,desc' });
+     TestBed.tick();
+-    store.setFilters({ status: 'RESOLVED', onlyMine: true });
++    await store.setFilters({ status: 'RESOLVED', onlyMine: true });
+     TestBed.tick();
+ 
++    expect(router.url).toBe('/?status=RESOLVED&mine=1&size=50');
+     expect(port.calls.at(-1)).toEqual({
+       query: { status: 'RESOLVED', priority: null, assignee: 'agent1' },
+       page: { page: 0, size: 50, sort: 'id,desc' },
+@@ -50,18 +53,18 @@ describe('TicketListStore', () => {
+     expect(port.calls).toHaveLength(3);
+   });
+ 
+-  it('setPage cung trang khong goi API lai', () => {
+-    const store = setup();
+-    store.setPage({ ...store.page() });
++  it('setPage cung trang khong dieu huong, khong goi API lai', async () => {
++    const { store } = setup();
++    expect(await store.setPage({ ...store.page() })).toBe(false);
+     TestBed.tick();
+     expect(port.calls).toHaveLength(1);
+   });
+ 
+-  it('API loi -> status error, reload dung query cu thi tai lai duoc', () => {
+-    const store = setup();
++  it('API loi -> status error, reload dung query cu thi tai lai duoc', async () => {
++    const { store } = setup();
+     const search = vi.spyOn(port, 'search');
+     search.mockReturnValueOnce(throwError(() => new Error('500')));
+-    store.setFilters({ priority: 'HIGH' });
++    await store.setFilters({ priority: 'HIGH' });
+     TestBed.tick();
+     expect(store.status()).toBe('error');
+ 
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.ts
+index af4f342..48b5a2c 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.ts
+@@ -1,16 +1,12 @@
+ import { computed, inject } from '@angular/core';
++import { toSignal } from '@angular/core/rxjs-interop';
++import { ActivatedRoute, Router } from '@angular/router';
+ import {
+   TicketPort,
+-  TicketPriority,
+   TicketQuery,
+-  TicketStatus,
+   TicketSummary,
+ } from '@care/portal-domain-tickets';
+-import {
+-  DEFAULT_PAGE,
+-  PageRequest,
+-  samePage,
+-} from '@care/shared-data-access-api';
++import { PageRequest, samePage } from '@care/shared-data-access-api';
+ import { AuthService } from '@care/shared-data-access-auth';
+ import {
+   patchState,
+@@ -18,56 +14,64 @@ import {
+   withComputed,
+   withHooks,
+   withMethods,
++  withProps,
+   withState,
+ } from '@ngrx/signals';
+ import { rxMethod } from '@ngrx/signals/rxjs-interop';
+ import { catchError, EMPTY, pipe, switchMap, tap } from 'rxjs';
++import {
++  filtersFromParams,
++  NO_FILTERS,
++  pageFromParams,
++  TicketFilters,
++  toQueryParams,
++} from './ticket-url';
+ 
+-export interface TicketFilters {
+-  status: TicketStatus | null;
+-  priority: TicketPriority | null;
+-  onlyMine: boolean;
+-}
+-
+-export const NO_FILTERS: TicketFilters = {
+-  status: null,
+-  priority: null,
+-  onlyMine: false,
+-};
++export { NO_FILTERS, type TicketFilters } from './ticket-url';
+ 
++/** Chi con server state; bo loc va trang nam tren URL. */
+ interface TicketListState {
+-  filters: TicketFilters;
+-  page: PageRequest;
+   items: TicketSummary[];
+   total: number;
+   status: 'loading' | 'done' | 'error';
+ }
+ 
+ /**
+- * State cua man hinh danh sach phieu: bo loc, trang, ket qua tu server.
++ * State cua man hinh danh sach phieu. Nguon su that cua bo loc, trang, sort la URL (query params):
++ * F5, gui link, Back/Forward deu ra dung danh sach. Store chi doc URL va dieu huong de doi URL.
+  * Cung cap o component (providers: [TicketListStore]) -> moi lan vao man hinh la mot store moi.
+  */
+ export const TicketListStore = signalStore(
+-  withState<TicketListState>({
+-    filters: NO_FILTERS,
+-    page: DEFAULT_PAGE,
+-    items: [],
+-    total: 0,
+-    status: 'loading',
++  withState<TicketListState>({ items: [], total: 0, status: 'loading' }),
++  withProps(() => {
++    const route = inject(ActivatedRoute);
++    return {
++      _router: inject(Router),
++      _route: route,
++      _params: toSignal(route.queryParamMap, { requireSync: true }),
++    };
++  }),
++  withComputed(({ _params }, auth = inject(AuthService)) => {
++    const filters = computed(() => filtersFromParams(_params()));
++    const page = computed(() => pageFromParams(_params()), {
++      equal: samePage,
++    });
++    return {
++      filters,
++      page,
++      query: computed((): TicketQuery => ({
++        status: filters().status,
++        priority: filters().priority,
++        assignee: filters().onlyMine ? auth.username() : null,
++      })),
++      hasFilters: computed(
++        () =>
++          filters().status !== null ||
++          filters().priority !== null ||
++          filters().onlyMine,
++      ),
++    };
+   }),
+-  withComputed(({ filters }, auth = inject(AuthService)) => ({
+-    query: computed((): TicketQuery => ({
+-      status: filters.status(),
+-      priority: filters.priority(),
+-      assignee: filters.onlyMine() ? auth.username() : null,
+-    })),
+-    hasFilters: computed(
+-      () =>
+-        filters.status() !== null ||
+-        filters.priority() !== null ||
+-        filters.onlyMine(),
+-    ),
+-  })),
+   withMethods((store, tickets = inject(TicketPort)) => {
+     // switchMap: doi bo loc nhanh thi huy request cu (buoi 3). catchError ben trong: loi khong lam chet luong.
+     const load = rxMethod<{ query: TicketQuery; page: PageRequest }>(
+@@ -87,25 +91,30 @@ export const TicketListStore = signalStore(
+       ),
+     );
+ 
++    /** Moi lan doi bo loc/trang la mot muc lich su moi -> Back quay ve bo loc truoc. */
++    const navigate = (filters: TicketFilters, page: PageRequest) =>
++      store._router.navigate([], {
++        relativeTo: store._route,
++        queryParams: toQueryParams(filters, page),
++      });
++
+     return {
+       /** Doi bo loc -> ve trang dau, giu kich thuoc trang va sort. */
+-      setFilters(change: Partial<TicketFilters>): void {
+-        patchState(store, (s) => ({
+-          filters: { ...s.filters, ...change },
+-          page: { ...s.page, page: 0 },
+-        }));
++      setFilters(change: Partial<TicketFilters>): Promise<boolean> {
++        return navigate(
++          { ...store.filters(), ...change },
++          { ...store.page(), page: 0 },
++        );
+       },
+-      clearFilters(): void {
+-        patchState(store, (s) => ({
+-          filters: NO_FILTERS,
+-          page: { ...s.page, page: 0 },
+-        }));
++      clearFilters(): Promise<boolean> {
++        return navigate(NO_FILTERS, { ...store.page(), page: 0 });
+       },
+-      setPage(page: PageRequest): void {
+-        // nz-table phat lai cung trang khi khoi tao: bo qua de khong goi API trung.
+-        if (!samePage(page, store.page())) patchState(store, { page });
++      setPage(page: PageRequest): Promise<boolean> {
++        // nz-table phat lai cung trang khi khoi tao: bo qua de khong dieu huong/goi API trung.
++        if (samePage(page, store.page())) return Promise.resolve(false);
++        return navigate(store.filters(), page);
+       },
+-      /** Tai lai dung query va trang hien tai (nut Thu lai, sau khi duyet). */
++      /** Tai lai dung query va trang hien tai (nut Thu lai, sau khi duyet). URL khong doi nen phai goi tay. */
+       reload(): void {
+         load({ query: store.query(), page: store.page() });
+       },
+@@ -114,7 +123,7 @@ export const TicketListStore = signalStore(
+   }),
+   withHooks({
+     onInit(store) {
+-      // Truyen signal vao rxMethod: moi lan query/trang doi la tai lai.
++      // Truyen signal vao rxMethod: moi lan URL doi (chon bo loc, Back/Forward, mo link) la tai lai.
+       store._load(
+         computed(() => ({ query: store.query(), page: store.page() })),
+       );
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.url.spec.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.url.spec.ts
+new file mode 100644
+index 0000000..a2c8d0a
+--- /dev/null
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.url.spec.ts
+@@ -0,0 +1,131 @@
++import { Location } from '@angular/common';
++import { provideLocationMocks } from '@angular/common/testing';
++import { signal } from '@angular/core';
++import { TestBed } from '@angular/core/testing';
++import { NavigationEnd, provideRouter, Router } from '@angular/router';
++import { RouterTestingHarness } from '@angular/router/testing';
++import { TicketPort } from '@care/portal-domain-tickets';
++import {
++  aTicket,
++  InMemoryTicketAdapter,
++} from '@care/portal-domain-tickets/testing';
++import { AuthService } from '@care/shared-data-access-auth';
++import { provideUi } from '@care/shared-ui-layout';
++import { provideI18nTesting } from '@care/shared-util-i18n/testing';
++import { TicketListPage } from './ticket-list.page';
++import { TicketListStore } from './ticket-list.store';
++import { filter, firstValueFrom } from 'rxjs';
++
++// Tinh nhat quan cua bo loc: URL <-> man hinh <-> request, ke ca Back/Forward va link chia se.
++describe('TicketListPage - bo loc tren URL', () => {
++  let port: InMemoryTicketAdapter;
++  let harness: RouterTestingHarness;
++
++  beforeEach(async () => {
++    port = new InMemoryTicketAdapter().seed([
++      aTicket({ status: 'RESOLVED', priority: 'HIGH' }),
++      aTicket({ status: 'NEW' }),
++    ]);
++    TestBed.configureTestingModule({
++      providers: [
++        provideRouter([{ path: 'tickets', component: TicketListPage }]),
++        provideLocationMocks(),
++        provideUi(),
++        provideI18nTesting(),
++        { provide: TicketPort, useValue: port },
++        {
++          provide: AuthService,
++          useValue: { username: signal('agent1'), hasAnyRole: () => false },
++        },
++      ],
++    });
++    harness = await RouterTestingHarness.create();
++    // Router chi lang nghe popstate (Back/Forward) sau initialNavigation; TestBed khong bootstrap app nen goi tay.
++    TestBed.inject(Router).initialNavigation();
++  });
++
++  const lastCall = () => port.calls.at(-1);
++  const store = () =>
++    harness.routeDebugElement?.injector.get(TicketListStore) as InstanceType<
++      typeof TicketListStore
++    >;
++
++  async function settle() {
++    TestBed.tick();
++    await harness.fixture.whenStable();
++  }
++
++  /** Back/Forward: router xu ly popstate bat dong bo -> cho dieu huong xong. */
++  async function afterNavigation(action: () => void) {
++    const done = firstValueFrom(
++      TestBed.inject(Router).events.pipe(
++        filter((e) => e instanceof NavigationEnd),
++      ),
++    );
++    action();
++    await done;
++    await settle();
++  }
++
++  it('mo link chia se (hoac F5): request dung bo loc va trang tren URL', async () => {
++    await harness.navigateByUrl(
++      '/tickets?status=RESOLVED&priority=HIGH&page=2',
++    );
++    await settle();
++
++    expect(lastCall()).toEqual({
++      query: { status: 'RESOLVED', priority: 'HIGH', assignee: null },
++      page: { page: 1, size: 20, sort: 'id,desc' },
++    });
++    const statusSelect = harness.routeNativeElement?.querySelector('nz-select');
++    expect(statusSelect?.textContent).toContain('Đã xử lý');
++  });
++
++  it('URL sua tay sai: bo qua, dung mac dinh', async () => {
++    await harness.navigateByUrl(
++      '/tickets?status=DROP&size=5000&sort=password,asc',
++    );
++    await settle();
++
++    expect(lastCall()).toEqual({
++      query: { status: null, priority: null, assignee: null },
++      page: { page: 0, size: 20, sort: 'id,desc' },
++    });
++  });
++
++  it('doi bo loc ghi len URL; Back va Forward khoi phuc dung bo loc', async () => {
++    await harness.navigateByUrl('/tickets?status=RESOLVED');
++    await settle();
++    const router = TestBed.inject(Router);
++    const location = TestBed.inject(Location);
++
++    await store().setFilters({ priority: 'HIGH' });
++    await settle();
++    expect(router.url).toBe('/tickets?status=RESOLVED&priority=HIGH');
++    expect(lastCall()?.query.priority).toBe('HIGH');
++
++    await afterNavigation(() => location.back());
++    expect(router.url).toBe('/tickets?status=RESOLVED');
++    expect(lastCall()?.query).toEqual({
++      status: 'RESOLVED',
++      priority: null,
++      assignee: null,
++    });
++
++    await afterNavigation(() => location.forward());
++    expect(router.url).toBe('/tickets?status=RESOLVED&priority=HIGH');
++    expect(lastCall()?.query.priority).toBe('HIGH');
++  });
++
++  it('reload: goi lai dung query hien tai du URL khong doi', async () => {
++    await harness.navigateByUrl('/tickets?status=NEW');
++    await settle();
++    const before = port.calls.length;
++
++    store().reload();
++    await settle();
++
++    expect(port.calls).toHaveLength(before + 1);
++    expect(lastCall()?.query.status).toBe('NEW');
++  });
++});
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-url.spec.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-url.spec.ts
+new file mode 100644
+index 0000000..c6cd232
+--- /dev/null
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-url.spec.ts
+@@ -0,0 +1,55 @@
++import { convertToParamMap } from '@angular/router';
++import {
++  filtersFromParams,
++  NO_FILTERS,
++  pageFromParams,
++  toQueryParams,
++} from './ticket-url';
++
++const params = (p: Record<string, string>) => convertToParamMap(p);
++
++describe('ticket-url', () => {
++  it('doc va ghi lai dung URL (khu hoi)', () => {
++    const query = {
++      status: 'RESOLVED',
++      priority: 'HIGH',
++      mine: '1',
++      page: '3',
++      size: '50',
++      sort: 'createdAt,asc',
++    };
++    const filters = filtersFromParams(params(query));
++    const page = pageFromParams(params(query));
++
++    expect(filters).toEqual({
++      status: 'RESOLVED',
++      priority: 'HIGH',
++      onlyMine: true,
++    });
++    expect(page).toEqual({ page: 2, size: 50, sort: 'createdAt,asc' });
++    expect(toQueryParams(filters, page)).toEqual({
++      ...query,
++      page: 3,
++      size: 50,
++    });
++  });
++
++  it('gia tri mac dinh khong len URL', () => {
++    expect(
++      toQueryParams(NO_FILTERS, { page: 0, size: 20, sort: 'id,desc' }),
++    ).toEqual({});
++  });
++
++  it('URL sua tay sai hoac doc hai: bo qua, dung mac dinh', () => {
++    const bad = params({
++      status: "NEW' OR 1=1",
++      priority: 'high',
++      mine: 'true',
++      page: '-3',
++      size: '5000',
++      sort: 'password,asc',
++    });
++    expect(filtersFromParams(bad)).toEqual(NO_FILTERS);
++    expect(pageFromParams(bad)).toEqual({ page: 0, size: 20, sort: 'id,desc' });
++  });
++});
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-url.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-url.ts
+new file mode 100644
+index 0000000..19f55d5
+--- /dev/null
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-url.ts
+@@ -0,0 +1,74 @@
++import { ParamMap, Params } from '@angular/router';
++import { TicketPriority, TicketStatus } from '@care/portal-domain-tickets';
++import { DEFAULT_PAGE, PageRequest } from '@care/shared-data-access-api';
++
++export interface TicketFilters {
++  status: TicketStatus | null;
++  priority: TicketPriority | null;
++  onlyMine: boolean;
++}
++
++export const NO_FILTERS: TicketFilters = {
++  status: null,
++  priority: null,
++  onlyMine: false,
++};
++
++const STATUSES: readonly TicketStatus[] = [
++  'NEW',
++  'IN_PROGRESS',
++  'RESOLVED',
++  'CLOSED',
++];
++const PRIORITIES: readonly TicketPriority[] = [
++  'LOW',
++  'MEDIUM',
++  'HIGH',
++  'URGENT',
++];
++const PAGE_SIZES: readonly number[] = [20, 50, 100];
++/** Chi cot ma bang cho sap xep (nzColumnKey). */
++const SORT = /^(code|priority|createdAt),(asc|desc)$/;
++
++function oneOf<T extends string>(
++  value: string | null,
++  allowed: readonly T[],
++): T | null {
++  return allowed.includes(value as T) ? (value as T) : null;
++}
++
++/** Doc bo loc tu URL. Gia tri sai bi bo qua: URL la input nguoi dung sua tay duoc, khong tin. */
++export function filtersFromParams(params: ParamMap): TicketFilters {
++  return {
++    status: oneOf(params.get('status'), STATUSES),
++    priority: oneOf(params.get('priority'), PRIORITIES),
++    onlyMine: params.get('mine') === '1',
++  };
++}
++
++/** Tren URL trang dem tu 1 (de doc, de chia se); trong code dem tu 0 nhu Spring Data. */
++export function pageFromParams(params: ParamMap): PageRequest {
++  const page = Number(params.get('page'));
++  const size = Number(params.get('size'));
++  const sort = params.get('sort');
++  return {
++    page: Number.isInteger(page) && page >= 1 ? page - 1 : 0,
++    size: PAGE_SIZES.includes(size) ? size : DEFAULT_PAGE.size,
++    sort: sort && SORT.test(sort) ? sort : DEFAULT_PAGE.sort,
++  };
++}
++
++/** Bo gia tri mac dinh de URL gon: /tickets?status=NEW thay vi ...&page=1&size=20&sort=id,desc. */
++export function toQueryParams(
++  filters: TicketFilters,
++  page: PageRequest,
++): Params {
++  const params: Params = {};
++  if (filters.status) params['status'] = filters.status;
++  if (filters.priority) params['priority'] = filters.priority;
++  if (filters.onlyMine) params['mine'] = '1';
++  if (page.page > 0) params['page'] = page.page + 1;
++  if (page.size !== DEFAULT_PAGE.size) params['size'] = page.size;
++  if (page.sort !== DEFAULT_PAGE.sort) params['sort'] = page.sort;
++  return params;
++}
