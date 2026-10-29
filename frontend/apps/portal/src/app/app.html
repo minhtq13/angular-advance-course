@@ -5,6 +5,7 @@
   [navItems]="navItems"
   [userName]="auth.displayName()"
   [roles]="auth.roleLabelKeys()"
+  [environmentName]="config.environmentName"
   (logout)="auth.logout()"
 >
   <router-outlet />

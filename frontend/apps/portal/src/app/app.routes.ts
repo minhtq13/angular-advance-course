@@ -1,4 +1,5 @@
 import { Route } from '@angular/router';
+import { provideHttpTicketPort } from '@care/portal-data-access-tickets';
 import { authGuard, guestGuard } from '@care/shared-data-access-auth';
 import { ForbiddenPage, NotFoundPage } from '@care/shared-ui-layout';
 
@@ -24,8 +25,18 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'tickets',
+        // Composition root: chon adapter cho TicketPort tai day, feature khong biet HTTP.
+        providers: [provideHttpTicketPort()],
         loadChildren: () =>
           import('@care/portal-feature-tickets').then((m) => m.ticketRoutes),
+      },
+      {
+        path: 'service-plans',
+        title: 'title.servicePlans',
+        loadChildren: () =>
+          import('@care/portal-feature-service-plans').then(
+            (m) => m.servicePlanRoutes,
+          ),
       },
       {
         path: 'forbidden',

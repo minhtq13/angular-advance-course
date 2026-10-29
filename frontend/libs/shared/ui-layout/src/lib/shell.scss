@@ -55,6 +55,19 @@
   }
 }
 
+// Nhan moi truong (Bai 4): dat sat ten app; mau dam de dat >= 4.5:1.
+.brand:has(+ .env-tag) {
+  margin-right: 0;
+}
+
+.env-tag {
+  margin-right: auto;
+  border-color: #ffd591;
+  background: #fff7e6;
+  color: #ad4e00;
+  font-weight: 600;
+}
+
 .header-prefs {
   display: flex;
   gap: var(--care-space-2);

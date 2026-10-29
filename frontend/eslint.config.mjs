@@ -15,7 +15,8 @@ export default [
         {
           enforceBuildableLibDependency: true,
           allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
-          // Quy tac phu thuoc (buoi 1): app -> feature -> ui/data-access -> util; scope chi dung chinh no + shared.
+          // Quy tac phu thuoc (buoi 1): app -> feature -> ui/data-access -> domain -> util; scope chi dung chinh no + shared.
+          // domain (port + mo hinh nghiep vu) nam duoi data-access: adapter phu thuoc hop dong, khong nguoc lai.
           depConstraints: [
             {
               sourceTag: 'type:app',
@@ -23,6 +24,7 @@ export default [
                 'type:feature',
                 'type:ui',
                 'type:data-access',
+                'type:domain',
                 'type:util',
               ],
             },
@@ -31,8 +33,11 @@ export default [
               onlyDependOnLibsWithTags: [
                 'type:ui',
                 'type:data-access',
+                'type:domain',
                 'type:util',
               ],
+              // Feature lay du lieu qua port/API service, khong tu dung HttpClient.
+              bannedExternalImports: ['@angular/common/http'],
             },
             {
               sourceTag: 'type:ui',
@@ -40,7 +45,24 @@ export default [
             },
             {
               sourceTag: 'type:data-access',
-              onlyDependOnLibsWithTags: ['type:data-access', 'type:util'],
+              onlyDependOnLibsWithTags: [
+                'type:data-access',
+                'type:domain',
+                'type:util',
+              ],
+            },
+            {
+              sourceTag: 'type:domain',
+              onlyDependOnLibsWithTags: ['type:domain', 'type:util'],
+              // Domain khong biet Angular, HTTP hay UI: chi TypeScript thuan + rxjs.
+              // (@angular/compiler van duoc dung trong test-setup.ts do generator sinh ra.)
+              bannedExternalImports: [
+                '@angular/core*',
+                '@angular/common*',
+                '@angular/router*',
+                '@angular/forms*',
+                'ng-zorro-antd*',
+              ],
             },
             { sourceTag: 'type:util', onlyDependOnLibsWithTags: ['type:util'] },
             {

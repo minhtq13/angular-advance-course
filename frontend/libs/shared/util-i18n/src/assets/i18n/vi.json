@@ -29,7 +29,8 @@
   "nav": {
     "subscribers": "Thuê bao",
     "tickets": "Phiếu yêu cầu",
-    "dashboard": "Tổng quan"
+    "dashboard": "Tổng quan",
+    "servicePlans": "Gói cước"
   },
   "title": {
     "login": "Đăng nhập",
@@ -38,7 +39,8 @@
     "tickets": "Phiếu yêu cầu",
     "dashboard": "Tổng quan",
     "forbidden": "Không có quyền truy cập",
-    "notFound": "Không tìm thấy trang"
+    "notFound": "Không tìm thấy trang",
+    "servicePlans": "Gói cước"
   },
   "status": {
     "forbidden": "Bạn không có quyền truy cập chức năng này.",
@@ -151,5 +153,18 @@
     "light": "Sáng",
     "dark": "Tối",
     "system": "Theo hệ thống"
+  },
+  "servicePlan": {
+    "count": "{{count}} gói",
+    "filters": "Lọc gói cước",
+    "type": "Loại thuê bao",
+    "loadError": "Không tải được danh sách gói cước.",
+    "col": {
+      "code": "Mã gói",
+      "name": "Tên gói",
+      "type": "Loại",
+      "monthlyFee": "Cước tháng",
+      "dataGb": "Data (GB)"
+    }
   }
 }

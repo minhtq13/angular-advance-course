@@ -1,0 +1,87 @@
+<div class="page-header">
+  <h1>{{ 'nav.servicePlans' | transloco }}</h1>
+  <span class="muted tabular" role="status"
+    >{{ 'servicePlan.count' | transloco: { count: rows().length } }}</span
+  >
+</div>
+
+<div
+  class="filters"
+  role="search"
+  [attr.aria-label]="'servicePlan.filters' | transloco"
+>
+  <div class="filter-field">
+    <span id="plan-type-label" class="filter-label"
+      >{{ 'servicePlan.type' | transloco }}</span
+    >
+    <nz-radio-group
+      aria-labelledby="plan-type-label"
+      [ngModel]="type()"
+      (ngModelChange)="type.set($event)"
+    >
+      <label nz-radio-button [nzValue]="null"
+        >{{ 'common.all' | transloco }}</label
+      >
+      <label nz-radio-button nzValue="PREPAID"
+        >{{ typeLabels.PREPAID | transloco }}</label
+      >
+      <label nz-radio-button nzValue="POSTPAID"
+        >{{ typeLabels.POSTPAID | transloco }}</label
+      >
+    </nz-radio-group>
+  </div>
+</div>
+
+@if (plans.error()) {
+<nz-alert
+  nzType="error"
+  nzShowIcon
+  [nzMessage]="'servicePlan.loadError' | transloco"
+  [nzAction]="retryTpl"
+  class="mb"
+  role="alert"
+/>
+<ng-template #retryTpl>
+  <button nz-button nzSize="small" (click)="plans.reload()">
+    {{ 'common.retry' | transloco }}
+  </button>
+</ng-template>
+}
+
+<!-- Du lieu nho (vai chuc dong) -> phan trang phia client la du. -->
+<div class="panel">
+  <nz-table
+    nzSize="middle"
+    [nzData]="rows()"
+    [nzLoading]="plans.isLoading()"
+    [nzShowPagination]="false"
+    [nzScroll]="{ x: '640px' }"
+  >
+    <thead>
+      <tr>
+        <th nzWidth="110px">{{ 'servicePlan.col.code' | transloco }}</th>
+        <th>{{ 'servicePlan.col.name' | transloco }}</th>
+        <th nzWidth="120px">{{ 'servicePlan.col.type' | transloco }}</th>
+        <th nzAlign="right" nzWidth="140px">
+          {{ 'servicePlan.col.monthlyFee' | transloco }}
+        </th>
+        <th nzAlign="right" nzWidth="110px">
+          {{ 'servicePlan.col.dataGb' | transloco }}
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (p of rows(); track p.code) {
+      <tr>
+        <td><nz-tag>{{ p.code }}</nz-tag></td>
+        <td>{{ p.name }}</td>
+        <td>{{ typeLabels[p.type] | transloco }}</td>
+        <td nzAlign="right">
+          {{ p.monthlyFee | translocoCurrency: 'symbol' : {} : 'VND' }}
+        </td>
+        <td nzAlign="right">{{ p.dataGb | translocoDecimal }}</td>
+      </tr>
+      }
+    </tbody>
+  </nz-table>
+</div>

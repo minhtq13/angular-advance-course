@@ -41,6 +41,7 @@ import {
   NzMenuDividerDirective,
   NzMenuItemComponent,
 } from 'ng-zorro-antd/menu';
+import { NzTagComponent } from 'ng-zorro-antd/tag';
 import { filter, map, skip } from 'rxjs';
 import { LanguageSwitcher } from './language-switcher';
 import { ThemeSwitcher } from './theme-switcher';
@@ -80,6 +81,7 @@ const DRAWER_CLOSE_MS = 350;
     NzDrawerContentDirective,
     NzDropdownDirective,
     NzDropdownMenuComponent,
+    NzTagComponent,
   ],
   templateUrl: './shell.html',
   styleUrl: './shell.scss',
@@ -91,6 +93,7 @@ export class Shell {
   readonly userName = input('');
   /** Key dich cua vai tro, vd 'roles.AGENT'. */
   readonly roles = input<string[]>([]);
+  readonly environmentName = input<string>();
   readonly logout = output<void>();
 
   protected readonly isDesktop = toSignal(

@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { AuthService } from '@care/shared-data-access-auth';
 import { provideUi } from '@care/shared-ui-layout';
+import { APP_CONFIG } from '@care/shared-util-config';
 import { provideI18nTesting } from '@care/shared-util-i18n/testing';
 import { App } from './app';
 
@@ -14,6 +15,13 @@ describe('App', () => {
         provideRouter([]),
         provideUi(),
         provideI18nTesting(),
+        {
+          provide: APP_CONFIG,
+          useValue: {
+            environmentName: 'TEST',
+            apiUrl: '',
+          },
+        },
         {
           provide: AuthService,
           useValue: {

@@ -23,6 +23,9 @@
         "./libs/shared/data-access-api/src/index.ts"
       ],
       "@care/shared-ui-layout": ["./libs/shared/ui-layout/src/index.ts"],
+      "@care/portal-feature-service-plans": [
+        "./libs/portal/feature-service-plans/src/index.ts"
+      ],
       "@care/portal-feature-subscribers": [
         "./libs/portal/feature-subscribers/src/index.ts"
       ],
@@ -36,6 +39,15 @@
       "@care/shared-util-i18n": ["./libs/shared/util-i18n/src/index.ts"],
       "@care/shared-util-i18n/testing": [
         "./libs/shared/util-i18n/src/testing.ts"
+      ],
+      "@care/portal-domain-tickets": [
+        "./libs/portal/domain-tickets/src/index.ts"
+      ],
+      "@care/portal-domain-tickets/testing": [
+        "./libs/portal/domain-tickets/src/testing.ts"
+      ],
+      "@care/portal-data-access-tickets": [
+        "./libs/portal/data-access-tickets/src/index.ts"
       ]
     }
   },

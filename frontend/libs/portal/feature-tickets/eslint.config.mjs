@@ -27,6 +27,25 @@ export default [
     },
   },
   {
+    files: ['**/*.ts'],
+    rules: {
+      // ADR-0002: man hinh phieu yeu cau chi phu thuoc TicketPort.
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@care/shared-data-access-api',
+              importNames: ['TicketApi'],
+              message:
+                'Inject TicketPort (@care/portal-domain-tickets) thay vi goi TicketApi truc tiep (ADR-0002).',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ['**/*.html'],
     // Override or add rules here
     rules: {},

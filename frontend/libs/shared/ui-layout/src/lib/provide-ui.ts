@@ -6,6 +6,7 @@ import {
 } from '@angular/core';
 import { TitleStrategy } from '@angular/router';
 import {
+  AppstoreOutline,
   ArrowLeftOutline,
   BarChartOutline,
   CustomerServiceOutline,
@@ -38,6 +39,7 @@ const PRIMARY_COLOR = '#0958d9';
 
 /** Chi dang ky icon thuc su dung -> khong keo ca bo icon vao bundle (buoi 5). */
 const ICONS = [
+  AppstoreOutline,
   ArrowLeftOutline,
   BarChartOutline,
   CustomerServiceOutline,

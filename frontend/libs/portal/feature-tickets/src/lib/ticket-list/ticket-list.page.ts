@@ -9,6 +9,11 @@ import {
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import {
+  TicketPort,
+  TicketPriority,
+  TicketStatus,
+} from '@care/portal-domain-tickets';
 import { AuthService } from '@care/shared-data-access-auth';
 import { DATE_FORMAT, TIME_FORMAT } from '@care/shared-util-i18n';
 import { TranslocoPipe } from '@jsverse/transloco';
@@ -23,9 +28,6 @@ import {
   TICKET_CATEGORY,
   TICKET_PRIORITY,
   TICKET_STATUS,
-  TicketApi,
-  TicketPriority,
-  TicketStatus,
   toOptions,
   toPageRequest,
 } from '@care/shared-data-access-api';
@@ -58,7 +60,8 @@ import { NzTagComponent } from 'ng-zorro-antd/tag';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TicketListPage {
-  private readonly api = inject(TicketApi);
+  /** Chi phu thuoc hop dong; adapter (HTTP hay fake) do app/test cung cap. */
+  private readonly tickets = inject(TicketPort);
   private readonly auth = inject(AuthService);
 
   protected readonly dateFormat = DATE_FORMAT;
@@ -93,14 +96,14 @@ export class TicketListPage {
 
   protected readonly result = rxResource({
     params: () => ({ search: this.filters(), page: this.page() }),
-    stream: ({ params }) => this.api.search(params.search, params.page),
+    stream: ({ params }) => this.tickets.search(params.search, params.page),
   });
 
   protected readonly rows = computed(() =>
-    this.result.hasValue() ? this.result.value().content : [],
+    this.result.hasValue() ? this.result.value().items : [],
   );
   protected readonly total = computed(() =>
-    this.result.hasValue() ? this.result.value().totalElements : 0,
+    this.result.hasValue() ? this.result.value().total : 0,
   );
 
   protected readonly hasFilters = computed(

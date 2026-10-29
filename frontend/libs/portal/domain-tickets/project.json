@@ -1,0 +1,10 @@
+{
+  "name": "portal-domain-tickets",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/portal/domain-tickets/src",
+  "prefix": "care",
+  "projectType": "library",
+  "tags": ["scope:portal", "type:domain"],
+  "// targets": "to see all targets run: nx show project portal-domain-tickets --web",
+  "targets": {}
+}

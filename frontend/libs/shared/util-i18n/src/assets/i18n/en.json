@@ -29,7 +29,8 @@
   "nav": {
     "subscribers": "Subscribers",
     "tickets": "Tickets",
-    "dashboard": "Overview"
+    "dashboard": "Overview",
+    "servicePlans": "Service plans"
   },
   "title": {
     "login": "Sign in",
@@ -38,7 +39,8 @@
     "tickets": "Tickets",
     "dashboard": "Overview",
     "forbidden": "Access denied",
-    "notFound": "Page not found"
+    "notFound": "Page not found",
+    "servicePlans": "Service plans"
   },
   "status": {
     "forbidden": "You do not have permission to access this feature.",
@@ -151,5 +153,18 @@
     "light": "Light",
     "dark": "Dark",
     "system": "System"
+  },
+  "servicePlan": {
+    "count": "Total: {{count}}",
+    "filters": "Filter service plans",
+    "type": "Subscriber type",
+    "loadError": "Could not load service plans.",
+    "col": {
+      "code": "Code",
+      "name": "Name",
+      "type": "Type",
+      "monthlyFee": "Monthly fee",
+      "dataGb": "Data (GB)"
+    }
   }
 }

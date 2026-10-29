@@ -21,6 +21,9 @@
       <nz-icon nzType="customer-service" aria-hidden="true" />
       <span>{{ appName() }}</span>
     </a>
+    @if (environmentName(); as env) {
+    <nz-tag class="env-tag">{{ env }}</nz-tag>
+    }
 
     <div class="header-prefs">
       <care-language-switcher [onDark]="true" />

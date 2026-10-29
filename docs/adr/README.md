@@ -7,3 +7,4 @@ viết ADR mới và ghi "Thay thế bởi ADR-MMMM" vào ADR cũ.
 | # | Quyết định | Trạng thái |
 |---|---|---|
 | [0001](0001-dung-ng-zorro-thay-primeng.md) | Dùng ng-zorro-antd thay PrimeNG | Đã chấp nhận |
+| [0002](0002-tach-ticket-port.md) | Màn hình phiếu yêu cầu gọi dữ liệu qua TicketPort | Đã chấp nhận |
