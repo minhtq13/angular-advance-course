@@ -1,29 +1,49 @@
+// Moi dong cung chieu cao: CDK virtual scroll tinh vi tri bang itemSize (rowHeight trong component).
+$row-height: 33px;
+
 .report {
   overflow-x: auto;
+  font-size: 13px;
 }
 
-.report-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
+.report-row {
+  display: grid;
+  grid-template-columns:
+    64px 120px minmax(180px, 1fr)
+    56px 140px 80px 90px 120px 120px;
+  align-items: center;
+  min-width: 960px;
+  height: $row-height;
+  border-bottom: 1px solid var(--care-border);
 
-  th,
-  td {
-    padding: var(--care-space-1) var(--care-space-2);
-    border-bottom: 1px solid var(--care-border);
-    text-align: left;
+  > span {
+    padding: 0 var(--care-space-2);
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  th {
-    position: sticky;
-    top: 0;
-    background: var(--care-surface);
-    color: var(--care-text-muted);
-    font-weight: 600;
   }
 
   .num {
     text-align: right;
   }
+}
+
+.compact .report-row {
+  grid-template-columns: 64px 120px minmax(180px, 1fr) 56px 90px 120px 120px;
+  min-width: 720px;
+}
+
+.report-head {
+  color: var(--care-text-muted);
+  font-weight: 600;
+}
+
+.report-viewport {
+  height: calc(100vh - 320px);
+  min-height: 320px;
+  min-width: 960px;
+}
+
+.compact .report-viewport {
+  min-width: 720px;
 }

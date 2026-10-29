@@ -49,10 +49,27 @@ describe('SubscriberReportPage', () => {
       {},
       { page: 0, size: 1000, sort: 'id,asc' },
     );
-    const rows = (fixture.nativeElement as HTMLElement).querySelectorAll(
-      'tbody tr',
-    );
-    expect(rows).toHaveLength(1000);
+    const el = fixture.nativeElement as HTMLElement;
+    // Virtual scroll: bang van bao du 1.000 dong cho trinh doc man hinh, nhung chi ve vai dong trong DOM.
+    expect(
+      el.querySelector('[role=table]')?.getAttribute('aria-rowcount'),
+    ).toBe('1001');
+    const rendered = el.querySelectorAll('.report-row:not(.report-head)');
+    expect(rendered.length).toBeLessThan(100);
     fixture.destroy();
+  });
+
+  it('roi man hinh: go listener resize (khong giu trang va du lieu trong bo nho)', async () => {
+    const remove = vi.spyOn(window, 'removeEventListener');
+    const fixture = TestBed.createComponent(SubscriberReportPage);
+    await fixture.whenStable();
+
+    fixture.destroy();
+
+    expect(remove).toHaveBeenCalledWith(
+      'resize',
+      expect.any(Function),
+      undefined,
+    );
   });
 });

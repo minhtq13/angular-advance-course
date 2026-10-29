@@ -5,18 +5,12 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
+import { ScrollingModule } from '@angular/cdk/scrolling';
+import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import {
-  Subscriber,
-  SUBSCRIBER_STATUS,
-  SUBSCRIBER_TYPE,
-  SubscriberApi,
-  SubscriberStatus,
-  SubscriberType,
-} from '@care/shared-data-access-api';
-import { TIME_FORMAT } from '@care/shared-util-i18n';
+import { SubscriberApi } from '@care/shared-data-access-api';
+import { DATE_FORMAT } from '@care/shared-util-i18n';
 import { TranslocoPipe } from '@jsverse/transloco';
 import {
   TranslocoDatePipe,
@@ -27,6 +21,8 @@ import { NzButtonComponent } from 'ng-zorro-antd/button';
 import { NzOptionComponent, NzSelectComponent } from 'ng-zorro-antd/select';
 import { NzSpinComponent } from 'ng-zorro-antd/spin';
 import { debounceTime, fromEvent, map } from 'rxjs';
+import { ReportRow, toReportRow } from './report-row';
+import { ShiftClock } from './shift-clock';
 
 export const REPORT_SIZES = [1000, 5000, 10000] as const;
 
@@ -47,6 +43,8 @@ export const REPORT_SIZES = [1000, 5000, 10000] as const;
     NzSelectComponent,
     NzOptionComponent,
     NzSpinComponent,
+    ScrollingModule,
+    ShiftClock,
   ],
   templateUrl: './subscriber-report.page.html',
   styleUrl: './subscriber-report.page.scss',
@@ -56,7 +54,9 @@ export class SubscriberReportPage {
   private readonly api = inject(SubscriberApi);
 
   protected readonly sizes = REPORT_SIZES;
-  protected readonly timeFormat = TIME_FORMAT;
+  protected readonly dateFormat = DATE_FORMAT;
+  /** Phai khop $row-height trong scss: CDK tinh vi tri tung dong bang chieu cao co dinh. */
+  protected readonly rowHeight = 33;
   protected readonly size = signal<number>(REPORT_SIZES[0]);
 
   protected readonly result = rxResource({
@@ -66,46 +66,31 @@ export class SubscriberReportPage {
         .search({}, { page: 0, size: params.size, sort: 'id,asc' })
         .pipe(map((page) => page.content)),
   });
-  protected readonly rows = computed(() =>
-    this.result.hasValue() ? this.result.value() : [],
+  /** Tinh san mot lan moi khi du lieu doi, khong tinh lai moi lan kiem tra view. */
+  protected readonly rows = computed(() => {
+    const today = new Date();
+    return this.result.hasValue()
+      ? this.result.value().map((s) => toReportRow(s, today))
+      : [];
+  });
+
+  /**
+   * Man hinh hep -> an bot cot. toSignal go listener khi component bi huy. Ban dau dung
+   * fromEvent(...).subscribe() khong huy: window giu closure -> giu trang nay va ca nghin dong du lieu
+   * sau moi lan dieu huong (heap tang ~11 MB sau 20 lan).
+   */
+  protected readonly compact = toSignal(
+    fromEvent(window, 'resize').pipe(
+      debounceTime(200),
+      map(() => window.innerWidth < 1200),
+    ),
+    { initialValue: window.innerWidth < 1200 },
   );
-
-  /** Dong ho ca truc tren dau trang, cap nhat moi giay. */
-  protected readonly now = signal(new Date());
-  /** Man hinh hep -> an bot cot. */
-  protected readonly compact = signal(window.innerWidth < 1200);
-
-  constructor() {
-    setInterval(() => this.now.set(new Date()), 1000);
-    fromEvent(window, 'resize')
-      .pipe(debounceTime(200))
-      .subscribe(() => this.compact.set(window.innerWidth < 1200));
-  }
 
   protected reload(): void {
     this.result.reload();
   }
 
-  protected ageOf(dateOfBirth: string): number {
-    const born = new Date(dateOfBirth);
-    const today = new Date();
-    const age = today.getFullYear() - born.getFullYear();
-    const hadBirthday =
-      today.getMonth() > born.getMonth() ||
-      (today.getMonth() === born.getMonth() &&
-        today.getDate() >= born.getDate());
-    return hadBirthday ? age : age - 1;
-  }
-
-  protected activatedOn(subscriber: Subscriber): string {
-    return new Date(subscriber.activatedAt).toLocaleDateString('vi-VN');
-  }
-
-  protected typeLabel(type: SubscriberType): string {
-    return SUBSCRIBER_TYPE[type];
-  }
-
-  protected statusLabel(status: SubscriberStatus): string {
-    return SUBSCRIBER_STATUS[status].labelKey;
-  }
+  /** Dong giu nguyen DOM khi tai lai cung du lieu: so theo id, khong theo object moi tu server. */
+  protected readonly trackById = (_: number, row: ReportRow) => row.id;
 }

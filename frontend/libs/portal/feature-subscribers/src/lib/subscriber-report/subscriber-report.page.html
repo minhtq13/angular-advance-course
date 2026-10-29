@@ -4,10 +4,7 @@
     >{{ 'report.count' | transloco: { count: (rows().length | translocoDecimal)
     } }}</span
   >
-  <span class="muted tabular page-action"
-    >{{ 'report.shift' | transloco }}: {{ now() | translocoDate: timeFormat
-    }}</span
-  >
+  <care-shift-clock class="muted tabular page-action" />
 </div>
 
 <div class="filters">
@@ -44,41 +41,60 @@
 />
 }
 
+<!--
+  Virtual scroll: chi ve cac dong dang thay (+ dem) thay vi 10.000 dong. CDK can moi dong cung chieu cao
+  (itemSize) nen dung luoi CSS thay cho <table>; role table/row/cell giu ngu nghia bang cho trinh doc man hinh.
+-->
 <nz-spin [nzSpinning]="result.isLoading()">
-  <div class="panel report">
-    <table class="report-table">
-      <thead>
-        <tr>
-          <th class="num">#</th>
-          <th>{{ 'subscriber.col.msisdn' | transloco }}</th>
-          <th>{{ 'subscriber.col.fullName' | transloco }}</th>
-          <th class="num">{{ 'report.age' | transloco }}</th>
-          @if (!compact()) {
-          <th>{{ 'subscriber.col.province' | transloco }}</th>
-          <th>{{ 'subscriber.col.plan' | transloco }}</th>
-          }
-          <th>{{ 'subscriber.col.type' | transloco }}</th>
-          <th>{{ 'subscriber.col.status' | transloco }}</th>
-          <th>{{ 'subscriber.col.activatedAt' | transloco }}</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (s of rows(); track s; let i = $index) {
-        <tr>
-          <td class="num">{{ i + 1 }}</td>
-          <td class="tabular">{{ s.msisdn }}</td>
-          <td>{{ s.fullName }}</td>
-          <td class="num">{{ ageOf(s.dateOfBirth) }}</td>
-          @if (!compact()) {
-          <td>{{ s.province }}</td>
-          <td>{{ s.planCode }}</td>
-          }
-          <td>{{ typeLabel(s.type) | transloco }}</td>
-          <td>{{ statusLabel(s.status) | transloco }}</td>
-          <td class="tabular">{{ activatedOn(s) }}</td>
-        </tr>
+  <div
+    class="panel report"
+    role="table"
+    [class.compact]="compact()"
+    [attr.aria-label]="'report.title' | transloco"
+    [attr.aria-rowcount]="rows().length + 1"
+  >
+    <div class="report-row report-head" role="row" aria-rowindex="1">
+      <span class="num" role="columnheader">#</span>
+      <span role="columnheader">{{ 'subscriber.col.msisdn' | transloco }}</span>
+      <span role="columnheader"
+        >{{ 'subscriber.col.fullName' | transloco }}</span
+      >
+      <span class="num" role="columnheader"
+        >{{ 'report.age' | transloco }}</span
+      >
+      @if (!compact()) {
+      <span role="columnheader"
+        >{{ 'subscriber.col.province' | transloco }}</span
+      >
+      <span role="columnheader">{{ 'subscriber.col.plan' | transloco }}</span>
+      }
+      <span role="columnheader">{{ 'subscriber.col.type' | transloco }}</span>
+      <span role="columnheader">{{ 'subscriber.col.status' | transloco }}</span>
+      <span role="columnheader"
+        >{{ 'subscriber.col.activatedAt' | transloco }}</span
+      >
+    </div>
+    <cdk-virtual-scroll-viewport class="report-viewport" [itemSize]="rowHeight">
+      <div
+        class="report-row"
+        role="row"
+        *cdkVirtualFor="let s of rows(); let i = index; trackBy: trackById"
+        [attr.aria-rowindex]="i + 2"
+      >
+        <span class="num" role="cell">{{ i + 1 }}</span>
+        <span class="tabular" role="cell">{{ s.msisdn }}</span>
+        <span role="cell">{{ s.fullName }}</span>
+        <span class="num" role="cell">{{ s.age }}</span>
+        @if (!compact()) {
+        <span role="cell">{{ s.province }}</span>
+        <span role="cell">{{ s.planCode }}</span>
         }
-      </tbody>
-    </table>
+        <span role="cell">{{ s.typeKey | transloco }}</span>
+        <span role="cell">{{ s.statusKey | transloco }}</span>
+        <span class="tabular" role="cell"
+          >{{ s.activatedAt | translocoDate: dateFormat }}</span
+        >
+      </div>
+    </cdk-virtual-scroll-viewport>
   </div>
 </nz-spin>
