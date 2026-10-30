@@ -74,7 +74,12 @@ public class TicketController {
         return service.approve(id, request.version());
     }
 
+    /**
+     * Sửa trạng thái, độ ưu tiên, người xử lý. Không ai được đóng phiếu (CLOSED) bằng PATCH:
+     * đóng phiếu là việc của Manager qua /approve (có kiểm tra vai trò và trạng thái RESOLVED).
+     */
     @PatchMapping("/{id}")
+    @PreAuthorize("#request.status() != T(com.careportal.api.ticket.TicketStatus).CLOSED")
     public TicketDto update(@PathVariable long id, @Valid @RequestBody UpdateTicketRequest request) {
         return service.update(id, request);
     }

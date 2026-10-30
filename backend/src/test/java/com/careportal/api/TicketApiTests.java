@@ -3,6 +3,7 @@ package com.careportal.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -63,6 +64,28 @@ class TicketApiTests {
         mvc.perform(post("/api/tickets/{id}/approve", t[0]).with(user("agent1", "AGENT"))
                         .contentType(MediaType.APPLICATION_JSON).content(version(t[1])))
                 .andExpect(status().isForbidden());
+    }
+
+    /** Buổi 7, regression: PATCH từng cho agent đóng phiếu (status=CLOSED), bỏ qua bước Manager duyệt. */
+    @Test
+    void nobodyClosesTicketByPatch() throws Exception {
+        long[] t = resolvedTicket(2);
+        var close = "{\"status\":\"CLOSED\",\"version\":" + t[1] + "}";
+        mvc.perform(patch("/api/tickets/{id}", t[0]).with(user("agent1", "AGENT"))
+                        .contentType(MediaType.APPLICATION_JSON).content(close))
+                .andExpect(status().isForbidden());
+        mvc.perform(patch("/api/tickets/{id}", t[0]).with(user("supervisor1", "AGENT", "SUPERVISOR"))
+                        .contentType(MediaType.APPLICATION_JSON).content(close))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/tickets/{id}", t[0]).with(user("agent1", "AGENT")))
+                .andExpect(jsonPath("$.status").value("RESOLVED"))
+                .andExpect(jsonPath("$.version").value(t[1]));
+
+        // Các thay đổi khác vẫn được (agent nhận phiếu, đổi độ ưu tiên).
+        mvc.perform(patch("/api/tickets/{id}", t[0]).with(user("agent1", "AGENT"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"priority\":\"HIGH\",\"version\":" + t[1] + "}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.priority").value("HIGH"));
     }
 
     @Test

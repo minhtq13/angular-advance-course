@@ -1,10 +1,18 @@
-import { provideHttpClient } from '@angular/common/http';
-import { provideHttpClientTesting } from '@angular/common/http/testing';
+import {
+  HttpClient,
+  provideHttpClient,
+  withInterceptors,
+} from '@angular/common/http';
+import {
+  HttpTestingController,
+  provideHttpClientTesting,
+} from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { provideAppConfig } from '@care/shared-util-config';
 import { LoginResponse, OidcSecurityService } from 'angular-auth-oidc-client';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
+import { authInterceptor } from './auth.interceptor';
 import { AuthService } from './auth.service';
 import { OidcAuthService } from './oidc-auth.service';
 
@@ -58,7 +66,7 @@ describe('OidcAuthService', () => {
     oidc = fakeOidc(result);
     TestBed.configureTestingModule({
       providers: [
-        provideHttpClient(),
+        provideHttpClient(withInterceptors([authInterceptor])),
         provideHttpClientTesting(),
         provideRouter([{ path: 'login', children: [] }]),
         provideAppConfig({ apiUrl: 'http://api' }),
@@ -107,5 +115,84 @@ describe('OidcAuthService', () => {
       '/tickets?status=NEW',
     );
     expect(oidc.authorize).toHaveBeenCalledTimes(1);
+  });
+
+  it('request toi API mang access token, khong phai ID token (aud cua ID token la client)', async () => {
+    const auth = setup(loggedIn);
+    await auth.init();
+
+    TestBed.inject(HttpClient).get('http://api/api/subscribers').subscribe();
+
+    const req = TestBed.inject(HttpTestingController).expectOne(
+      'http://api/api/subscribers',
+    );
+    expect(req.request.headers.get('Authorization')).toBe(
+      `Bearer ${ACCESS_TOKEN}`,
+    );
+  });
+
+  it('access token het han -> refresh qua thu vien, gui lai bang access token moi', async () => {
+    const auth = setup(loggedIn);
+    await auth.init();
+    const renewed = fakeJwt({
+      ...user,
+      typ: 'Bearer',
+      aud: ['care-api'],
+      n: 2,
+    });
+    oidc.forceRefreshSession.mockReturnValue(
+      of({ ...loggedIn, accessToken: renewed }),
+    );
+    const http = TestBed.inject(HttpTestingController);
+    let body: unknown;
+
+    TestBed.inject(HttpClient)
+      .get('http://api/api/me')
+      .subscribe((b) => (body = b));
+    http
+      .expectOne('http://api/api/me')
+      .flush(null, { status: 401, statusText: 'Unauthorized' });
+
+    const retry = http.expectOne('http://api/api/me');
+    expect(retry.request.headers.get('Authorization')).toBe(
+      `Bearer ${renewed}`,
+    );
+    retry.flush({ username: 'agent1' });
+    expect(oidc.forceRefreshSession).toHaveBeenCalledTimes(1);
+    expect(body).toEqual({ username: 'agent1' });
+  });
+
+  it('dang xuat -> ket thuc ca phien o Keycloak (may dung chung), khong chi xoa token trong tab', async () => {
+    const auth = setup(loggedIn);
+    await auth.init();
+
+    auth.logout();
+
+    expect(auth.isAuthenticated()).toBe(false);
+    expect(auth.accessToken()).toBeNull();
+    expect(oidc.logoffAndRevokeTokens).toHaveBeenCalledTimes(1);
+  });
+
+  it('refresh that bai (phien Keycloak da het) -> mot lan ve /login voi reason=expired', async () => {
+    const auth = setup(loggedIn);
+    await auth.init();
+    const pending = new Subject<LoginResponse>();
+    oidc.forceRefreshSession.mockReturnValue(pending);
+    const navigate = vi
+      .spyOn(TestBed.inject(Router), 'navigate')
+      .mockResolvedValue(true);
+    const errors: unknown[] = [];
+
+    auth.refresh().subscribe({ error: (e) => errors.push(e) });
+    auth.refresh().subscribe({ error: (e) => errors.push(e) });
+    pending.next(anonymous);
+
+    expect(errors).toHaveLength(2);
+    expect(oidc.forceRefreshSession).toHaveBeenCalledTimes(1);
+    expect(navigate).toHaveBeenCalledTimes(1);
+    expect(navigate).toHaveBeenCalledWith(['/login'], {
+      queryParams: { returnUrl: '/', reason: 'expired' },
+    });
+    expect(auth.isAuthenticated()).toBe(false);
   });
 });

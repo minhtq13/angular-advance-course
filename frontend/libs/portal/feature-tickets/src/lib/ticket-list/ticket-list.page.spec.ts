@@ -31,7 +31,7 @@ describe('TicketListPage', () => {
         { provide: TicketPort, useValue: port },
         {
           provide: AuthService,
-          useValue: { username: signal('agent1'), hasAnyRole: () => false },
+          useValue: { username: signal('agent1'), roles: signal(['AGENT']) },
         },
       ],
     }).compileComponents();
@@ -92,7 +92,7 @@ describe('TicketListPage - phe duyet', () => {
           provide: AuthService,
           useValue: {
             username: signal('supervisor1'),
-            hasAnyRole: (...roles: string[]) => roles.includes('SUPERVISOR'),
+            roles: signal(['AGENT', 'SUPERVISOR']),
           },
         },
       ],

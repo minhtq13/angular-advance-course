@@ -78,49 +78,70 @@ describe('Duyet phieu (integration: route + trang + store + HTTP)', () => {
       b.textContent?.includes('Duyệt'),
     );
 
-  it('manager duyet phieu da xu ly', async () => {
+  /** Mở danh sách phiếu đã xử lý, trả về một trang có phiếu TK-000042 từ "backend". */
+  async function openResolvedList() {
     const harness = await RouterTestingHarness.create(
       '/tickets?status=RESOLVED',
     );
-    http
-      .expectOne((r) => r.url === `${API}/api/tickets`)
-      .flush(page([resolved]));
+    const list = http.expectOne((r) => r.url === `${API}/api/tickets`);
+    expect(list.request.params.get('status')).toBe('RESOLVED');
+    list.flush(page([resolved]));
     await harness.fixture.whenStable();
+    const el = harness.routeNativeElement as HTMLElement;
+    expect(el.textContent).toContain('TK-000042');
+    return { harness, el };
+  }
 
-    (approveButtons(harness.routeNativeElement)[0] as HTMLElement).click();
-    const req = http.expectOne((r) => r.url.endsWith('/approve'));
+  it('manager duyet: gui dung phieu va version dang thay, bao thanh cong, tai lai cung bo loc', async () => {
+    const { harness, el } = await openResolvedList();
+
+    (approveButtons(el)[0] as HTMLElement).click();
+    const req = http.expectOne(`${API}/api/tickets/42/approve`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ version: 3 });
     req.flush({ ...resolved, status: 'CLOSED', version: 4 });
 
-    expect(req.request.method).toBe('POST');
+    // Danh sách tải lại với đúng bộ lọc: phiếu vừa duyệt biến khỏi "Đã xử lý".
+    const reload = http.expectOne((r) => r.url === `${API}/api/tickets`);
+    expect(reload.request.params.get('status')).toBe('RESOLVED');
+    reload.flush(page([]));
+    await harness.fixture.whenStable();
+    expect(el.textContent).toContain('Đã duyệt phiếu TK-000042');
+    expect(el.textContent).not.toContain('Mat song khu vuc Cau Giay');
   });
 
-  it('nguoi khac duyet truoc -> bao loi', async () => {
-    const harness = await RouterTestingHarness.create(
-      '/tickets?status=RESOLVED',
-    );
-    http
-      .expectOne((r) => r.url === `${API}/api/tickets`)
-      .flush(page([resolved]));
-    await harness.fixture.whenStable();
+  it('nguoi khac duyet truoc (409) -> noi ro ly do tu server, chi tai lai khi nguoi dung chon', async () => {
+    const { harness, el } = await openResolvedList();
 
-    (approveButtons(harness.routeNativeElement)[0] as HTMLElement).click();
+    (approveButtons(el)[0] as HTMLElement).click();
     http
-      .expectOne((r) => r.url.endsWith('/approve'))
+      .expectOne(`${API}/api/tickets/42/approve`)
       .flush(
         { detail: 'Dữ liệu đã bị người khác thay đổi, vui lòng tải lại' },
         { status: 409, statusText: 'Conflict' },
       );
     await harness.fixture.whenStable();
 
-    expect(harness.routeNativeElement?.querySelector('nz-alert')).toBeTruthy();
-  });
+    const alert = el.querySelector('[role=alert]');
+    expect(alert?.textContent).toContain('Không duyệt được phiếu');
+    expect(alert?.textContent).toContain('Dữ liệu đã bị người khác thay đổi');
+    expect(el.textContent).not.toContain('Đã duyệt phiếu');
+    http.expectNone((r) => r.url === `${API}/api/tickets`);
 
-  it('agent khong thay nut duyet', async () => {
-    roles.set(['AGENT']);
-    const harness = await RouterTestingHarness.create(
-      '/tickets?status=RESOLVED',
+    const reloadButton = [...(alert?.querySelectorAll('button') ?? [])].find(
+      (b) => b.textContent?.includes('Tải lại danh sách'),
     );
-
-    expect(approveButtons(harness.routeNativeElement)).toHaveLength(0);
+    reloadButton?.click();
+    http.expectOne((r) => r.url === `${API}/api/tickets`).flush(page([]));
   });
+
+  it('agent thay phieu da xu ly nhung khong co nut duyet', async () => {
+    roles.set(['AGENT']);
+    const { el } = await openResolvedList();
+
+    expect(el.querySelectorAll('tbody tr.ant-table-row')).toHaveLength(1);
+    expect(approveButtons(el)).toHaveLength(0);
+  });
+
+  afterEach(() => http.verify());
 });

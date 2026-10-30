@@ -93,11 +93,21 @@ export class OidcAuthService extends AuthService {
     this.router.navigate(['/login'], { queryParams });
   }
 
+  /**
+   * Kết thúc cả phiên SSO (RP-initiated logout): revoke refresh token, rồi chuyển trình duyệt tới
+   * end_session_endpoint kèm id_token_hint; Keycloak xóa cookie phiên và quay về postLogoutRedirectUri (/login).
+   * Chỉ xóa token trong tab (logoffLocal) thì cookie phiên Keycloak vẫn còn: người sau bấm SSO là vào luôn tài khoản cũ.
+   */
   logout(): void {
-    this.oidc.logoffLocal();
     this.user.set(null);
     this.token = null;
-    this.router.navigate(['/login']);
+    this.oidc.logoffAndRevokeTokens().subscribe({
+      // Không tới được Keycloak: ít nhất xóa phiên trong tab.
+      error: () => {
+        this.oidc.logoffLocal();
+        this.router.navigate(['/login']);
+      },
+    });
   }
 
   private apply(result: LoginResponse): void {
@@ -106,8 +116,10 @@ export class OidcAuthService extends AuthService {
       this.user.set(null);
       return;
     }
-    this.token = result.idToken;
-    this.user.set(userFromClaims(decodeJwtPayload<UserClaims>(this.token)));
+    // Access token cho API (aud = care-api). ID token chỉ để app biết ai đăng nhập (aud = care-portal),
+    // gửi ID token tới API -> 401 "The aud claim is not valid".
+    this.token = result.accessToken;
+    this.user.set(userFromClaims(decodeJwtPayload<UserClaims>(result.idToken)));
   }
 }
 
