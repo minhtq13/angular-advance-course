@@ -24,7 +24,7 @@ describe('AuthService', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
-        provideRouter([]),
+        provideRouter([{ path: 'login', children: [] }]),
         provideAppConfig({ apiUrl: 'http://api' }),
       ],
     });
@@ -52,6 +52,28 @@ describe('AuthService', () => {
     expect(service.hasAnyRole('SUPERVISOR')).toBe(true);
     expect(service.accessToken()).toBe(accessToken);
     expect(sessionStorage.getItem('care.auth')).toContain(accessToken);
+  });
+
+  it('dang xuat -> bao server thu hoi refresh token, xoa phien ngay ca khi server loi', () => {
+    service.loginWithPassword('agent1', 'agent1').subscribe();
+    http.expectOne('http://api/api/auth/login').flush({
+      accessToken: fakeJwt({
+        preferred_username: 'agent1',
+        exp: Date.now() / 1000 + 900,
+      }),
+      refreshToken: 'r1',
+      expiresIn: 900,
+    });
+
+    service.logout();
+
+    expect(service.isAuthenticated()).toBe(false);
+    expect(sessionStorage.getItem('care.auth')).toBeNull();
+    const logout = http.expectOne('http://api/api/auth/logout');
+    expect(logout.request.method).toBe('POST');
+    expect(logout.request.body).toEqual({ refreshToken: 'r1' });
+    logout.flush(null, { status: 500, statusText: 'Server Error' });
+    expect(service.isAuthenticated()).toBe(false);
   });
 
   it('khoi dong lai: access token het han nhung refresh token con han -> giu phien', async () => {

@@ -52,6 +52,8 @@ export class LoginPage {
 
   /** Bind từ query param ?returnUrl= nhờ withComponentInputBinding(). */
   readonly returnUrl = input<string>();
+  /** ?reason=expired: bị đăng xuất vì hết phiên (refresh bị từ chối), không phải tự bấm đăng xuất. */
+  readonly reason = input<string>();
 
   protected readonly form = inject(NonNullableFormBuilder).group({
     username: ['', Validators.required],

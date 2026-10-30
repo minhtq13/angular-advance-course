@@ -1,8 +1,8 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { APP_CONFIG } from '@care/shared-util-config';
-import { map, Observable, tap } from 'rxjs';
+import { finalize, map, Observable, share, tap } from 'rxjs';
 import { decodeJwtPayload, isExpired } from './jwt';
 
 export type AppRole = 'AGENT' | 'SUPERVISOR' | 'ADMIN';
@@ -99,28 +99,60 @@ export class AuthService {
     return this.tokens?.accessToken ?? null;
   }
 
-  /** Đổi refresh token lấy cặp token mới; trả về access token mới. */
+  /** Lần refresh đang chạy (nếu có): mọi request 401 trong lúc này dùng chung nó. */
+  private refreshing: Observable<string> | null = null;
+
+  /**
+   * Đổi refresh token lấy cặp token mới; trả về access token mới.
+   * Dùng chung một request cho mọi người gọi đồng thời: refresh token rotation chỉ dùng được MỘT lần,
+   * gửi 2 lần cùng token -> server coi là reuse và revoke cả phiên.
+   */
   refresh(): Observable<string> {
-    return this.http
+    this.refreshing ??= this.http
       .post<TokenResponse>(`${this.apiUrl}/api/auth/refresh`, {
         refreshToken: this.tokens?.refreshToken,
       })
       .pipe(
-        tap((tokens) => this.setTokens(tokens)),
+        tap({
+          next: (tokens) => this.setTokens(tokens),
+          // Đăng xuất ở đây (phần dùng chung) -> chỉ MỘT lần dù bao nhiêu request đang chờ.
+          // Chỉ khi server từ chối (401: hết hạn, bị revoke, reuse); mất mạng thì giữ phiên, thử lại sau.
+          error: (error: unknown) => {
+            if (error instanceof HttpErrorResponse && error.status === 401) {
+              this.login(this.router.url, 'expired');
+            }
+          },
+        }),
         map((tokens) => tokens.accessToken),
+        // Xong (thành công hay lỗi) -> lần hết hạn sau phải refresh mới, không phát lại kết quả cũ.
+        finalize(() => (this.refreshing = null)),
+        share(),
       );
+    return this.refreshing;
   }
 
-  /** Đưa người dùng tới trang đăng nhập; sau khi xong quay lại returnUrl. */
-  login(returnUrl = this.router.url): void {
+  /**
+   * Đưa người dùng tới trang đăng nhập; sau khi xong quay lại returnUrl.
+   * reason 'expired': phiên kết thúc ngoài ý muốn (refresh bị từ chối) -> trang đăng nhập nói rõ lý do.
+   */
+  login(returnUrl = this.router.url, reason?: 'expired'): void {
     this.clear();
-    const queryParams =
-      returnUrl && !returnUrl.startsWith('/login') ? { returnUrl } : {};
+    const queryParams = {
+      ...(returnUrl && !returnUrl.startsWith('/login') ? { returnUrl } : {}),
+      ...(reason ? { reason } : {}),
+    };
     this.router.navigate(['/login'], { queryParams });
   }
 
+  /** Revoke refresh token ở server (token bị lộ cũng vô dụng), rồi xóa phiên. Server lỗi vẫn đăng xuất. */
   logout(): void {
+    const refreshToken = this.tokens?.refreshToken;
     this.clear();
+    if (refreshToken) {
+      this.http
+        .post(`${this.apiUrl}/api/auth/logout`, { refreshToken })
+        .subscribe({ error: () => undefined });
+    }
     this.router.navigate(['/login']);
   }
 

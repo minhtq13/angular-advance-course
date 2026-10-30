@@ -36,7 +36,7 @@ describe('authInterceptor', () => {
   let navigate: ReturnType<typeof vi.spyOn>;
 
   /** Đăng nhập sẵn: access token "A1" (coi như đã hết hạn ở server), refresh token "R1". */
-  async function setup(loggedIn = true) {
+  async function setup(loggedIn = true, apiUrl = API) {
     sessionStorage.clear();
     if (loggedIn) {
       sessionStorage.setItem(
@@ -53,7 +53,7 @@ describe('authInterceptor', () => {
         provideHttpClient(withInterceptors([authInterceptor])),
         provideHttpClientTesting(),
         provideRouter([]),
-        provideAppConfig({ apiUrl: API }),
+        provideAppConfig({ apiUrl }),
       ],
     });
     http = TestBed.inject(HttpTestingController);
@@ -101,6 +101,37 @@ describe('authInterceptor', () => {
     ).toBe(false);
   });
 
+  it.each([
+    'http://api.evil.com/api/me',
+    'http://api@evil.com/api/me',
+    'http://api:8443/api/me',
+    'http://apix/api/me',
+    'https://cdn.example.com/logo.png',
+  ])(
+    'khong gan token cho URL ngoai API (so origin, khong so chuoi dau): %s',
+    async (url) => {
+      await setup();
+      get(url);
+
+      expect(http.expectOne(url).request.headers.has('Authorization')).toBe(
+        false,
+      );
+    },
+  );
+
+  it('apiUrl rong (cung origin voi app, sau reverse proxy) -> chi gan cho API cung origin', async () => {
+    await setup(true, '');
+    get('/api/me');
+    get('https://cdn.example.com/logo.png');
+
+    expect(bearerOf(http.expectOne('/api/me'))).toBe(`Bearer ${fakeJwt('A1')}`);
+    expect(
+      http
+        .expectOne('https://cdn.example.com/logo.png')
+        .request.headers.has('Authorization'),
+    ).toBe(false);
+  });
+
   it('401 -> refresh mot lan -> gui lai request voi token moi', async () => {
     await setup();
     const result = get(`${API}/api/tickets`);
@@ -118,6 +149,61 @@ describe('authInterceptor', () => {
     expect(result()).toEqual({ content: [] });
   });
 
+  it('3 request cung nhan 401 -> chi MOT lan refresh, ca 3 gui lai voi token moi', async () => {
+    await setup();
+    const urls = [
+      `${API}/api/subscribers/1`,
+      `${API}/api/tickets`,
+      `${API}/api/service-plans`,
+    ];
+    const results = urls.map((url) => get(url));
+
+    urls.forEach((url) => http.expectOne(url).flush(null, unauthorized));
+    // Không dùng chung: 3 refresh với cùng R1 -> server coi 2 cái sau là reuse -> revoke cả phiên.
+    http.expectOne(REFRESH_URL).flush(tokens('A2', 'R2'));
+
+    urls.forEach((url) => {
+      const retry = http.expectOne(url);
+      expect(bearerOf(retry)).toBe(`Bearer ${fakeJwt('A2')}`);
+      retry.flush({ ok: url });
+    });
+    expect(results.map((r) => r())).toEqual(urls.map((url) => ({ ok: url })));
+  });
+
+  it('401 ve muon (refresh da xong) -> khong refresh lai, gui lai voi token hien tai', async () => {
+    await setup();
+    get(`${API}/api/tickets`);
+    get(`${API}/api/subscribers/1`);
+
+    http.expectOne(`${API}/api/tickets`).flush(null, unauthorized);
+    http.expectOne(REFRESH_URL).flush(tokens('A2', 'R2'));
+    http.expectOne(`${API}/api/tickets`).flush({});
+
+    // Request này đã gửi bằng A1 từ trước, giờ mới nhận 401: token đã được thay rồi.
+    http.expectOne(`${API}/api/subscribers/1`).flush(null, unauthorized);
+    http.expectNone(REFRESH_URL);
+    expect(bearerOf(http.expectOne(`${API}/api/subscribers/1`))).toBe(
+      `Bearer ${fakeJwt('A2')}`,
+    );
+  });
+
+  it('refresh xong thi lan het han sau refresh moi (khong dung lai ket qua cu)', async () => {
+    await setup();
+    get(`${API}/api/tickets`);
+    http.expectOne(`${API}/api/tickets`).flush(null, unauthorized);
+    http.expectOne(REFRESH_URL).flush(tokens('A2', 'R2'));
+    http.expectOne(`${API}/api/tickets`).flush({});
+
+    get(`${API}/api/tickets`);
+    http.expectOne(`${API}/api/tickets`).flush(null, unauthorized);
+    const second = http.expectOne(REFRESH_URL);
+    expect(second.request.body).toEqual({ refreshToken: fakeJwt('R2') });
+    second.flush(tokens('A3', 'R3'));
+    expect(bearerOf(http.expectOne(`${API}/api/tickets`))).toBe(
+      `Bearer ${fakeJwt('A3')}`,
+    );
+  });
+
   it('refresh loi -> dua ve dang nhap, giu returnUrl', async () => {
     await setup();
     const result = get(`${API}/api/tickets`);
@@ -128,6 +214,59 @@ describe('authInterceptor', () => {
     expect(result()).toBe(401);
     expect(auth.isAuthenticated()).toBe(false);
     expect(navigate).toHaveBeenCalledWith(['/login'], expect.anything());
+  });
+
+  it('refresh loi khi 3 request cung cho -> dang xuat MOT lan, giu returnUrl, bao het phien', async () => {
+    await setup();
+    vi.spyOn(TestBed.inject(Router), 'url', 'get').mockReturnValue(
+      '/tickets?status=NEW',
+    );
+    const urls = [
+      `${API}/api/subscribers/1`,
+      `${API}/api/tickets`,
+      `${API}/api/service-plans`,
+    ];
+    const results = urls.map((url) => get(url));
+
+    urls.forEach((url) => http.expectOne(url).flush(null, unauthorized));
+    // Vd refresh token đã bị dùng ở nơi khác (bị lộ) -> server revoke cả phiên.
+    http.expectOne(REFRESH_URL).flush(null, unauthorized);
+
+    expect(results.map((r) => r())).toEqual([401, 401, 401]);
+    expect(navigate).toHaveBeenCalledOnce();
+    expect(navigate).toHaveBeenCalledWith(['/login'], {
+      queryParams: { returnUrl: '/tickets?status=NEW', reason: 'expired' },
+    });
+    expect(auth.isAuthenticated()).toBe(false);
+    expect(sessionStorage.getItem('care.auth')).toBeNull();
+  });
+
+  it('401 ve muon sau khi phien da ket thuc -> khong refresh nua', async () => {
+    await setup();
+    const late = get(`${API}/api/subscribers/1`);
+    get(`${API}/api/tickets`);
+
+    http.expectOne(`${API}/api/tickets`).flush(null, unauthorized);
+    http.expectOne(REFRESH_URL).flush(null, unauthorized);
+    http.expectOne(`${API}/api/subscribers/1`).flush(null, unauthorized);
+
+    http.expectNone(REFRESH_URL);
+    expect(late()).toBe(401);
+    expect(navigate).toHaveBeenCalledOnce();
+  });
+
+  it('refresh loi do mang (khong phai 401) -> khong dang xuat', async () => {
+    await setup();
+    const result = get(`${API}/api/tickets`);
+
+    http.expectOne(`${API}/api/tickets`).flush(null, unauthorized);
+    http
+      .expectOne(REFRESH_URL)
+      .error(new ProgressEvent('error'), { status: 0 });
+
+    expect(result()).toBe(0);
+    expect(auth.isAuthenticated()).toBe(true);
+    expect(navigate).not.toHaveBeenCalled();
   });
 
   it('401 khi KHONG co token (vd luc dang xuat) -> khong refresh, khong dieu huong', async () => {
