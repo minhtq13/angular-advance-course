@@ -33,7 +33,7 @@ Sau buổi học, học viên có thể:
 |---|---|---|
 | 1 | Inventory dependency của fixture, migration plan có checkpoint và rollback | 20 |
 | 2 | Nâng fixture 21 → 22, chạy migration standalone, control flow; test sau mỗi checkpoint | 40 |
-| 3 | Hoàn thiện capstone: kiểm tra điều kiện bắt buộc (build, API từ chối sai quyền, không có bí mật trong client) | 30 |
+| 3 | Hoàn thiện capstone: kiểm tra điều kiện bắt buộc (build, API từ chối sai quyền, không có secretKey trong client) | 30 |
 | 4 | Demo theo nhóm và review chéo theo rubric | 30 |
 
 ## Liên kết code

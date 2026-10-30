@@ -10,9 +10,9 @@ import { TicketConflictError } from './lib/ticket.errors';
 import { TicketPort } from './lib/ticket.port';
 
 /**
- * Fake adapter: loc va phan trang tren mang trong bo nho, ghi lai cac lan goi de test kiem tra.
- * Dung bang `{ provide: TicketPort, useValue: new InMemoryTicketAdapter().seed([...]) }`.
- * Mo phong cac luat cua backend: version cu -> TicketConflictError, cung idempotencyKey -> cung phieu.
+ * Fake adapter: lọc và phân trang trên mảng trong bộ nhớ, ghi lại các lần gọi để test kiểm tra.
+ * Dùng bằng `{ provide: TicketPort, useValue: new InMemoryTicketAdapter().seed([...]) }`.
+ * Mô phỏng các luật của backend: version cũ -> TicketConflictError, cùng idempotencyKey -> cùng phiếu.
  */
 export class InMemoryTicketAdapter extends TicketPort {
   readonly calls: { query: TicketQuery; page: PageQuery }[] = [];
@@ -27,13 +27,13 @@ export class InMemoryTicketAdapter extends TicketPort {
     return this;
   }
 
-  /** Lan goi create/approve ke tiep se loi voi error nay (mo phong API loi). */
+  /** Lần gọi create/approve kế tiếp sẽ lỗi với error này (mô phỏng API lỗi). */
   failNext(error: Error): this {
     this.nextError = error;
     return this;
   }
 
-  /** Doc trang thai hien tai cua mot phieu (de test kiem tra sau khi ghi). */
+  /** Đọc trạng thái hiện tại của một phiếu (để test kiểm tra sau khi ghi). */
   find(id: number): TicketSummary | undefined {
     return this.tickets.find((t) => t.id === id);
   }
@@ -101,7 +101,7 @@ export class InMemoryTicketAdapter extends TicketPort {
 
 let nextId = 1;
 
-/** Tao phieu gia voi gia tri mac dinh hop le; truyen vao cac truong can quan tam. */
+/** Tạo phiếu giả với giá trị mặc định hợp lệ; truyền vào các trường cần quan tâm. */
 export function aTicket(overrides: Partial<TicketSummary> = {}): TicketSummary {
   const id = overrides.id ?? nextId++;
   return {

@@ -8,7 +8,7 @@ import { provideRouter } from '@angular/router';
 import { provideAppConfig } from '@care/shared-util-config';
 import { AuthService, userFromClaims } from './auth.service';
 
-/** Tao JWT gia (khong ky) - FE chi doc payload, backend moi kiem tra chu ky. */
+/** Tạo JWT giả (không ký) - FE chỉ đọc payload, backend mới kiểm tra signature. */
 function fakeJwt(payload: object): string {
   const encode = (o: object) => btoa(JSON.stringify(o)).replace(/=+$/, '');
   return `${encode({ alg: 'none' })}.${encode(payload)}.sig`;
@@ -54,14 +54,37 @@ describe('AuthService', () => {
     expect(sessionStorage.getItem('care.auth')).toContain(accessToken);
   });
 
-  it('bo qua token het han khi khoi dong lai', async () => {
+  it('khoi dong lai: access token het han nhung refresh token con han -> giu phien', async () => {
+    sessionStorage.setItem(
+      'care.auth',
+      JSON.stringify({
+        accessToken: fakeJwt({
+          preferred_username: 'agent1',
+          exp: Date.now() / 1000 - 60,
+        }),
+        refreshToken: fakeJwt({ exp: Date.now() / 1000 + 3600 }),
+        expiresIn: 0,
+      }),
+    );
+
+    await service.init();
+
+    expect(service.isAuthenticated()).toBe(true);
+    expect(service.username()).toBe('agent1');
+  });
+
+  it('khoi dong lai: refresh token het han -> phien da ket thuc', async () => {
     const expired = fakeJwt({
       preferred_username: 'agent1',
       exp: Date.now() / 1000 - 60,
     });
     sessionStorage.setItem(
       'care.auth',
-      JSON.stringify({ accessToken: expired, refreshToken: 'r', expiresIn: 0 }),
+      JSON.stringify({
+        accessToken: expired,
+        refreshToken: expired,
+        expiresIn: 0,
+      }),
     );
 
     await service.init();

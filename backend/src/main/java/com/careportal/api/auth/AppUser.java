@@ -17,7 +17,7 @@ public class AppUser {
     private String passwordHash;
     private String fullName;
     private String email;
-    /** Luu dang "AGENT,SUPERVISOR". */
+    /** Lưu dạng "AGENT,SUPERVISOR". */
     private String roles;
     private boolean enabled;
 

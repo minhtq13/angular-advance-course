@@ -13,7 +13,7 @@ import {
 } from '@care/portal-domain-tickets';
 import { catchError, map, Observable, throwError } from 'rxjs';
 
-/** Adapter HTTP: goi API that qua TicketApi, chuyen Spring Page sang TicketPage va loi HTTP sang loi nghiep vu. */
+/** Adapter HTTP: gọi API thật qua TicketApi, chuyển Spring Page sang TicketPage và lỗi HTTP sang lỗi nghiệp vụ. */
 @Injectable()
 export class HttpTicketAdapter extends TicketPort {
   private readonly api = inject(TicketApi);
@@ -60,7 +60,7 @@ export function toSummary(t: Ticket): TicketSummary {
   };
 }
 
-/** 409 -> TicketConflictError, 400 -> TicketValidationError; loi khac (mang, 403, 500) giu nguyen. */
+/** 409 -> TicketConflictError, 400 -> TicketValidationError; lỗi khác (mạng, 403, 500) giữ nguyên. */
 export function toDomainError(error: unknown): Observable<never> {
   if (error instanceof HttpErrorResponse) {
     const problem = (error.error ?? {}) as ProblemDetail;
@@ -77,7 +77,7 @@ export function toDomainError(error: unknown): Observable<never> {
   return throwError(() => error);
 }
 
-/** Noi TicketPort voi adapter HTTP. Goi o composition root (route cua app), khong goi trong feature. */
+/** Nối TicketPort với adapter HTTP. Gọi ở composition root (route của app), không gọi trong feature. */
 export function provideHttpTicketPort(): Provider[] {
   return [{ provide: TicketPort, useClass: HttpTicketAdapter }];
 }

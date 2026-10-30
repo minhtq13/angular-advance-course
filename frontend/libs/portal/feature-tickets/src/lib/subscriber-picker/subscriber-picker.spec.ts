@@ -20,14 +20,14 @@ class Host {
   readonly control = new FormControl<number | null>(null);
 }
 
-/** Truy cap method protected cua picker trong test (thay cho go phim vao nz-select). */
+/** Truy cập method protected của picker trong test (thay cho gõ phím vào nz-select). */
 type PickerInternals = {
   onSearch(term: string): void;
   onSelect(id: number | null): void;
 };
 
 describe('SubscriberPicker', () => {
-  /** Moi lan search tra ve mot Subject: test tu quyet dinh khi nao "server" tra loi. */
+  /** Mỗi lần search trả về một Subject: test tự quyết định khi nào "server" trả lời. */
   let pending: Subject<PageResponse<Subscriber>>[];
 
   beforeEach(() => {
@@ -59,7 +59,7 @@ describe('SubscriberPicker', () => {
     await fixture.whenStable();
     const picker = fixture.debugElement.query(By.directive(SubscriberPicker))
       .componentInstance as PickerInternals;
-    // Bat dong ho gia sau khi render xong: debounceTime cua RxJS dung setInterval.
+    // Bật fake timers sau khi render xong: debounceTime của RxJS dùng setInterval.
     vi.useFakeTimers();
     return { fixture, picker };
   }
@@ -92,7 +92,7 @@ describe('SubscriberPicker', () => {
 
     fixture.destroy();
 
-    // HttpClient that: huy dang ky = huy XHR (tab Network hien "canceled").
+    // HttpClient thật: unsubscribe = hủy XHR (tab Network hiện "canceled").
     expect(pending[0].observed).toBe(false);
   });
 });

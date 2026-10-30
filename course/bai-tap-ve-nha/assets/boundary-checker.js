@@ -1,7 +1,7 @@
 /**
- * Bai tap "import nay duoc phep hay bi chan?" theo dung logic @nx/enforce-module-boundaries:
- * voi moi rang buoc co sourceTag thuoc project nguon, project dich phai co it nhat mot tag
- * trong onlyDependOnLibsWithTags; tat ca rang buoc khop deu phai thoa (AND).
+ * Bài tập "import này được phép hay bị chặn?" theo đúng logic @nx/enforce-module-boundaries:
+ * với mỗi ràng buộc có sourceTag thuộc project nguồn, project đích phải có ít nhất một tag
+ * trong onlyDependOnLibsWithTags; tất cả ràng buộc khớp đều phải thỏa (AND).
  *
  * <div data-boundary-checker>
  *   <script type="application/json">
@@ -11,9 +11,9 @@
  *   </script>
  * </div>
  *
- * Phan 1: doan truoc tung cap (retrieval practice). Phan 2: tu chon cap bat ky de kiem tra.
- * Them thuoc tinh data-allow-add de nguoi hoc tu them lib (scope/type lay tu cac tag trong luat).
- * "exercises" co the bo trong neu chi can hop thu tu do.
+ * Phần 1: đoán trước từng cặp (retrieval practice). Phần 2: tự chọn cặp bất kỳ để kiểm tra.
+ * Thêm thuộc tính data-allow-add để người học tự thêm lib (scope/type lấy từ các tag trong luật).
+ * "exercises" có thể bỏ trống nếu chỉ cần hộp thử tự do.
  */
 (function () {
   function el(tag, attrs, text) {
@@ -44,7 +44,7 @@
     if (result.allowed) {
       box.append(el('span', { class: 'verdict-ok' }, 'Được phép.'), document.createTextNode(' Mọi luật áp dụng cho project nguồn đều thỏa.'));
     } else {
-      // ESLint chi in luat vi pham DAU TIEN theo thu tu trong depConstraints (da kiem tren repo Care Portal).
+      // ESLint chỉ in luật vi phạm ĐẦU TIÊN theo thứ tự trong depConstraints (đã kiểm trên repo Care Portal).
       box.append(el('span', { class: 'verdict-bad' }, 'Bị chặn.'), document.createTextNode(' ESLint sẽ báo:'));
       box.append(el('code', { class: 'lint' }, result.messages[0]));
       if (result.messages.length > 1) {
@@ -103,7 +103,7 @@
     });
     root.append(score);
 
-    // Hop thu tu do
+    // Hộp thử tự do
     const sandbox = el('div', { class: 'exercise' });
     sandbox.append(el('h3', {}, 'Tự thử cặp bất kỳ'));
     const row = el('div');
@@ -141,7 +141,7 @@
     row.append(a.wrap, el('span', {}, '→'), b.wrap);
     sandbox.append(row, out);
 
-    // Them lib cua nguoi hoc (dung cho bai thiet ke): chon scope/type tu cac tag co trong luat.
+    // Thêm lib của người học (dùng cho bài thiết kế): chọn scope/type từ các tag có trong luật.
     if (root.hasAttribute('data-allow-add')) {
       const tagsOf = (prefix) =>
         [...new Set(cfg.constraints.flatMap((c) => [c.sourceTag, ...c.onlyDependOnLibsWithTags]))]

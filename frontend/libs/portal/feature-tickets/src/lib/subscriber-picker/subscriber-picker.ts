@@ -31,8 +31,8 @@ function toOption(s: Subscriber): SubscriberOption {
 }
 
 /**
- * O chon thue bao co tim kiem (so thue bao, CCCD, ten). Dung nhu mot form control:
- * <care-subscriber-picker formControlName="subscriberId" />. Gia tri la id thue bao.
+ * Ô chọn thuê bao có tìm kiếm (số thuê bao, CCCD, tên). Dùng như một form control:
+ * <care-subscriber-picker formControlName="subscriberId" />. Giá trị là id thuê bao.
  */
 @Component({
   selector: 'care-subscriber-picker',
@@ -52,15 +52,15 @@ export class SubscriberPicker implements ControlValueAccessor {
   private readonly api = inject(SubscriberApi);
   private readonly destroyRef = inject(DestroyRef);
 
-  /** id cua o nhap ben trong, de <label for> tro toi. */
+  /** id của ô nhập bên trong, để <label for> trỏ tới. */
   readonly inputId = input<string | null>(null);
   readonly invalid = input(false);
   readonly describedBy = input<string | null>(null);
 
   private readonly terms = new Subject<string>();
   /**
-   * toSignal dang ky trong injection context va tu huy dang ky khi component bi huy:
-   * request dang chay bi huy theo (switchMap -> unsubscribe -> abort XHR).
+   * toSignal đăng ký trong injection context và tự unsubscribe khi component bị hủy:
+   * request đang chạy bị hủy theo (switchMap -> unsubscribe -> abort XHR).
    */
   protected readonly state = toSignal(
     this.terms.pipe(lookup((term) => this.search(term))),
@@ -69,7 +69,7 @@ export class SubscriberPicker implements ControlValueAccessor {
 
   protected readonly selected = signal<SubscriberOption | null>(null);
   protected readonly disabled = signal(false);
-  /** Giu thue bao dang chon trong danh sach, ke ca khi ket qua tim moi khong co no (nz-select can option de hien nhan). */
+  /** Giữ thuê bao đang chọn trong danh sách, kể cả khi kết quả tìm mới không có nó (nz-select cần option để hiện nhãn). */
   protected readonly options = computed(() => {
     const selected = this.selected();
     const items = this.state().items;
@@ -96,7 +96,7 @@ export class SubscriberPicker implements ControlValueAccessor {
       return;
     }
     if (this.selected()?.id === id) return;
-    // Gia tri dat tu ngoai (vd ?subscriberId=12): lay thong tin de hien nhan.
+    // Giá trị đặt từ ngoài (vd ?subscriberId=12): lấy thông tin để hiện nhãn.
     this.api
       .get(id)
       .pipe(map(toOption), takeUntilDestroyed(this.destroyRef))

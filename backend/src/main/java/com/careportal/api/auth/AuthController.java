@@ -1,5 +1,6 @@
 package com.careportal.api.auth;
 
+import com.careportal.api.auth.TokenService.InvalidRefreshTokenException;
 import com.careportal.api.auth.TokenService.TokenResponse;
 import com.careportal.api.common.GlobalExceptionHandler;
 import jakarta.validation.Valid;
@@ -8,11 +9,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -39,26 +40,31 @@ public class AuthController {
         var user = users.findById(request.username())
                 .filter(AppUser::isEnabled)
                 .filter(u -> passwordEncoder.matches(request.password(), u.getPasswordHash()))
-                // Cung mot thong bao cho "sai user" va "sai mat khau" -> khong lo user nao ton tai.
+                // Cùng một thông báo cho "sai user" và "sai mật khẩu" -> không lộ user nào tồn tại.
                 .orElseThrow(InvalidCredentialsException::new);
-        return tokens.issue(user);
+        return tokens.login(user);
     }
 
+    /** Rotation: refresh token cũ bị vô hiệu, trả về cặp token mới. Xem TokenService.rotate. */
     @PostMapping("/refresh")
     public TokenResponse refresh(@Valid @RequestBody RefreshRequest request) {
-        String username;
-        try {
-            username = tokens.verifyRefreshToken(request.refreshToken());
-        } catch (JwtException ex) {
-            throw new InvalidCredentialsException();
-        }
-        // Doc lai user: tai khoan bi khoa / doi role se co hieu luc o lan refresh tiep theo.
-        var user = users.findById(username).filter(AppUser::isEnabled).orElseThrow(InvalidCredentialsException::new);
-        return tokens.issue(user);
+        return tokens.rotate(request.refreshToken());
+    }
+
+    /** Revoke refresh token ở server: token bị lộ sau khi đăng xuất cũng không dùng được nữa. */
+    @PostMapping("/logout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void logout(@Valid @RequestBody RefreshRequest request) {
+        tokens.revoke(request.refreshToken());
     }
 
     @ExceptionHandler(InvalidCredentialsException.class)
     ProblemDetail handleInvalidCredentials() {
         return problems.problem(HttpStatus.UNAUTHORIZED, "auth.invalidCredentials");
+    }
+
+    @ExceptionHandler(InvalidRefreshTokenException.class)
+    ProblemDetail handleInvalidRefreshToken() {
+        return problems.problem(HttpStatus.UNAUTHORIZED, "auth.sessionExpired");
     }
 }

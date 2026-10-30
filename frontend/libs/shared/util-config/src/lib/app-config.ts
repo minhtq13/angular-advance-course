@@ -1,8 +1,8 @@
 import { InjectionToken, Provider } from '@angular/core';
 
-/** Cau hinh runtime, doc tu /config.json luc khoi dong -> 1 ban build chay duoc moi moi truong (buoi 9). */
+/** Cấu hình runtime, đọc từ /config.json lúc khởi động -> 1 bản build chạy được mọi môi trường (buổi 9). */
 export interface AppConfig {
-  /** Ten moi truong hien tren header, vd "DEV", "TEST". Bo trong o production. */
+  /** Tên môi trường hiện trên header, vd "DEV", "TEST". Bỏ trống ở production. */
   environmentName?: string;
   apiUrl: string;
 }

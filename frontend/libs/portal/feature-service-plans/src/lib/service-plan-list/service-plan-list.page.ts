@@ -45,11 +45,11 @@ export class ServicePlanListPage {
 
   protected readonly typeLabels = SUBSCRIBER_TYPE;
 
-  /** null = tat ca loai. */
+  /** null = tất cả loại. */
   protected readonly type = signal<SubscriberType | null>(null);
 
-  // Luu y: params() tra ve undefined => resource o trang thai idle, KHONG goi API.
-  // Vi vay boc trong object thay vi tra ve this.type() ?? undefined.
+  // Lưu ý: params() trả về undefined => resource ở trạng thái idle, KHÔNG gọi API.
+  // Vì vậy bọc trong object thay vì trả về this.type() ?? undefined.
   protected readonly plans = rxResource({
     params: () => ({ type: this.type() }),
     stream: ({ params }) => this.api.list(params.type ?? undefined),

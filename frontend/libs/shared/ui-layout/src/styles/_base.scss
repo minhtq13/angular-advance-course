@@ -1,22 +1,22 @@
-// ===== Design tokens (Minimalism / Swiss, mat do cao cho dashboard noi bo) =====
+// ===== Design tokens (Minimalism / Swiss, mật độ cao cho dashboard nội bộ) =====
 :root {
   --care-font:
     'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
-  // Mau: nen sang cho nhan vien lam viec ca ngay; navy cho thuong hieu, xanh ng-zorro cho thao tac.
+  // Màu: nền sáng cho nhân viên làm việc cả ngày; navy cho thương hiệu, xanh ng-zorro cho thao tác.
   --care-brand: #0b3a75;
   --care-on-brand: #ffffff;
   --care-primary: #0958d9;
   --care-bg: #f4f6f9;
   --care-surface: #ffffff;
-  --care-text: #1f2937; // 14.7:1 tren trang
-  --care-text-muted: #4b5563; // 7.0:1 tren trang, 6.5:1 tren --care-bg
+  --care-text: #1f2937; // 14.7:1 trên trang
+  --care-text-muted: #4b5563; // 7.0:1 trên trang, 6.5:1 trên --care-bg
   --care-border: #e5e7eb;
   --care-focus: #0958d9;
-  --care-placeholder: #6b7280; // 4.8:1 (mac dinh ng-zorro #bfbfbf chi 1.8:1)
-  --care-danger: #cf1322; // chu loi: 5.6:1 tren trang, 5.2:1 tren --care-bg (#ff4d4f cua ng-zorro chi 3.3:1)
+  --care-placeholder: #6b7280; // 4.8:1 (mặc định ng-zorro #bfbfbf chỉ 1.8:1)
+  --care-danger: #cf1322; // chữ lỗi: 5.6:1 trên trang, 5.2:1 trên --care-bg (#ff4d4f của ng-zorro chỉ 3.3:1)
 
-  // Khoang cach theo nhip 4px
+  // Khoảng cách theo nhịp 4px
   --care-space-1: 4px;
   --care-space-2: 8px;
   --care-space-3: 12px;
@@ -37,21 +37,21 @@ body {
   font-family: var(--care-font);
 }
 
-// ng-zorro tu dat font-family cho tung component -> ep ve font chung.
+// ng-zorro tự đặt font-family cho từng component -> ép về font chung.
 [class^='ant-'],
 [class*=' ant-'] {
   font-family: var(--care-font);
 }
 
-// So lieu thang cot: so thue bao, ngay thang, so luong.
+// Số liệu thẳng cột: số thuê bao, ngày tháng, số lượng.
 .ant-table,
 .ant-statistic-content,
 .tabular {
   font-variant-numeric: tabular-nums;
 }
 
-// Mau chu tag preset cua ng-zorro chi dat ~1.6-3:1 -> lam dam de dat >= 4.5:1 (do bang cong cu).
-// Chi ap dung cho theme sang; theme toi co bo mau rieng ben duoi.
+// Màu chữ tag preset của ng-zorro chỉ đạt ~1.6-3:1 -> làm đậm để đạt >= 4.5:1 (đo bằng công cụ).
+// Chỉ áp dụng cho theme sáng; theme tối có bộ màu riêng bên dưới.
 html:not([data-theme='dark']) {
   .ant-tag-success {
     color: #237804; // 5.4:1
@@ -65,7 +65,7 @@ html:not([data-theme='dark']) {
   .ant-tag-processing {
     color: #0050b3; // 6.8:1
   }
-  // Do nguy hiem mac dinh #ff4d4f chi 3.3:1 tren trang (ca chu tren nen trang lan chu trang tren nen do).
+  // Đỏ nguy hiểm mặc định #ff4d4f chỉ 3.3:1 trên trang (cả chữ trên nền trắng lẫn chữ trắng trên nền đỏ).
   .ant-btn-dangerous:not([disabled]):not(.ant-btn-primary),
   .ant-menu-item-danger.ant-menu-item {
     border-color: #cf1322;
@@ -77,7 +77,7 @@ html:not([data-theme='dark']) {
   }
 }
 
-// Placeholder van la chu nguoi dung can doc -> phai dat 4.5:1 o ca hai theme.
+// Placeholder vẫn là chữ người dùng cần đọc -> phải đạt 4.5:1 ở cả hai theme.
 input::placeholder,
 textarea::placeholder,
 .ant-select-selection-placeholder {
@@ -85,7 +85,7 @@ textarea::placeholder,
   opacity: 1;
 }
 
-// Focus ro rang cho ban phim (khong hien khi click chuot).
+// Focus rõ ràng cho bàn phím (không hiện khi click chuột).
 a:focus-visible,
 button:focus-visible,
 [tabindex]:focus-visible,
@@ -104,31 +104,31 @@ button:focus-visible,
   }
 }
 
-// ===== Theme toi =====
-// Khong dao nguoc mau: nen xam rat toi (khong den tuyet doi), be mat nang hon mot bac,
-// chu sang da giam do sang; moi cap mau duoi day da do >= 4.5:1.
+// ===== Theme tối =====
+// Không đảo ngược màu: nền xám rất tối (không đen tuyệt đối), bề mặt nâng hơn một bậc,
+// chữ sáng đã giảm độ sáng; mỗi cặp màu dưới đây đều đạt >= 4.5:1.
 html[data-theme='dark'] {
   color-scheme: dark;
-  --care-brand: #0e2a4d; // header: chu trang 14.4:1
-  --care-primary: #69b1ff; // link/nhan dang chon tren nen toi: 8.2:1
+  --care-brand: #0e2a4d; // header: chữ trắng 14.4:1
+  --care-primary: #69b1ff; // link/nhãn đang chọn trên nền tối: 8.2:1
   --care-bg: #0b0b0c;
-  --care-surface: #141414; // trung nen component cua ng-zorro dark
+  --care-surface: #141414; // trùng nền component của ng-zorro dark
   --care-text: #e6e6e6; // 14.8:1
-  --care-text-muted: #a6a6a6; // 7.6:1 tren be mat, 6.8:1 tren bang
+  --care-text-muted: #a6a6a6; // 7.6:1 trên bề mặt, 6.8:1 trên bảng
   --care-border: #303030;
   --care-focus: #69b1ff;
   --care-placeholder: #8c8c8c; // 5.5:1
-  --care-danger: #ff7875; // 7.2:1 tren be mat
-  // Toi thi bong do khong thay -> dung vien mo de tach lop.
+  --care-danger: #ff7875; // 7.2:1 trên bề mặt
+  // Tối thì bóng đổ không thấy -> dùng viền mờ để tách lớp.
   --care-shadow: 0 0 0 1px #262626;
 
-  // CSS dark cua ng-zorro dat body #000 va duoc nap SAU -> can selector cu the hon de giu token.
+  // CSS dark của ng-zorro đặt body #000 và được nạp SAU -> cần selector cụ thể hơn để giữ token.
   body {
     background: var(--care-bg);
     color: var(--care-text);
   }
 
-  // ng-zorro dark: link #177ddc chi 3.9:1, tag do 2.4:1, tag xanh 4.1:1 -> thay bang sac sang hon.
+  // ng-zorro dark: link #177ddc chỉ 3.9:1, tag đỏ 2.4:1, tag xanh 4.1:1 -> thay bằng sắc sáng hơn.
   a,
   .ant-menu-item-selected,
   .ant-menu-item-selected a,
@@ -147,17 +147,17 @@ html[data-theme='dark'] {
   .ant-tag-processing {
     color: #69b1ff; // 7.7:1
   }
-  // Do nguy hiem cua ng-zorro dark (#a61d24) chi 2.5:1 -> #ff7875 (7.2:1).
+  // Đỏ nguy hiểm của ng-zorro dark (#a61d24) chỉ 2.5:1 -> #ff7875 (7.2:1).
   .ant-btn-dangerous:not([disabled]):not(.ant-btn-primary),
   .ant-menu-item-danger.ant-menu-item {
     border-color: #ff7875;
     color: #ff7875;
   }
-  // ng-zorro dark van de sider "light" nen trang.
+  // ng-zorro dark: sider "light" cũng phải có nền trang.
   .ant-layout-sider-light {
     background: var(--care-surface);
   }
-  // Nut primary van dung #0958d9 nhu theme sang (chu trang 6.2:1).
+  // Nút primary vẫn dùng #0958d9 như theme sáng (chữ trắng 6.2:1).
   .ant-btn-primary:not([disabled]):not(.ant-btn-dangerous) {
     border-color: #0958d9;
     background: #0958d9;
@@ -165,7 +165,7 @@ html[data-theme='dark'] {
   }
 }
 
-// ===== Bo cuc trang =====
+// ===== Bố cục trang =====
 .page-header {
   display: flex;
   flex-wrap: wrap;
@@ -181,12 +181,12 @@ html[data-theme='dark'] {
   }
 }
 
-// Nut thao tac chinh cua trang, day ve ben phai tieu de.
+// Nút thao tác chính của trang, đẩy về bên phải tiêu đề.
 .page-action {
   margin-left: auto;
 }
 
-// Hang lien ket nhanh (vd thue bao xem gan day).
+// Hàng liên kết nhanh (vd thuê bao xem gần đây).
 .recent {
   display: flex;
   flex-wrap: wrap;
@@ -205,7 +205,7 @@ html[data-theme='dark'] {
   font-size: 13px;
 }
 
-// Bo loc: nhan hien thi (khong chi placeholder), xuong dong tren man hinh hep.
+// Bộ lọc: nhãn hiển thị (không chỉ placeholder), xuống dòng trên màn hình hẹp.
 .filters {
   display: flex;
   flex-wrap: wrap;
@@ -254,7 +254,7 @@ html[data-theme='dark'] {
   cursor: pointer;
 }
 
-// Link trong o bang: dam hon mac dinh de dat 4.5:1, gach chan khi hover/focus.
+// Link trong ô bảng: đậm hơn mặc định để đạt 4.5:1, gạch chân khi hover/focus.
 .cell-link {
   font-weight: 500;
 
@@ -269,7 +269,7 @@ html[data-theme='dark'] {
   padding: var(--care-space-5);
 }
 
-// Loi tung truong form (thay cho nzErrorTip: mau mac dinh khong dat 4.5:1, va can id de aria-describedby).
+// Lỗi từng trường form (thay cho nzErrorTip: màu mặc định không đạt 4.5:1, và cần id để aria-describedby).
 .field-error {
   margin-top: var(--care-space-1);
   color: var(--care-danger);
@@ -316,7 +316,7 @@ html[data-theme='dark'] {
   }
 }
 
-// Selector cu the hon de khong bi rule margin:0 cua component ng-zorro (nap sau) ghi de.
+// Selector cụ thể hơn để không bị rule margin:0 của component ng-zorro (nạp sau) ghi đè.
 .mb,
 nz-breadcrumb.mb,
 nz-alert.mb {
@@ -327,12 +327,12 @@ nz-alert.mb {
   padding: var(--care-space-5);
 }
 
-// Thao tac nguy hiem tach xa cac nut thuong.
+// Thao tác nguy hiểm tách xa các nút thường.
 .danger-action {
   margin-left: auto;
 }
 
-// Link breadcrumb mac dinh rgba(0,0,0,.45) chi ~4:1 tren nen xam -> dung mau chu phu (6.5:1).
+// Link breadcrumb mặc định rgba(0,0,0,.45) chỉ ~4:1 trên nền xám -> dùng màu chữ phụ (6.5:1).
 .ant-breadcrumb a {
   color: var(--care-text-muted);
 
@@ -343,7 +343,7 @@ nz-alert.mb {
   }
 }
 
-// Nhom nut chon (ngon ngu, theme): nut that + aria-pressed.
+// Nhóm nút chọn (ngôn ngữ, theme): nút thật + aria-pressed.
 .segmented {
   display: inline-flex;
   padding: 2px;

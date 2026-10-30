@@ -19,7 +19,7 @@ Công cụ, model, phiên bản: ...  · Hướng dẫn repository đã dùng: .
 | API đúng phiên bản Angular của dự án | | |
 | Đúng quy ước (lib, tag, i18n, theme, a11y) | | |
 | Có negative test | | |
-| Không có bí mật, dữ liệu thật | | |
+| Không có secret, dữ liệu thật | | |
 
 ## Finding
 

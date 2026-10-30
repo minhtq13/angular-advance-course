@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Chi ADMIN (cau hinh trong SecurityConfig cho /api/admin/**). */
+/** Chỉ ADMIN (cấu hình trong SecurityConfig cho /api/admin/**). */
 @RestController
 @RequiredArgsConstructor
 public class AdminStatsController {

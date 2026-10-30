@@ -17,9 +17,9 @@ export interface RecentSubscriber {
 const MAX_RECENT = 5;
 
 /**
- * Thue bao xem gan day (toi da 5): nhan vien CSKH hay quay lai khach hang vua tra cuu.
- * State phien: providedIn 'root' de giu khi chuyen man hinh, nhung chua du lieu ca nhan cua khach hang
- * nen phai xoa khi doi phien (dang xuat, nguoi khac dang nhap tren cung tab).
+ * Thuê bao xem gần đây (tối đa 5): nhân viên CSKH hay quay lại khách hàng vừa tra cứu.
+ * State phiên: providedIn 'root' để giữ khi chuyển màn hình, nhưng chứa dữ liệu cá nhân của khách hàng
+ * nên phải xóa khi đổi phiên (đăng xuất, người khác đăng nhập trên cùng tab).
  */
 export const RecentSubscribers = signalStore(
   { providedIn: 'root' },
@@ -38,7 +38,7 @@ export const RecentSubscribers = signalStore(
     const auth = inject(AuthService);
     return {
       onInit() {
-        // Moi lan nguoi dang nhap doi (ke ca dang xuat) -> xoa. untracked: chi theo doi username.
+        // Mỗi lần người đăng nhập đổi (kể cả đăng xuất) -> xóa. untracked: chỉ theo dõi username.
         effect(() => {
           auth.username();
           untracked(() => patchState(store, { items: [] }));

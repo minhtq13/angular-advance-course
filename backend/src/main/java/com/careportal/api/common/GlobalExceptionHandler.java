@@ -14,7 +14,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-/** Tra loi theo chuan RFC 9457 (ProblemDetail); detail duoc dich theo Accept-Language. */
+/** Trả lời theo chuẩn RFC 9457 (ProblemDetail); detail được dịch theo Accept-Language. */
 @RestControllerAdvice
 @RequiredArgsConstructor
 public class GlobalExceptionHandler {
@@ -44,7 +44,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ProblemDetail handleValidation(MethodArgumentNotValidException ex) {
         var problem = problem(HttpStatus.BAD_REQUEST, "error.validation");
-        // Thong bao tung truong da duoc Bean Validation dich san (dung chung MessageSource + locale).
+        // Thông báo từng trường đã được Bean Validation dịch sẵn (dùng chung MessageSource + locale).
         Map<String, String> errors = ex.getBindingResult().getFieldErrors().stream()
                 .collect(Collectors.toMap(e -> e.getField(), e -> String.valueOf(e.getDefaultMessage()), (a, b) -> a));
         problem.setProperty("errors", errors);

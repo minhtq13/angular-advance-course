@@ -15,9 +15,9 @@ import { NzTagComponent } from 'ng-zorro-antd/tag';
 import { CATEGORY_LABEL, PRIORITY_TAG, STATUS_TAG } from '../ticket-tags';
 
 /**
- * Mot dong phieu yeu cau trong bang. Component hien thi: chi nhan input va phat output,
- * khong inject service, khong biet ai dang dang nhap (container quyet dinh canApprove).
- * Selector dang thuoc tinh tren <tr> de DOM van la bang hop le (tbody > tr > td).
+ * Một dòng phiếu yêu cầu trong bảng. Component hiển thị: chỉ nhận input và phát output,
+ * không inject service, không biết ai đang đăng nhập (container quyết định canApprove).
+ * Selector dạng thuộc tính trên <tr> để DOM vẫn là bảng hợp lệ (tbody > tr > td).
  */
 @Component({
   selector: 'tr[care-ticket-row]',
@@ -34,9 +34,9 @@ import { CATEGORY_LABEL, PRIORITY_TAG, STATUS_TAG } from '../ticket-tags';
 })
 export class TicketRow {
   readonly ticket = input.required<TicketSummary>();
-  /** Hien nut Duyet. Container tinh tu vai tro + trang thai phieu. */
+  /** Hiện nút Duyệt. Container tính từ vai trò + trạng thái phiếu. */
   readonly canApprove = input(false);
-  /** Dang gui yeu cau duyet dong nay: nut quay va khong bam lai duoc. */
+  /** Đang gửi yêu cầu duyệt dòng này: nút quay và không bấm lại được. */
   readonly approving = input(false);
 
   readonly approve = output<TicketSummary>();

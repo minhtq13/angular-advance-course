@@ -14,11 +14,13 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 
-/** Backend tu ky va tu kiem tra JWT (HMAC SHA-256); khong phu thuoc may chu dinh danh ben ngoai. */
+/** Backend tự ký và tự kiểm tra JWT (HMAC SHA-256); không phụ thuộc máy chủ định danh bên ngoài. */
 @Configuration
 public class JwtConfig {
 
     static final String ISSUER = "care-api";
+    /** Token chỉ dành cho API này: API khác (cùng key) phải từ chối, và ngược lại. */
+    static final String AUDIENCE = "care-api";
 
     @Bean
     SecretKey jwtSecretKey(AuthProperties props) {
@@ -34,7 +36,7 @@ public class JwtConfig {
         return new NimbusJwtEncoder(new ImmutableSecret<>(key));
     }
 
-    /** Decoder cho API: chi chap nhan access token. */
+    /** Decoder cho API: chỉ chấp nhận access token. */
     @Bean
     JwtDecoder jwtDecoder(SecretKey key) {
         return TokenService.decoder(key, TokenService.ACCESS);

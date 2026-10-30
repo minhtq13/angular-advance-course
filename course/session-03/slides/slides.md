@@ -301,7 +301,7 @@ scheduler.run(({ cold, hot, expectObservable, expectSubscriptions }) => {
 });
 ```
 
-<p class="small">Thời gian ảo: test 1 giây chạy trong 5ms. <code>-</code> = 1 khung, mỗi giá trị chiếm 1ms, <code>^</code>/<code>!</code> = bắt đầu/hủy đăng ký.</p>
+<p class="small">Thời gian ảo: test 1 giây chạy trong 5ms. <code>-</code> = 1 frame, mỗi giá trị chiếm 1ms, <code>^</code>/<code>!</code> = subscribe / unsubscribe.</p>
 
 ---
 

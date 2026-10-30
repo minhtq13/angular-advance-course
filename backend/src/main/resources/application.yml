@@ -4,7 +4,7 @@ spring:
   messages:
     basename: messages
     encoding: UTF-8
-    # Khong roi ve locale cua may chu: request khong ho tro -> messages.properties (tieng Viet).
+    # Không rơi về locale của máy chủ: request không hỗ trợ -> messages.properties (tiếng Việt).
     fallback-to-system-locale: false
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:care}
@@ -20,33 +20,34 @@ spring:
         default_batch_fetch_size: 50
   flyway:
     placeholders:
-      # So thue bao seed san. Buoi 5 tang len 1_000_000 - 5_000_000 de demo du lieu lon.
+      # Số thuê bao seed sẵn. Buổi 5 tăng lên 1_000_000 - 5_000_000 để demo dữ liệu lớn.
       seed_subscribers: ${SEED_SUBSCRIBERS:200000}
       seed_tickets: ${SEED_TICKETS:50000}
   data:
     web:
       pageable:
-        # Buoi 5: MAX_PAGE_SIZE=10000 de tai nhieu dong khi do hieu nang. Mac dinh gioi han 200 de bao ve server.
+        # Buổi 5: MAX_PAGE_SIZE=10000 để tải nhiều dòng khi đo hiệu năng. Mặc định giới hạn 200 để bảo vệ server.
         max-page-size: ${MAX_PAGE_SIZE:200}
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
   cache:
-    # simple = cache trong bo nho (mac dinh). Dat CACHE_TYPE=redis khi chay kem Redis.
+    # simple = cache trong bộ nhớ (mặc định). Đặt CACHE_TYPE=redis khi chạy kèm Redis.
     type: ${CACHE_TYPE:simple}
     redis:
       time-to-live: 10m
 
 care:
   auth:
-    # Chi dung cho moi truong dev/hoc. Production phai truyen qua bien moi truong / secret manager.
+    # Chỉ dùng cho môi trường dev/học. Production phải truyền qua biến môi trường / secret manager.
     jwt-secret: ${JWT_SECRET:care-dev-secret-change-me-in-production-0123456789}
+    # Buổi 6: ACCESS_TOKEN_TTL=30s để thấy access token hết hạn và refresh trong lớp.
     access-token-ttl: ${ACCESS_TOKEN_TTL:15m}
     refresh-token-ttl: ${REFRESH_TOKEN_TTL:8h}
   cors:
     allowed-origins: ${CORS_ORIGINS:http://localhost:4200,http://localhost:4300}
   demo:
-    # Buoi 3: tu khoa tim thue bao ngan hon 5 ky tu tra ve cham 2 giay. Chi bat khi demo trong lop.
+    # Buổi 3: từ khóa tìm thuê bao ngắn hơn 5 ký tự trả về chậm 2 giây. Chỉ bật khi demo trong lớp.
     slow-short-query: ${DEMO_SLOW_SHORT_QUERY:false}
 
 server:

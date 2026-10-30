@@ -11,14 +11,14 @@ export const THEME_PREFERENCES: readonly ThemePreference[] = [
 
 const STORAGE_KEY = 'care.theme';
 const DARK_LINK_ID = 'care-dark-theme';
-/** CSS dark cua ng-zorro, copy vao /themes khi build (project.json -> assets). Chi tai khi can. */
+/** CSS dark của ng-zorro, copy vào /themes khi build (project.json -> assets). Chỉ tải khi cần. */
 const DARK_CSS_HREF = 'themes/ng-zorro-antd.dark.min.css';
 const DARK_QUERY = '(prefers-color-scheme: dark)';
 
 /**
- * Theme sang/toi. Mac dinh "system": theo cai dat he dieu hanh va tu doi khi he dieu hanh doi.
- * Script trong index.html da dat san data-theme truoc khi Angular chay (tranh nhay trang);
- * service nay tiep quan tu do.
+ * Theme sáng/tối. Mặc định "system": theo cài đặt hệ điều hành và tự đổi khi hệ điều hành đổi.
+ * Script trong index.html đã đặt sẵn data-theme trước khi Angular chạy (tránh nháy trang);
+ * service này tiếp quản từ đó.
  */
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
@@ -51,7 +51,7 @@ export class ThemeService {
   private apply(theme: Theme): void {
     const html = this.document.documentElement;
     html.dataset['theme'] = theme;
-    // Thanh cuon, o nhap mac dinh cua trinh duyet cung doi theo.
+    // Thanh cuộn, ô nhập mặc định của trình duyệt cũng đổi theo.
     html.style.colorScheme = theme;
 
     let link = this.document.getElementById(
@@ -64,7 +64,7 @@ export class ThemeService {
       link.href = DARK_CSS_HREF;
     }
     if (link) {
-      // Phai dung SAU stylesheet sang cua ng-zorro thi moi ghi de duoc.
+      // Phải dùng SAU stylesheet sáng của ng-zorro thì mới ghi đè được.
       this.document.head.appendChild(link);
       link.disabled = theme !== 'dark';
     }
@@ -86,6 +86,6 @@ function writePreference(preference: ThemePreference): void {
   try {
     localStorage.setItem(STORAGE_KEY, preference);
   } catch {
-    // bo qua
+    // bỏ qua
   }
 }

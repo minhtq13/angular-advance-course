@@ -27,7 +27,7 @@ const PRIORITIES: readonly TicketPriority[] = [
   'URGENT',
 ];
 const PAGE_SIZES: readonly number[] = [20, 50, 100];
-/** Chi cot ma bang cho sap xep (nzColumnKey). */
+/** Chỉ cột mã bảng cho sắp xếp (nzColumnKey). */
 const SORT = /^(code|priority|createdAt),(asc|desc)$/;
 
 function oneOf<T extends string>(
@@ -37,7 +37,7 @@ function oneOf<T extends string>(
   return allowed.includes(value as T) ? (value as T) : null;
 }
 
-/** Doc bo loc tu URL. Gia tri sai bi bo qua: URL la input nguoi dung sua tay duoc, khong tin. */
+/** Đọc bộ lọc từ URL. Giá trị sai bị bỏ qua: URL là input người dùng sửa tay được, không tin. */
 export function filtersFromParams(params: ParamMap): TicketFilters {
   return {
     status: oneOf(params.get('status'), STATUSES),
@@ -46,7 +46,7 @@ export function filtersFromParams(params: ParamMap): TicketFilters {
   };
 }
 
-/** Tren URL trang dem tu 1 (de doc, de chia se); trong code dem tu 0 nhu Spring Data. */
+/** Trên URL trang đếm từ 1 (để đọc, để chia sẻ); trong code đếm từ 0 như Spring Data. */
 export function pageFromParams(params: ParamMap): PageRequest {
   const page = Number(params.get('page'));
   const size = Number(params.get('size'));
@@ -58,7 +58,7 @@ export function pageFromParams(params: ParamMap): PageRequest {
   };
 }
 
-/** Bo gia tri mac dinh de URL gon: /tickets?status=NEW thay vi ...&page=1&size=20&sort=id,desc. */
+/** Bỏ giá trị mặc định để URL gọn: /tickets?status=NEW thay vì ...&page=1&size=20&sort=id,desc. */
 export function toQueryParams(
   filters: TicketFilters,
   page: PageRequest,

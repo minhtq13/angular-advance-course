@@ -8,8 +8,8 @@ import { DEFAULT_LANG, isLang, Lang } from './languages';
 const STORAGE_KEY = 'care.lang';
 
 /**
- * Nguon su that duy nhat cho ngon ngu dang dung. Doi ngon ngu -> dong bo:
- * Transloco (chu), ng-zorro (phan trang, bang rong...), <html lang> (trinh doc man hinh), localStorage.
+ * Nguồn sự thật duy nhất cho ngôn ngữ đang dùng. Đổi ngôn ngữ -> đồng bộ:
+ * Transloco (chữ), ng-zorro (phân trang, bảng rỗng...), <html lang> (trình đọc màn hình), localStorage.
  */
 @Injectable({ providedIn: 'root' })
 export class LanguageService {
@@ -20,7 +20,7 @@ export class LanguageService {
   private readonly current = signal<Lang>(DEFAULT_LANG);
   readonly lang = this.current.asReadonly();
 
-  /** Chay truoc khi app render: tai san file dich -> khong nhap nhay key tho. */
+  /** Chạy trước khi app render: tải sẵn file dịch -> không nhấp nháy key thô. */
   async init(): Promise<void> {
     const saved = readStorage();
     await this.use(isLang(saved) ? saved : DEFAULT_LANG);
@@ -36,7 +36,7 @@ export class LanguageService {
   }
 }
 
-// localStorage co the bi chan (che do rieng tu) -> khong de app loi vi no.
+// localStorage có thể bị chặn (chế độ riêng tư) -> không để app lỗi vì nó.
 function readStorage(): string | null {
   try {
     return localStorage.getItem(STORAGE_KEY);
@@ -49,6 +49,6 @@ function writeStorage(lang: Lang): void {
   try {
     localStorage.setItem(STORAGE_KEY, lang);
   } catch {
-    // bo qua
+    // bỏ qua
   }
 }

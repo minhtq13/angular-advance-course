@@ -3,7 +3,7 @@ import { inject } from '@angular/core';
 import { APP_CONFIG } from '@care/shared-util-config';
 import { LanguageService } from './language.service';
 
-/** Bao backend ngon ngu dang dung -> thong bao loi (ProblemDetail.detail) tra ve dung ngon ngu. */
+/** Báo backend ngôn ngữ đang dùng -> thông báo lỗi (ProblemDetail.detail) trả về đúng ngôn ngữ. */
 export const acceptLanguageInterceptor: HttpInterceptorFn = (req, next) => {
   const { apiUrl } = inject(APP_CONFIG);
   if (!req.url.startsWith(apiUrl)) {

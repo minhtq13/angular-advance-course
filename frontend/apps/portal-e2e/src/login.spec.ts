@@ -21,7 +21,7 @@ test.describe('Dang nhap va tra cuu thue bao', () => {
     await page.getByLabel('Mật khẩu').fill('agent1');
     await page.getByRole('button', { name: 'Đăng nhập' }).click();
 
-    // Quay lai dung trang dang mo truoc khi dang nhap.
+    // Quay lại đúng trang đang mở trước khi đăng nhập.
     await expect(page).toHaveURL(/\/subscribers$/);
     await expect(page.locator('.user-info')).toContainText('Agent One');
     await expect(page).toHaveTitle('Thuê bao · Care Portal');
@@ -39,14 +39,14 @@ test.describe('Dang nhap va tra cuu thue bao', () => {
 
     await expect(page).toHaveURL(/\/subscribers\/17$/);
     await expect(page.locator('h1')).toContainText('0900000017');
-    // agent khong co quyen doi trang thai.
+    // agent không có quyền đổi trạng thái.
     await expect(page.getByRole('button', { name: 'Tạm khóa' })).toHaveCount(0);
 
-    // Tai lai trang van con dang nhap (token trong sessionStorage).
+    // Tải lại trang vẫn còn đăng nhập (token trong sessionStorage).
     await page.reload();
     await expect(page.locator('h1')).toContainText('0900000017');
 
-    // Dang xuat nam trong menu tai khoan.
+    // Đăng xuất nằm trong menu tài khoản.
     await page.getByRole('button', { name: 'Tài khoản Agent One' }).click();
     await page.getByText('Đăng xuất').click();
     await expect(page).toHaveURL(/\/login$/);
@@ -55,7 +55,7 @@ test.describe('Dang nhap va tra cuu thue bao', () => {
   test('dang nhap xong quay lai dung trang dang mo (returnUrl)', async ({
     page,
   }) => {
-    // Khong dung /subscribers: do la trang mac dinh nen khong chung minh duoc returnUrl.
+    // Không dùng /subscribers: đó là trang mặc định nên không chứng minh được returnUrl.
     await page.goto('/tickets');
     await expect(page).toHaveURL(/\/login\?returnUrl=%2Ftickets/);
     await page.getByLabel('Tên đăng nhập').fill('agent1');
@@ -75,11 +75,11 @@ test.describe('Dang nhap va tra cuu thue bao', () => {
     await page.getByRole('button', { name: 'Đăng nhập' }).click();
     await expect(page).toHaveURL(/\/subscribers$/);
 
-    // Vd: tai lai trang ngay sau khi dang nhap, hoac mo lai link cu trong tab moi.
+    // Vd: tải lại trang ngay sau khi đăng nhập, hoặc mở lại link cũ trong tab mới.
     await page.goto('/login?returnUrl=%2Ftickets');
     await expect(page).toHaveURL(/\/tickets$/);
 
-    // returnUrl tro ra ngoai -> bi chan, ve trang chu.
+    // returnUrl trỏ ra ngoài -> bị chặn, về trang chủ.
     await page.goto('/login?returnUrl=%2F%2Fevil.com');
     await expect(page).toHaveURL(/\/subscribers$/);
   });

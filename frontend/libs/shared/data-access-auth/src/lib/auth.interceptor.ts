@@ -1,40 +1,47 @@
-import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
+import {
+  HttpErrorResponse,
+  HttpInterceptorFn,
+  HttpRequest,
+} from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { APP_CONFIG } from '@care/shared-util-config';
-import { catchError, throwError } from 'rxjs';
+import { catchError, switchMap, throwError } from 'rxjs';
 import { AuthService } from './auth.service';
 
-/** Chi gan token cho request toi API cua minh - khong lam lo token sang domain khac. */
+const withBearer = <T>(req: HttpRequest<T>, token: string | null) =>
+  token ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } }) : req;
+
+/** Chỉ gắn token cho request tới API của mình - không làm lộ token sang domain khác. */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
   const router = inject(Router);
   const { apiUrl } = inject(APP_CONFIG);
 
-  if (!req.url.startsWith(apiUrl)) {
+  // Endpoint đăng nhập/refresh không cần token. Gửi kèm token đã hết hạn -> server từ chối (401)
+  // ngay cả ở endpoint permitAll, refresh không bao giờ thành công.
+  const isAuthEndpoint = req.url.startsWith(`${apiUrl}/api/auth/`);
+  if (!req.url.startsWith(apiUrl) || isAuthEndpoint) {
     return next(req);
   }
 
   const token = auth.accessToken();
-  const authReq = token
-    ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } })
-    : req;
 
-  return next(authReq).pipe(
+  return next(withBearer(req, token)).pipe(
     catchError((error: unknown) => {
-      // 401 tu /api/auth/login la "sai mat khau" -> de man hinh dang nhap tu xu ly.
-      const isAuthEndpoint = req.url.startsWith(`${apiUrl}/api/auth/`);
-      // Chi bat dang nhap lai khi request CO gui token ma bi tu choi (token het han / bi thu hoi).
-      // Request khong co token (vd trang cu con goi API ngay luc dang xuat) -> chi tra loi,
-      // khong dieu huong, tranh tranh chap voi dieu huong cua logout().
-      if (
-        error instanceof HttpErrorResponse &&
-        error.status === 401 &&
-        token &&
-        !isAuthEndpoint
-      ) {
-        // Token het han/khong hop le. Buoi 6: thu refresh token truoc khi bat dang nhap lai.
-        auth.login(router.url);
+      // Chỉ refresh khi request CÓ gửi token mà bị từ chối (token hết hạn / bị revoke).
+      // Request không có token (vd trang cũ còn gọi API ngay lúc đăng xuất) -> chỉ trả lời,
+      // không điều hướng, tránh tranh chấp với điều hướng của logout().
+      if (error instanceof HttpErrorResponse && error.status === 401 && token) {
+        // Access token hết hạn -> đổi refresh token lấy token mới, gửi lại request một lần.
+        return auth.refresh().pipe(
+          switchMap((freshToken) => next(withBearer(req, freshToken))),
+          catchError((refreshError: unknown) => {
+            // Refresh không được (hết hạn, bị revoke) -> đăng nhập lại, quay về đúng trang.
+            auth.login(router.url);
+            return throwError(() => refreshError);
+          }),
+        );
       }
       return throwError(() => error);
     }),

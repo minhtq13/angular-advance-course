@@ -66,7 +66,7 @@ Chạy demo trên nhánh đã áp đủ 3 patch.
 | Template-driven form có được không? | Được với form đơn giản. Form nghiệp vụ cần validator tùy biến, lỗi server, test không cần DOM: Reactive Forms dễ kiểm soát hơn. Angular 21+ có Signal Forms (thử nghiệm), chưa dùng cho dự án production. |
 | `nzErrorTip` có sẵn, sao không dùng? | Màu chữ mặc định `#ff4d4f` chỉ ~3,3:1 (không đạt WCAG AA) và không có `id` để nối `aria-describedby`. |
 | Sao không dùng `exhaustMap` cho nút gửi? | Dùng được khi luồng gửi là Observable (buổi 3). Ở đây `submitting()` + disable đủ cho click; cả hai đều chỉ là chống nhấp lặp phía client. |
-| Idempotency-Key do client sinh có an toàn không? | Key không phải bí mật, chỉ chống trùng. Server gắn key với người dùng (scope theo username) để người khác không "đụng" key. Key phải đủ ngẫu nhiên (UUID v4). |
+| Idempotency-Key do client sinh có an toàn không? | Key không phải secret, chỉ chống trùng. Server gắn key với người dùng (scope theo username) để người khác không "đụng" key. Key phải đủ ngẫu nhiên (UUID v4). |
 | Sao không tự động tải lại khi gặp 409? | Có thể, nhưng người dùng cần biết dữ liệu đã đổi. Tự tải lại mà không báo thì người dùng tưởng thao tác của mình đã thành công. |
 | ETag / `If-Match` thì sao? | Cùng ý tưởng optimistic locking theo chuẩn HTTP (412 Precondition Failed). Repo dùng `version` trong body cho dễ đọc. |
 

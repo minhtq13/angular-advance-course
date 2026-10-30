@@ -1,0 +1,169 @@
+diff --git a/frontend/libs/shared/data-access-auth/src/lib/api-url.spec.ts b/frontend/libs/shared/data-access-auth/src/lib/api-url.spec.ts
+new file mode 100644
+index 0000000..a1539ca
+--- /dev/null
++++ b/frontend/libs/shared/data-access-auth/src/lib/api-url.spec.ts
+@@ -0,0 +1,42 @@
++import { apiPathOf } from './api-url';
++
++const BASE = 'http://localhost:4200/tickets';
++
++describe('apiPathOf', () => {
++  it.each([
++    [
++      'http://localhost:8081/api/tickets',
++      'http://localhost:8081',
++      '/api/tickets',
++    ],
++    [
++      'http://localhost:8081/api/tickets?page=1',
++      'http://localhost:8081',
++      '/api/tickets',
++    ],
++    ['HTTP://LOCALHOST:8081/api/me', 'http://localhost:8081', '/api/me'],
++    [
++      'https://care.vnpt.vn/care/api/me',
++      'https://care.vnpt.vn/care/',
++      '/api/me',
++    ],
++    ['/api/me', '', '/api/me'],
++    ['api/me', '', '/api/me'],
++  ])('%s thuoc API %s -> %s', (url, apiUrl, path) => {
++    expect(apiPathOf(url, apiUrl, BASE)).toBe(path);
++  });
++
++  it.each([
++    ['http://localhost:8081.evil.com/api/me', 'http://localhost:8081'],
++    ['http://localhost:8081@evil.com/api/me', 'http://localhost:8081'],
++    ['https://api.care.vn.evil.com/api/me', 'https://api.care.vn'],
++    ['http://localhost:8082/api/me', 'http://localhost:8081'],
++    ['https://localhost:8081/api/me', 'http://localhost:8081'],
++    ['https://care.vnpt.vn/care-evil/api/me', 'https://care.vnpt.vn/care'],
++    ['https://cdn.example.com/logo.png', ''],
++    ['//evil.com/api/me', ''],
++    ['http://[::1', 'http://localhost:8081'],
++  ])('%s KHONG thuoc API %s', (url, apiUrl) => {
++    expect(apiPathOf(url, apiUrl, BASE)).toBeNull();
++  });
++});
+diff --git a/frontend/libs/shared/data-access-auth/src/lib/api-url.ts b/frontend/libs/shared/data-access-auth/src/lib/api-url.ts
+new file mode 100644
+index 0000000..f49b60e
+--- /dev/null
++++ b/frontend/libs/shared/data-access-auth/src/lib/api-url.ts
+@@ -0,0 +1,28 @@
++/**
++ * Đường dẫn của url bên trong API (vd "/api/tickets"), hoặc null nếu url không thuộc API của mình.
++ * So sánh origin (scheme + host + port) và thư mục gốc của API, KHÔNG so chuỗi đầu:
++ * "http://api".startsWith nhầm cả "http://api.evil.com", "http://api@evil.com" (host là evil.com), "http://apix".
++ * apiUrl rỗng = API cùng origin với app (sau reverse proxy): tính theo base của trang.
++ */
++export function apiPathOf(
++  url: string,
++  apiUrl: string,
++  base: string,
++): string | null {
++  let target: URL;
++  let api: URL;
++  try {
++    target = new URL(url, base);
++    api = new URL(apiUrl || '/', base);
++  } catch {
++    return null;
++  }
++  const root = api.pathname.replace(/\/$/, '');
++  if (
++    target.origin !== api.origin ||
++    (target.pathname !== root && !target.pathname.startsWith(`${root}/`))
++  ) {
++    return null;
++  }
++  return target.pathname.slice(root.length) || '/';
++}
+diff --git a/frontend/libs/shared/data-access-auth/src/lib/auth.interceptor.spec.ts b/frontend/libs/shared/data-access-auth/src/lib/auth.interceptor.spec.ts
+index 93703a7..d48959e 100644
+--- a/frontend/libs/shared/data-access-auth/src/lib/auth.interceptor.spec.ts
++++ b/frontend/libs/shared/data-access-auth/src/lib/auth.interceptor.spec.ts
+@@ -36,7 +36,7 @@ describe('authInterceptor', () => {
+   let navigate: ReturnType<typeof vi.spyOn>;
+ 
+   /** Đăng nhập sẵn: access token "A1" (coi như đã hết hạn ở server), refresh token "R1". */
+-  async function setup(loggedIn = true) {
++  async function setup(loggedIn = true, apiUrl = API) {
+     sessionStorage.clear();
+     if (loggedIn) {
+       sessionStorage.setItem(
+@@ -53,7 +53,7 @@ describe('authInterceptor', () => {
+         provideHttpClient(withInterceptors([authInterceptor])),
+         provideHttpClientTesting(),
+         provideRouter([]),
+-        provideAppConfig({ apiUrl: API }),
++        provideAppConfig({ apiUrl }),
+       ],
+     });
+     http = TestBed.inject(HttpTestingController);
+@@ -101,6 +101,37 @@ describe('authInterceptor', () => {
+     ).toBe(false);
+   });
+ 
++  it.each([
++    'http://api.evil.com/api/me',
++    'http://api@evil.com/api/me',
++    'http://api:8443/api/me',
++    'http://apix/api/me',
++    'https://cdn.example.com/logo.png',
++  ])(
++    'khong gan token cho URL ngoai API (so origin, khong so chuoi dau): %s',
++    async (url) => {
++      await setup();
++      get(url);
++
++      expect(http.expectOne(url).request.headers.has('Authorization')).toBe(
++        false,
++      );
++    },
++  );
++
++  it('apiUrl rong (cung origin voi app, sau reverse proxy) -> chi gan cho API cung origin', async () => {
++    await setup(true, '');
++    get('/api/me');
++    get('https://cdn.example.com/logo.png');
++
++    expect(bearerOf(http.expectOne('/api/me'))).toBe(`Bearer ${fakeJwt('A1')}`);
++    expect(
++      http
++        .expectOne('https://cdn.example.com/logo.png')
++        .request.headers.has('Authorization'),
++    ).toBe(false);
++  });
++
+   it('401 -> refresh mot lan -> gui lai request voi token moi', async () => {
+     await setup();
+     const result = get(`${API}/api/tickets`);
+diff --git a/frontend/libs/shared/data-access-auth/src/lib/auth.interceptor.ts b/frontend/libs/shared/data-access-auth/src/lib/auth.interceptor.ts
+index 5f01512..457b5b4 100644
+--- a/frontend/libs/shared/data-access-auth/src/lib/auth.interceptor.ts
++++ b/frontend/libs/shared/data-access-auth/src/lib/auth.interceptor.ts
+@@ -3,9 +3,10 @@ import {
+   HttpInterceptorFn,
+   HttpRequest,
+ } from '@angular/common/http';
+-import { inject } from '@angular/core';
++import { DOCUMENT, inject } from '@angular/core';
+ import { APP_CONFIG } from '@care/shared-util-config';
+ import { catchError, of, switchMap, throwError } from 'rxjs';
++import { apiPathOf } from './api-url';
+ import { AuthService } from './auth.service';
+ 
+ const withBearer = <T>(req: HttpRequest<T>, token: string | null) =>
+@@ -18,8 +19,8 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
+ 
+   // Endpoint đăng nhập/refresh không cần token. Gửi kèm token đã hết hạn -> server từ chối (401)
+   // ngay cả ở endpoint permitAll, refresh không bao giờ thành công.
+-  const isAuthEndpoint = req.url.startsWith(`${apiUrl}/api/auth/`);
+-  if (!req.url.startsWith(apiUrl) || isAuthEndpoint) {
++  const path = apiPathOf(req.url, apiUrl, inject(DOCUMENT).baseURI);
++  if (path === null || path.startsWith('/api/auth/')) {
+     return next(req);
+   }
+ 

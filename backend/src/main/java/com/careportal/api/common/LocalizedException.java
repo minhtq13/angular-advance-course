@@ -1,8 +1,8 @@
 package com.careportal.api.common;
 
 /**
- * Loi nghiep vu mang ma thong bao (key trong messages*.properties) + tham so, KHONG mang cau chu co dinh.
- * GlobalExceptionHandler dich ra ngon ngu cua request (header Accept-Language).
+ * Lỗi nghiệp vụ mang mã thông báo (key trong messages*.properties) + tham số, KHÔNG mang câu chữ cố định.
+ * GlobalExceptionHandler dịch ra ngôn ngữ của request (header Accept-Language).
  */
 public abstract class LocalizedException extends RuntimeException {
 
@@ -23,7 +23,7 @@ public abstract class LocalizedException extends RuntimeException {
         return args;
     }
 
-    /** Tham so cung can dich truoc khi ghep vao cau (vd ten tai nguyen, gia tri enum). */
+    /** Tham số cũng cần dịch trước khi ghép vào câu (vd tên resource, giá trị enum). */
     public record Translatable(String key) {
     }
 }

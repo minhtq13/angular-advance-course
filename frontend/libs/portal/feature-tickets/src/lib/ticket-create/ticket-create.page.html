@@ -2,7 +2,7 @@
   <h1>{{ 'ticket.form.heading' | transloco }}</h1>
 </div>
 
-<!-- Ngoai @if de trinh doc man hinh luon theo doi vung nay. -->
+<!-- Ngoài @if để trình đọc màn hình luôn theo dõi vùng này. -->
 <div aria-live="assertive">
   @if (submitError(); as err) {
   <nz-alert
@@ -23,7 +23,7 @@
   (ngSubmit)="submit()"
   novalidate
 >
-  <!-- Moi truong: label noi bang for/id, aria-invalid + aria-describedby tro toi loi. -->
+  <!-- Mọi trường: label nối bằng for/id, aria-invalid + aria-describedby trỏ tới lỗi. -->
   @let subscriberErr = errorOf('subscriberId');
   <nz-form-item>
     <nz-form-label nzFor="tk-subscriber" nzRequired

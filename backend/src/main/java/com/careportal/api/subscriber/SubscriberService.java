@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class SubscriberService {
 
-    /** Tu khoa ngan hon so ky tu nay bi lam cham khi bat che do demo. */
+    /** Từ khóa ngắn hơn số ký tự này bị làm chậm khi bật chế độ demo. */
     static final int SHORT_QUERY = 5;
 
     private final SubscriberRepository repository;
@@ -28,8 +28,8 @@ public class SubscriberService {
     private final SubscriberMapper mapper;
 
     /**
-     * Buoi 3: DEMO_SLOW_SHORT_QUERY=true -> tu khoa ngan (khop nhieu ban ghi) tra ve cham 2 giay, de tai hien
-     * "request cu ve sau request moi" tren trinh duyet. Mac dinh tat; khong bao gio bat o moi truong that.
+     * Buổi 3: DEMO_SLOW_SHORT_QUERY=true -> từ khóa ngắn (khớp nhiều bản ghi) trả về chậm 2 giây, để tái hiện
+     * "request cũ về sau request mới" trên trình duyệt. Mặc định tắt; không bao giờ bật ở môi trường thật.
      */
     @Value("${care.demo.slow-short-query:false}")
     private boolean slowShortQuery;

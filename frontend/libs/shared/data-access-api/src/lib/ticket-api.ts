@@ -26,14 +26,14 @@ export class TicketApi {
     return this.http.get<Ticket>(`${this.baseUrl}/${id}`);
   }
 
-  /** idempotencyKey: gui lai cung key thi backend tra lai phieu da tao, khong tao phieu moi (buoi 2). */
+  /** idempotencyKey: gửi lại cùng key thì backend trả lại phiếu đã tạo, không tạo phiếu mới (buổi 2). */
   create(request: CreateTicketRequest, idempotencyKey?: string) {
     return this.http.post<Ticket>(this.baseUrl, request, {
       headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {},
     });
   }
 
-  /** Chi SUPERVISOR; version cu -> 409. */
+  /** Chỉ SUPERVISOR; version cũ -> 409. */
   approve(id: number, version: number) {
     return this.http.post<Ticket>(`${this.baseUrl}/${id}/approve`, {
       version,

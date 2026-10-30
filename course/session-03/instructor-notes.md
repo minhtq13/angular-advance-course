@@ -75,7 +75,7 @@
 | Không thấy request cũ về muộn | Chưa bật `DEMO_SLOW_SHORT_QUERY`, hoặc dừng gõ quá lâu sau `0900` (request kịp về) | Bật chế độ demo; gõ `123` trong vòng 1 giây sau khi dừng |
 | `expectSubscriptions` rỗng | `search` tạo `cold` mới mỗi lần | Tạo `slow`/`fast` trước, trả về cùng instance |
 | Marble lệch 1ms | Quên mỗi giá trị chiếm 1 khung | `'300ms x 400ms y'`: `y` ở 701, không phải 700 |
-| `TypeError: lookup(...) is not a function` trong test cũ | Đổi chữ ký thành object nhưng test gọi `lookup(search, 300)` | `lookup(search, { debounceMs: 300 })` |
+| `TypeError: lookup(...) is not a function` trong test cũ | Đổi signature thành object nhưng test gọi `lookup(search, 300)` | `lookup(search, { debounceMs: 300 })` |
 | Test lỗi vẫn đỏ sau khi chuyển `catchError` | Đặt `catchError` trước `startWith` | Thứ tự: `map`, `startWith`, `catchError` (lỗi xảy ra sau `loading`) |
 | `NG0203: toSignal() can only be used within an injection context` | Gọi `toSignal` trong method | Khai báo ở field hoặc trong constructor |
 | Test picker treo hoặc timeout | `vi.useFakeTimers()` trước `whenStable()` | Bật fake timers sau khi render xong |

@@ -39,7 +39,7 @@ export default defineConfig({
     reuseExistingServer: true,
     cwd: workspaceRoot,
   },
-  // E2E can stack that day du: infra (docker compose) + backend dang chay. Xem README.
+  // E2E có thể chồng nhiều thứ: infra (docker compose) + backend đang chạy. Xem README.
   projects: [
     {
       name: 'chromium',

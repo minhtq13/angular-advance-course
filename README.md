@@ -35,7 +35,7 @@ Dùng JWT do chính backend phát, không cần máy chủ đăng nhập riêng:
 
 1. Trang `/login` gửi `POST /api/auth/login` → backend kiểm tra mật khẩu (bcrypt) và trả về access token + refresh token (JWT, ký HS256).
 2. Frontend gắn `Authorization: Bearer <access token>` vào mọi request tới API (interceptor).
-3. Backend kiểm tra chữ ký, hạn dùng và role trong claim `roles` của token; refresh token không dùng để gọi API được.
+3. Backend kiểm tra signature, hạn dùng và role trong claim `roles` của token; refresh token không dùng để gọi API được.
 
 Hai app `portal` và `admin` đăng nhập riêng (token lưu trong `sessionStorage` của từng app).
 

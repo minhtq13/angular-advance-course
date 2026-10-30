@@ -47,22 +47,22 @@ const DESCRIPTION_MAX = 4000;
 type FieldName =
   'subscriberId' | 'category' | 'priority' | 'title' | 'description';
 
-/** Thong bao loi cua mot truong: key dich (loi client) hoac chu da dich san (loi server). */
+/** Thông báo lỗi của một trường: key dịch (lỗi client) hoặc chữ đã dịch sẵn (lỗi server). */
 type FieldError =
   { key: string; params?: Record<string, unknown> } | { text: string };
 
 const LIST_URL = '/tickets';
 
 /**
- * Chi quay ve danh sach phieu (kem bo loc cua no); URL khac -> danh sach mac dinh.
- * returnUrl den tu query param: khong tin, chong open redirect.
+ * Chỉ quay về danh sách phiếu (kèm bộ lọc của nó); URL khác -> danh sách mặc định.
+ * returnUrl đến từ query param: không tin, chống open redirect.
  */
 function backToList(url: unknown): string {
   const safe = safeReturnUrl(url);
   return safe === LIST_URL || safe.startsWith(`${LIST_URL}?`) ? safe : LIST_URL;
 }
 
-/** "?subscriberId=12" -> 12; thieu hoac sai -> undefined. */
+/** "?subscriberId=12" -> 12; thiếu hoặc sai -> undefined. */
 function toId(value: unknown): number | undefined {
   const id = Number(value);
   return Number.isInteger(id) && id > 0 ? id : undefined;
@@ -92,11 +92,11 @@ export class TicketCreatePage implements OnInit {
   private readonly injector = inject(Injector);
   private readonly destroyRef = inject(DestroyRef);
 
-  /** Tu query param (withComponentInputBinding): /tickets/new?subscriberId=12 */
+  /** Từ query param (withComponentInputBinding): /tickets/new?subscriberId=12 */
   readonly subscriberId = input<number | undefined, unknown>(undefined, {
     transform: toId,
   });
-  /** Danh sach (kem bo loc) de quay ve sau khi tao hoac khi bam Huy: /tickets/new?returnUrl=%2Ftickets%3Fstatus%3DNEW */
+  /** Danh sách (kèm bộ lọc) để quay về sau khi tạo hoặc khi bấm Hủy: /tickets/new?returnUrl=%2Ftickets%3Fstatus%3DNEW */
   readonly returnUrl = input<string>();
   protected readonly backUrl = computed(() =>
     this.router.parseUrl(backToList(this.returnUrl())),
@@ -130,11 +130,11 @@ export class TicketCreatePage implements OnInit {
   protected readonly submitting = signal(false);
 
   /**
-   * Mot key cho mot lan "tao phieu". Gui lai sau loi mang dung lai key nay, nen neu request truoc
-   * thuc ra da toi server thi backend tra lai dung phieu do thay vi tao phieu thu hai.
+   * Một key cho một lần "tạo phiếu". Gửi lại sau lỗi mạng dùng lại key này, nên nếu request trước
+   * thực ra đã tới server thì backend trả lại đúng phiếu đó thay vì tạo phiếu thứ hai.
    */
   private idempotencyKey = crypto.randomUUID();
-  /** Loi chung cua lan gui (dat tren form). null = khong co loi. */
+  /** Lỗi chung của lần gửi (đặt trên form). null = không có lỗi. */
   protected readonly submitError = signal<FieldError | null>(null);
 
   ngOnInit(): void {
@@ -143,7 +143,7 @@ export class TicketCreatePage implements OnInit {
   }
 
   protected submit(): void {
-    // Chong nhap lap phia client. Khong thay duoc idempotency phia server (mang cham, tu dong gui lai, hai tab).
+    // Chống nhập lặp phía client. Không thay được idempotency phía server (mạng chậm, tự động gửi lại, hai tab).
     if (this.submitting()) return;
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -170,12 +170,12 @@ export class TicketCreatePage implements OnInit {
       .subscribe({
         next: (ticket) => {
           this.idempotencyKey = crypto.randomUUID();
-          // Ve dung danh sach dang loc; danh sach tai lai tu server nen thay ngay phieu moi.
+          // Về đúng danh sách đang lọc; danh sách tải lại từ server nên thấy ngay phiếu mới.
           this.router.navigateByUrl(this.backUrl(), {
             state: { created: ticket.code },
           });
         },
-        // Khong reset form: nguoi dung sua hoac gui lai ma khong phai nhap lai.
+        // Không reset form: người dùng sửa hoặc gửi lại mà không phải nhập lại.
         error: (error: unknown) => {
           this.submitting.set(false);
           if (error instanceof TicketValidationError) {
@@ -189,7 +189,7 @@ export class TicketCreatePage implements OnInit {
       });
   }
 
-  /** Loi dau tien cua truong, chi hien sau khi nguoi dung da cham vao (hoac da bam gui). */
+  /** Lỗi đầu tiên của trường, chỉ hiện sau khi người dùng đã chạm vào (hoặc đã bấm gửi). */
   protected errorOf(name: FieldName): FieldError | null {
     const control: AbstractControl = this.form.controls[name];
     if (!control.touched || !control.errors) return null;
@@ -206,7 +206,7 @@ export class TicketCreatePage implements OnInit {
     return null;
   }
 
-  /** Loi tu server gan vao dung truong; tu mat khi nguoi dung sua gia tri (validator chay lai). */
+  /** Lỗi từ server gắn vào đúng trường; tự mất khi người dùng sửa giá trị (validator chạy lại). */
   private applyServerErrors(
     fieldErrors: Readonly<Record<string, string>>,
   ): void {
@@ -224,7 +224,7 @@ export class TicketCreatePage implements OnInit {
         const invalid = this.host.nativeElement.querySelector<HTMLElement>(
           '[aria-invalid="true"]',
         );
-        // nz-select dat aria-invalid tren the bao ngoai: focus vao o nhap ben trong.
+        // nz-select đặt aria-invalid trên thẻ bao ngoài: focus vào ô nhập bên trong.
         const target = invalid?.matches('input, textarea')
           ? invalid
           : invalid?.querySelector<HTMLElement>('input');

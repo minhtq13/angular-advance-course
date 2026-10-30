@@ -1,0 +1,310 @@
+diff --git a/frontend/libs/shared/data-access-auth/src/lib/auth.interceptor.spec.ts b/frontend/libs/shared/data-access-auth/src/lib/auth.interceptor.spec.ts
+index 13de971..93703a7 100644
+--- a/frontend/libs/shared/data-access-auth/src/lib/auth.interceptor.spec.ts
++++ b/frontend/libs/shared/data-access-auth/src/lib/auth.interceptor.spec.ts
+@@ -185,6 +185,59 @@ describe('authInterceptor', () => {
+     expect(navigate).toHaveBeenCalledWith(['/login'], expect.anything());
+   });
+ 
++  it('refresh loi khi 3 request cung cho -> dang xuat MOT lan, giu returnUrl, bao het phien', async () => {
++    await setup();
++    vi.spyOn(TestBed.inject(Router), 'url', 'get').mockReturnValue(
++      '/tickets?status=NEW',
++    );
++    const urls = [
++      `${API}/api/subscribers/1`,
++      `${API}/api/tickets`,
++      `${API}/api/service-plans`,
++    ];
++    const results = urls.map((url) => get(url));
++
++    urls.forEach((url) => http.expectOne(url).flush(null, unauthorized));
++    // Vd refresh token đã bị dùng ở nơi khác (bị lộ) -> server revoke cả phiên.
++    http.expectOne(REFRESH_URL).flush(null, unauthorized);
++
++    expect(results.map((r) => r())).toEqual([401, 401, 401]);
++    expect(navigate).toHaveBeenCalledOnce();
++    expect(navigate).toHaveBeenCalledWith(['/login'], {
++      queryParams: { returnUrl: '/tickets?status=NEW', reason: 'expired' },
++    });
++    expect(auth.isAuthenticated()).toBe(false);
++    expect(sessionStorage.getItem('care.auth')).toBeNull();
++  });
++
++  it('401 ve muon sau khi phien da ket thuc -> khong refresh nua', async () => {
++    await setup();
++    const late = get(`${API}/api/subscribers/1`);
++    get(`${API}/api/tickets`);
++
++    http.expectOne(`${API}/api/tickets`).flush(null, unauthorized);
++    http.expectOne(REFRESH_URL).flush(null, unauthorized);
++    http.expectOne(`${API}/api/subscribers/1`).flush(null, unauthorized);
++
++    http.expectNone(REFRESH_URL);
++    expect(late()).toBe(401);
++    expect(navigate).toHaveBeenCalledOnce();
++  });
++
++  it('refresh loi do mang (khong phai 401) -> khong dang xuat', async () => {
++    await setup();
++    const result = get(`${API}/api/tickets`);
++
++    http.expectOne(`${API}/api/tickets`).flush(null, unauthorized);
++    http
++      .expectOne(REFRESH_URL)
++      .error(new ProgressEvent('error'), { status: 0 });
++
++    expect(result()).toBe(0);
++    expect(auth.isAuthenticated()).toBe(true);
++    expect(navigate).not.toHaveBeenCalled();
++  });
++
+   it('401 khi KHONG co token (vd luc dang xuat) -> khong refresh, khong dieu huong', async () => {
+     await setup(false);
+     const result = get(`${API}/api/subscribers/1`);
+diff --git a/frontend/libs/shared/data-access-auth/src/lib/auth.interceptor.ts b/frontend/libs/shared/data-access-auth/src/lib/auth.interceptor.ts
+index 2940f93..5f01512 100644
+--- a/frontend/libs/shared/data-access-auth/src/lib/auth.interceptor.ts
++++ b/frontend/libs/shared/data-access-auth/src/lib/auth.interceptor.ts
+@@ -4,7 +4,6 @@ import {
+   HttpRequest,
+ } from '@angular/common/http';
+ import { inject } from '@angular/core';
+-import { Router } from '@angular/router';
+ import { APP_CONFIG } from '@care/shared-util-config';
+ import { catchError, of, switchMap, throwError } from 'rxjs';
+ import { AuthService } from './auth.service';
+@@ -15,7 +14,6 @@ const withBearer = <T>(req: HttpRequest<T>, token: string | null) =>
+ /** Chỉ gắn token cho request tới API của mình - không làm lộ token sang domain khác. */
+ export const authInterceptor: HttpInterceptorFn = (req, next) => {
+   const auth = inject(AuthService);
+-  const router = inject(Router);
+   const { apiUrl } = inject(APP_CONFIG);
+ 
+   // Endpoint đăng nhập/refresh không cần token. Gửi kèm token đã hết hạn -> server từ chối (401)
+@@ -34,17 +32,16 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
+       // không điều hướng, tránh tranh chấp với điều hướng của logout().
+       if (error instanceof HttpErrorResponse && error.status === 401 && token) {
+         // Access token hết hạn -> lấy token mới, gửi lại request một lần.
+-        // Token hiện tại đã khác token đã gửi: request khác vừa refresh xong (401 này về muộn) -> dùng luôn.
++        // Refresh lỗi thì AuthService tự đăng xuất (một lần); ở đây chỉ trả lời cho nơi gọi.
+         const current = auth.accessToken();
+-        const freshToken$ =
+-          current && current !== token ? of(current) : auth.refresh();
++        if (!current) {
++          // Phiên đã kết thúc trong lúc request này chờ (refresh trước đó thất bại, người dùng đăng xuất).
++          return throwError(() => error);
++        }
++        // Token hiện tại đã khác token đã gửi: request khác vừa refresh xong (401 này về muộn) -> dùng luôn.
++        const freshToken$ = current !== token ? of(current) : auth.refresh();
+         return freshToken$.pipe(
+           switchMap((freshToken) => next(withBearer(req, freshToken))),
+-          catchError((refreshError: unknown) => {
+-            // Refresh không được (hết hạn, bị revoke) -> đăng nhập lại, quay về đúng trang.
+-            auth.login(router.url);
+-            return throwError(() => refreshError);
+-          }),
+         );
+       }
+       return throwError(() => error);
+diff --git a/frontend/libs/shared/data-access-auth/src/lib/auth.service.spec.ts b/frontend/libs/shared/data-access-auth/src/lib/auth.service.spec.ts
+index eb5676a..58eed76 100644
+--- a/frontend/libs/shared/data-access-auth/src/lib/auth.service.spec.ts
++++ b/frontend/libs/shared/data-access-auth/src/lib/auth.service.spec.ts
+@@ -24,7 +24,7 @@ describe('AuthService', () => {
+       providers: [
+         provideHttpClient(),
+         provideHttpClientTesting(),
+-        provideRouter([]),
++        provideRouter([{ path: 'login', children: [] }]),
+         provideAppConfig({ apiUrl: 'http://api' }),
+       ],
+     });
+@@ -54,6 +54,28 @@ describe('AuthService', () => {
+     expect(sessionStorage.getItem('care.auth')).toContain(accessToken);
+   });
+ 
++  it('dang xuat -> bao server thu hoi refresh token, xoa phien ngay ca khi server loi', () => {
++    service.loginWithPassword('agent1', 'agent1').subscribe();
++    http.expectOne('http://api/api/auth/login').flush({
++      accessToken: fakeJwt({
++        preferred_username: 'agent1',
++        exp: Date.now() / 1000 + 900,
++      }),
++      refreshToken: 'r1',
++      expiresIn: 900,
++    });
++
++    service.logout();
++
++    expect(service.isAuthenticated()).toBe(false);
++    expect(sessionStorage.getItem('care.auth')).toBeNull();
++    const logout = http.expectOne('http://api/api/auth/logout');
++    expect(logout.request.method).toBe('POST');
++    expect(logout.request.body).toEqual({ refreshToken: 'r1' });
++    logout.flush(null, { status: 500, statusText: 'Server Error' });
++    expect(service.isAuthenticated()).toBe(false);
++  });
++
+   it('khoi dong lai: access token het han nhung refresh token con han -> giu phien', async () => {
+     sessionStorage.setItem(
+       'care.auth',
+diff --git a/frontend/libs/shared/data-access-auth/src/lib/auth.service.ts b/frontend/libs/shared/data-access-auth/src/lib/auth.service.ts
+index 9acc91c..7cdc18d 100644
+--- a/frontend/libs/shared/data-access-auth/src/lib/auth.service.ts
++++ b/frontend/libs/shared/data-access-auth/src/lib/auth.service.ts
+@@ -1,4 +1,4 @@
+-import { HttpClient } from '@angular/common/http';
++import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+ import { computed, inject, Injectable, signal } from '@angular/core';
+ import { Router } from '@angular/router';
+ import { APP_CONFIG } from '@care/shared-util-config';
+@@ -113,7 +113,16 @@ export class AuthService {
+         refreshToken: this.tokens?.refreshToken,
+       })
+       .pipe(
+-        tap((tokens) => this.setTokens(tokens)),
++        tap({
++          next: (tokens) => this.setTokens(tokens),
++          // Đăng xuất ở đây (phần dùng chung) -> chỉ MỘT lần dù bao nhiêu request đang chờ.
++          // Chỉ khi server từ chối (401: hết hạn, bị revoke, reuse); mất mạng thì giữ phiên, thử lại sau.
++          error: (error: unknown) => {
++            if (error instanceof HttpErrorResponse && error.status === 401) {
++              this.login(this.router.url, 'expired');
++            }
++          },
++        }),
+         map((tokens) => tokens.accessToken),
+         // Xong (thành công hay lỗi) -> lần hết hạn sau phải refresh mới, không phát lại kết quả cũ.
+         finalize(() => (this.refreshing = null)),
+@@ -122,16 +131,28 @@ export class AuthService {
+     return this.refreshing;
+   }
+ 
+-  /** Đưa người dùng tới trang đăng nhập; sau khi xong quay lại returnUrl. */
+-  login(returnUrl = this.router.url): void {
++  /**
++   * Đưa người dùng tới trang đăng nhập; sau khi xong quay lại returnUrl.
++   * reason 'expired': phiên kết thúc ngoài ý muốn (refresh bị từ chối) -> trang đăng nhập nói rõ lý do.
++   */
++  login(returnUrl = this.router.url, reason?: 'expired'): void {
+     this.clear();
+-    const queryParams =
+-      returnUrl && !returnUrl.startsWith('/login') ? { returnUrl } : {};
++    const queryParams = {
++      ...(returnUrl && !returnUrl.startsWith('/login') ? { returnUrl } : {}),
++      ...(reason ? { reason } : {}),
++    };
+     this.router.navigate(['/login'], { queryParams });
+   }
+ 
++  /** Revoke refresh token ở server (token bị lộ cũng vô dụng), rồi xóa phiên. Server lỗi vẫn đăng xuất. */
+   logout(): void {
++    const refreshToken = this.tokens?.refreshToken;
+     this.clear();
++    if (refreshToken) {
++      this.http
++        .post(`${this.apiUrl}/api/auth/logout`, { refreshToken })
++        .subscribe({ error: () => undefined });
++    }
+     this.router.navigate(['/login']);
+   }
+ 
+diff --git a/frontend/libs/shared/feature-auth/src/lib/login.page.html b/frontend/libs/shared/feature-auth/src/lib/login.page.html
+index 45cb742..cd0ed80 100644
+--- a/frontend/libs/shared/feature-auth/src/lib/login.page.html
++++ b/frontend/libs/shared/feature-auth/src/lib/login.page.html
+@@ -22,6 +22,13 @@
+         class="error"
+         role="alert"
+       />
++      } @else if (reason() === 'expired') {
++      <nz-alert
++        nzType="warning"
++        [nzMessage]="'auth.sessionExpired' | transloco"
++        nzShowIcon
++        class="error"
++      />
+       }
+     </div>
+ 
+diff --git a/frontend/libs/shared/feature-auth/src/lib/login.page.spec.ts b/frontend/libs/shared/feature-auth/src/lib/login.page.spec.ts
+new file mode 100644
+index 0000000..1ea4928
+--- /dev/null
++++ b/frontend/libs/shared/feature-auth/src/lib/login.page.spec.ts
+@@ -0,0 +1,37 @@
++import { TestBed } from '@angular/core/testing';
++import { provideRouter } from '@angular/router';
++import { AuthService } from '@care/shared-data-access-auth';
++import { provideUi } from '@care/shared-ui-layout';
++import { provideI18nTesting } from '@care/shared-util-i18n/testing';
++import { LoginPage } from './login.page';
++
++describe('LoginPage', () => {
++  beforeEach(async () => {
++    await TestBed.configureTestingModule({
++      imports: [LoginPage],
++      providers: [
++        provideRouter([]),
++        provideUi(),
++        provideI18nTesting(),
++        { provide: AuthService, useValue: {} },
++      ],
++    }).compileComponents();
++  });
++
++  it('bi dang xuat vi het phien (?reason=expired) -> noi ro ly do', async () => {
++    const fixture = TestBed.createComponent(LoginPage);
++    fixture.componentRef.setInput('reason', 'expired');
++    await fixture.whenStable();
++
++    expect(fixture.nativeElement.textContent).toContain(
++      'Phiên đăng nhập đã hết hạn',
++    );
++  });
++
++  it('vao thang trang dang nhap -> khong hien thong bao', async () => {
++    const fixture = TestBed.createComponent(LoginPage);
++    await fixture.whenStable();
++
++    expect(fixture.nativeElement.textContent).not.toContain('hết hạn');
++  });
++});
+diff --git a/frontend/libs/shared/feature-auth/src/lib/login.page.ts b/frontend/libs/shared/feature-auth/src/lib/login.page.ts
+index 9f882ed..b7b52d0 100644
+--- a/frontend/libs/shared/feature-auth/src/lib/login.page.ts
++++ b/frontend/libs/shared/feature-auth/src/lib/login.page.ts
+@@ -52,6 +52,8 @@ export class LoginPage {
+ 
+   /** Bind từ query param ?returnUrl= nhờ withComponentInputBinding(). */
+   readonly returnUrl = input<string>();
++  /** ?reason=expired: bị đăng xuất vì hết phiên (refresh bị từ chối), không phải tự bấm đăng xuất. */
++  readonly reason = input<string>();
+ 
+   protected readonly form = inject(NonNullableFormBuilder).group({
+     username: ['', Validators.required],
+diff --git a/frontend/libs/shared/util-i18n/src/assets/i18n/en.json b/frontend/libs/shared/util-i18n/src/assets/i18n/en.json
+index e126a98..5ecdf6d 100644
+--- a/frontend/libs/shared/util-i18n/src/assets/i18n/en.json
++++ b/frontend/libs/shared/util-i18n/src/assets/i18n/en.json
+@@ -56,6 +56,7 @@
+     "usernameRequired": "Please enter your username",
+     "passwordRequired": "Please enter your password",
+     "submit": "Sign in",
++    "sessionExpired": "Your session has expired, please sign in again",
+     "failed": "Could not sign in, please try again",
+     "demoAccounts": "Demo accounts (password = username): agent1 · supervisor1 · admin1"
+   },
+diff --git a/frontend/libs/shared/util-i18n/src/assets/i18n/vi.json b/frontend/libs/shared/util-i18n/src/assets/i18n/vi.json
+index 34b5c15..3518fc6 100644
+--- a/frontend/libs/shared/util-i18n/src/assets/i18n/vi.json
++++ b/frontend/libs/shared/util-i18n/src/assets/i18n/vi.json
+@@ -56,6 +56,7 @@
+     "usernameRequired": "Vui lòng nhập tên đăng nhập",
+     "passwordRequired": "Vui lòng nhập mật khẩu",
+     "submit": "Đăng nhập",
++    "sessionExpired": "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại",
+     "failed": "Không đăng nhập được, vui lòng thử lại",
+     "demoAccounts": "Tài khoản mẫu (mật khẩu trùng tên đăng nhập): agent1 · supervisor1 · admin1"
+   },

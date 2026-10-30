@@ -16,7 +16,7 @@ import { TicketListPage } from './ticket-list.page';
 import { TicketListStore } from './ticket-list.store';
 import { filter, firstValueFrom } from 'rxjs';
 
-// Tinh nhat quan cua bo loc: URL <-> man hinh <-> request, ke ca Back/Forward va link chia se.
+// Tính nhất quán của bộ lọc: URL <-> màn hình <-> request, kể cả Back/Forward và link chia sẻ.
 describe('TicketListPage - bo loc tren URL', () => {
   let port: InMemoryTicketAdapter;
   let harness: RouterTestingHarness;
@@ -40,7 +40,7 @@ describe('TicketListPage - bo loc tren URL', () => {
       ],
     });
     harness = await RouterTestingHarness.create();
-    // Router chi lang nghe popstate (Back/Forward) sau initialNavigation; TestBed khong bootstrap app nen goi tay.
+    // Router chỉ lắng nghe popstate (Back/Forward) sau initialNavigation; TestBed không bootstrap app nên gọi tay.
     TestBed.inject(Router).initialNavigation();
   });
 
@@ -55,7 +55,7 @@ describe('TicketListPage - bo loc tren URL', () => {
     await harness.fixture.whenStable();
   }
 
-  /** Back/Forward: router xu ly popstate bat dong bo -> cho dieu huong xong. */
+  /** Back/Forward: router xử lý popstate bất đồng bộ -> chờ điều hướng xong. */
   async function afterNavigation(action: () => void) {
     const done = firstValueFrom(
       TestBed.inject(Router).events.pipe(

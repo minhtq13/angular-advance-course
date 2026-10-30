@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Tao lai file dump tu DB dang chay (sau khi backend da chay Flyway).
-# Chay lai script nay moi khi them/sua migration, roi commit file dump moi.
+# Tạo lại file dump từ DB đang chạy (sau khi backend đã chạy Flyway).
+# Chạy lại script này mỗi khi thêm/sửa migration, rồi commit file dump mới.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

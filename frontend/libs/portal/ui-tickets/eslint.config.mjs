@@ -16,7 +16,7 @@ export default [
           style: 'camelCase',
         },
       ],
-      // Dong bang dung selector thuoc tinh (tr[care-ticket-row]) de giu cau truc table hop le.
+      // Dòng bảng dùng selector thuộc tính (tr[care-ticket-row]) để giữ cấu trúc table hợp lệ.
       '@angular-eslint/component-selector': [
         'error',
         {

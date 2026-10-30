@@ -10,7 +10,7 @@ import {
   switchMap,
 } from 'rxjs';
 
-/** Trang thai o tim kiem: dung de hien "dang tim", ket qua, hoac loi. */
+/** Trạng thái ô tìm kiếm: dùng để hiện "đang tìm", kết quả, hoặc lỗi. */
 export interface LookupState<T> {
   status: 'idle' | 'loading' | 'done' | 'error';
   term: string;
@@ -22,15 +22,15 @@ export function idleLookup<T>(term = ''): LookupState<T> {
 }
 
 export interface LookupOptions {
-  /** Cho nguoi dung ngung go bao lau moi tim. */
+  /** Chờ người dùng ngừng gõ bao lâu mới tìm. */
   debounceMs?: number;
-  /** Tu khoa ngan hon thi khong goi API (khop qua nhieu, cham, vo ich). */
+  /** Từ khóa ngắn hơn thì không gọi API (khớp quá nhiều, chậm, vô ích). */
   minLength?: number;
 }
 
 /**
- * Bien dong tu khoa nguoi dung go thanh dong trang thai ket qua tim kiem.
- * search: ham goi API cho mot tu khoa (moi lan goi tra ve Observable rieng).
+ * Biến dòng từ khóa người dùng gõ thành dòng trạng thái kết quả tìm kiếm.
+ * search: hàm gọi API cho một từ khóa (mỗi lần gọi trả về Observable riêng).
  */
 export function lookup<T>(
   search: (term: string) => Observable<T[]>,
@@ -41,16 +41,16 @@ export function lookup<T>(
       map((term) => term.trim()),
       debounceTime(debounceMs),
       distinctUntilChanged(),
-      // switchMap: tu khoa moi -> huy (unsubscribe) request cu; HttpClient abort XHR.
-      // Ket qua cua tu khoa cu khong bao gio ghi de ket qua cua tu khoa moi.
+      // switchMap: từ khóa mới -> hủy (unsubscribe) request cũ; HttpClient abort XHR.
+      // Kết quả của từ khóa cũ không bao giờ ghi đè kết quả của từ khóa mới.
       switchMap((term) =>
         term.length < minLength
           ? of(idleLookup<T>(term))
           : search(term).pipe(
               map((items): LookupState<T> => ({ status: 'done', term, items })),
               startWith<LookupState<T>>({ status: 'loading', term, items: [] }),
-              // Bat loi BEN TRONG switchMap: loi chi ket thuc request nay; luong tu khoa ben ngoai van song,
-              // nguoi dung go tiep la tim tiep. Bat ben ngoai thi loi dau tien lam ca luong hoan tat.
+              // Bắt lỗi BÊN TRONG switchMap: lỗi chỉ kết thúc request này; luồng từ khóa bên ngoài vẫn sống,
+              // người dùng gõ tiếp là tìm tiếp. Bắt bên ngoài thì lỗi đầu tiên làm cả luồng hoàn tất.
               catchError(() =>
                 of<LookupState<T>>({ status: 'error', term, items: [] }),
               ),

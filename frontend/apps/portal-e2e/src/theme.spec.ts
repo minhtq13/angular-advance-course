@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-// Chay ben trong trinh duyet (page.evaluate khong mang duoc ham khai bao o phia Node).
+// Chạy bên trong trình duyệt (page.evaluate không mang được hàm khai báo ở phía Node).
 const darkCssDisabled = () =>
   (document.getElementById('care-dark-theme') as HTMLLinkElement | null)
     ?.disabled ?? true;
@@ -29,7 +29,7 @@ test.describe('Theme sang / toi', () => {
 
     await page.getByRole('button', { name: 'Tối', exact: true }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-    // Nen trang doi sang toi (khong chi doi thuoc tinh).
+    // Nền trang đổi sang tối (không chỉ đổi thuộc tính).
     await expect
       .poll(() =>
         page.evaluate(() => getComputedStyle(document.body).backgroundColor),

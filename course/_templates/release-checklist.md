@@ -4,7 +4,7 @@
 - [ ] Artifact build từ commit/tag `...`, version ghi trong image và trong log lỗi
 - [ ] Gate xanh: lint (gồm luật import), test, build, budget
 - [ ] `npm ci` với lockfile; Node theo `.nvmrc`
-- [ ] Cấu hình môi trường (`config.json`) đã duyệt; không có bí mật trong client
+- [ ] Cấu hình môi trường (`config.json`) đã duyệt; không có secretKey trong client
 - [ ] Migration dữ liệu (nếu có) có cách lùi
 - [ ] Version trước đó (`...`) còn sẵn để rollback
 

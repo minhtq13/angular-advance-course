@@ -31,13 +31,13 @@ import { ThemeService } from './theme.service';
 import { CareTitleStrategy } from './title-strategy';
 
 /**
- * Xanh mac dinh cua ng-zorro (#1890ff) chi dat ~3:1 voi chu trang -> khong dat WCAG AA.
- * #0958d9 dat 6.2:1; ng-zorro tu sinh cac sac do hover/active/nen chon tu mau nay
- * (can dung ng-zorro-antd.variable.min.css).
+ * Xanh mặc định của ng-zorro (#1890ff) chỉ đạt ~3:1 với chữ trắng -> không đạt WCAG AA.
+ * #0958d9 đạt 6.2:1; ng-zorro tự sinh các sắc độ hover/active/nền chọn từ màu này
+ * (cần dùng ng-zorro-antd.variable.min.css).
  */
 const PRIMARY_COLOR = '#0958d9';
 
-/** Chi dang ky icon thuc su dung -> khong keo ca bo icon vao bundle (buoi 5). */
+/** Chỉ đăng ký icon thực sự dùng -> không kéo cả bộ icon vào bundle (buổi 5). */
 const ICONS = [
   AppstoreOutline,
   ArrowLeftOutline,
@@ -62,10 +62,10 @@ export function provideUi(): EnvironmentProviders {
   return makeEnvironmentProviders([
     { provide: TitleStrategy, useClass: CareTitleStrategy },
     provideNzConfig({ theme: { primaryColor: PRIMARY_COLOR } }),
-    // Ngon ngu ban dau; LanguageService (util-i18n) doi sang en_US khi nguoi dung chon English.
+    // Ngôn ngữ ban đầu; LanguageService (util-i18n) đổi sang en_US khi người dùng chọn English.
     provideNzI18n(vi_VN),
     provideNzIcons(ICONS),
-    // Khoi tao som de theme (va CSS dark cua ng-zorro) duoc ap dung truoc khi render.
+    // Khởi tạo sớm để theme (và CSS dark của ng-zorro) được áp dụng trước khi render.
     provideAppInitializer(() => {
       inject(ThemeService);
     }),

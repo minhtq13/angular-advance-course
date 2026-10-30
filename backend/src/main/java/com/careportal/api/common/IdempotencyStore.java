@@ -8,8 +8,8 @@ import java.util.function.Supplier;
 import org.springframework.stereotype.Component;
 
 /**
- * Idempotency cho lenh ghi (buoi 2): cung nguoi dung + cung Idempotency-Key -> tra lai ket qua lan dau, khong tao ban ghi moi.
- * Luu trong bo nho de de doc; production phai luu DB/Redis (nhieu instance, khoi dong lai khong mat).
+ * Idempotency cho lệnh ghi (buổi 2): cùng người dùng + cùng Idempotency-Key -> trả lại kết quả lần đầu, không tạo bản ghi mới.
+ * Lưu trong bộ nhớ để dễ đọc; production phải lưu DB/Redis (nhiều instance, khởi động lại không mất).
  */
 @Component
 public class IdempotencyStore {
@@ -28,7 +28,7 @@ public class IdempotencyStore {
     @SuppressWarnings("unchecked")
     public <T> Outcome<T> execute(String scope, String key, Object request, Supplier<T> action) {
         String id = scope + ":" + key;
-        // Hai request trung key den cung luc: request sau doi request truoc xong roi nhan lai ket qua.
+        // Hai request trùng key đến cùng lúc: request sau đợi request trước xong rồi nhận lại kết quả.
         synchronized (locks.computeIfAbsent(id, k -> new Object())) {
             Instant now = Instant.now();
             entries.values().removeIf(e -> e.expiresAt().isBefore(now));
@@ -39,7 +39,7 @@ public class IdempotencyStore {
                 }
                 return new Outcome<>((T) existing.result(), true);
             }
-            // Action nem loi -> khong luu gi, client duoc thu lai voi cung key.
+            // Action ném lỗi -> không lưu gì, client được thử lại với cùng key.
             T result = action.get();
             entries.put(id, new Entry(request, result, now.plus(TTL)));
             return new Outcome<>(result, false);

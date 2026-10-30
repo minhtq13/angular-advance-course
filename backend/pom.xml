@@ -21,8 +21,8 @@
         <java.version>21</java.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <springdoc.version>2.8.17</springdoc.version>
-        <!-- VS Code / Eclipse (JDT) cung chay annotation processor (MapStruct, Lombok) khi tu build.
-             Thieu dong nay, IDE ghi de target/classes bang *MapperImpl khong implement interface. -->
+        <!-- VS Code / Eclipse (JDT) cũng chạy annotation processor (MapStruct, Lombok) khi tự build.
+             Thiếu dòng này, IDE ghi đè target/classes bằng *MapperImpl không implement interface. -->
         <m2e.apt.activation>jdt_apt</m2e.apt.activation>
     </properties>
 

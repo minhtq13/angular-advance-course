@@ -2,9 +2,9 @@ import { Observable } from 'rxjs';
 import { TestScheduler } from 'rxjs/testing';
 import { lookup, LookupState } from './lookup';
 
-// Test theo trinh tu su kien bang marble: thoi gian ao, khong cho that.
-// Cu phap: '-' = 1 khung thoi gian, 'a' = gia tri (chiem 1ms), '|' = ket thuc,
-// '#' = loi, '300ms' = troi qua 300ms, '^' / '!' = bat dau / huy dang ky.
+// Test theo trình tự sự kiện bằng marble: thời gian ảo, không chờ thật.
+// Cú pháp: '-' = 1 frame, 'a' = giá trị (chiếm 1ms), '|' = kết thúc,
+// '#' = lỗi, '300ms' = trôi qua 300ms, '^' / '!' = subscribe / unsubscribe.
 const loading = (term: string): LookupState<string> => ({
   status: 'loading',
   term,
@@ -30,7 +30,7 @@ describe('lookup', () => {
       const terms = hot('a 100ms b', { a: '0901', b: '09012' });
       const search = (term: string) => cold('50ms (r|)', { r: [term] });
 
-      // 'b' den o 101ms; debounce 300ms -> tim luc 401ms; ket qua sau 50ms -> 451ms.
+      // 'b' đến ở 101ms; debounce 300ms -> tìm lúc 401ms; kết quả sau 50ms -> 451ms.
       expectObservable(terms.pipe(lookup(search))).toBe('401ms l 49ms d', {
         l: loading('09012'),
         d: done('09012'),
@@ -40,7 +40,7 @@ describe('lookup', () => {
 
   it('tu khoa cu tra ve muon khong ghi de ket qua moi, va request cu bi huy', () => {
     scheduler.run(({ cold, hot, expectObservable, expectSubscriptions }) => {
-      // "0901" khop nhieu ban ghi nen cham (1000ms); "09012345" nhanh (100ms).
+      // "0901" khớp nhiều bản ghi nên chậm (1000ms); "09012345" nhanh (100ms).
       const slow = cold('1000ms (r|)', { r: ['0901'] });
       const fast = cold('100ms (r|)', { r: ['09012345'] });
       const search = (term: string): Observable<string[]> =>
@@ -51,7 +51,7 @@ describe('lookup', () => {
         '300ms x 400ms y 99ms z',
         { x: loading('0901'), y: loading('09012345'), z: done('09012345') },
       );
-      // Request "0901" bat dau o 300ms, bi huy o 701ms khi co tu khoa moi.
+      // Request "0901" bắt đầu ở 300ms, bị hủy ở 701ms khi có từ khóa mới.
       expectSubscriptions(slow.subscriptions).toBe('300ms ^ 400ms !');
     });
   });

@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BTVN Buổi 6 · Xác thực và bảo mật API</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600&display=swap" />
+    <link rel="stylesheet" href="assets/lesson.css" />
+  </head>
+  <body>
+    <main>
+      <p class="kicker">Bài tập về nhà · Buổi 6 · Authentication và bảo mật giao tiếp API</p>
+      <h1>Ai được làm gì, token đi đâu, phiên kết thúc thế nào</h1>
+      <dl class="homework-meta">
+        <dt>Làm sau</dt>
+        <dd>Buổi 6 (<a href="../session-06/slides/buoi-06-xac-thuc-va-bao-mat-api.pdf">slide</a> · <a href="../session-06/lab/README.md">lab</a>)</dd>
+        <dt>Hạn nộp</dt>
+        <dd>Trước buổi 7</dd>
+        <dt>Thời gian</dt>
+        <dd>Khoảng 30 phút</dd>
+        <dt>Cần</dt>
+        <dd>Trình duyệt và giấy bút. Phần tùy chọn cần Care Portal đang chạy.</dd>
+      </dl>
+
+      <div class="goal">
+        <p><strong>Mục tiêu:</strong> đọc đúng 401/403/409 và phản ứng đúng ở frontend, nhận ra lỗi trong code xử lý phiên, và thiết kế bảo mật cho một tính năng mới mà không lặp lại bài lab.</p>
+        <p>Làm phần 0 trước khi mở slide.</p>
+      </div>
+
+      <h2>Phần 0 · Khởi động: viết ra giấy (4 phút)</h2>
+      <ol>
+        <li>401, 403, 409 trả lời ba câu hỏi gì? Frontend làm gì với mỗi loại?</li>
+        <li>Server Care Portal kiểm tra những gì trong một access token?</li>
+        <li>Refresh token rotation là gì? Gửi lại refresh token đã dùng thì server làm gì, vì sao?</li>
+        <li>Vì sao N request cùng nhận 401 phải dùng chung <em>một</em> lần refresh?</li>
+      </ol>
+      <details>
+        <summary>Ôn lại sau khi đã viết xong</summary>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Câu</th><th>Ý chính</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>401: anh là ai (không/hết hạn/sai token) → refresh một lần, không được thì đăng nhập lại. 403: không đủ quyền → báo, không refresh, không đăng xuất. 409: dữ liệu đã đổi → báo, cho tải lại.</td></tr>
+              <tr><td>2</td><td>Signature HS256 (thuật toán cố định), <code>exp</code> với clock skew tối đa 10 giây, <code>iss</code>, <code>aud</code>, <code>token_use=access</code>; quyền lấy từ <code>roles</code> rồi <code>@PreAuthorize</code>.</td></tr>
+              <tr><td>3</td><td>Mỗi refresh token chỉ đổi được một lần, mỗi lần đổi ra token mới cùng family. Token đã dùng bị gửi lại → có thể đã lộ (hai bên cùng giữ) → revoke cả family.</td></tr>
+              <tr><td>4</td><td>N refresh cùng một token: một cái thành công, N−1 cái bị coi là reuse → cả phiên bị revoke → người dùng bị đá ra dù không ai tấn công.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+
+      <h2>Phần 1 · Phản ứng đúng với status (5 câu)</h2>
+      <div class="quiz" id="quiz-status" data-quiz>
+        <script type="application/json">
+          {
+            "questions": [
+              {
+                "prompt": "agent1 mở link cũ /tickets/5 (supervisor gửi qua chat) và bấm Duyệt (nút lọt qua do lỗi UI). API trả 403. Frontend nên làm gì?",
+                "options": ["Refresh token rồi gửi lại", "Đăng xuất để agent1 đăng nhập bằng tài khoản khác", "Báo 'Bạn không có quyền thực hiện thao tác này', giữ nguyên phiên và dữ liệu", "Gửi lại 3 lần"],
+                "answer": 2,
+                "explain": "Token hợp lệ, chỉ thiếu quyền. Refresh ra token cùng role vẫn 403. Đồng thời sửa lỗi UI để nút không hiện."
+              },
+              {
+                "prompt": "Supervisor duyệt phiếu, API trả 409 'Dữ liệu đã bị người khác thay đổi'. Interceptor auth nên làm gì?",
+                "options": ["Refresh token", "Không làm gì: 409 là lỗi nghiệp vụ, để màn hình xử lý (báo, cho tải lại)", "Đăng xuất", "Tự gửi lại với version mới nhất"],
+                "answer": 1,
+                "explain": "Interceptor auth chỉ quan tâm 401. Tự gửi lại với version mới là ghi đè thay đổi của người khác mà người dùng chưa thấy."
+              },
+              {
+                "prompt": "Request gửi KHÔNG có token (người dùng vừa đăng xuất, trang cũ còn gọi API) nhận 401. Interceptor nên?",
+                "options": ["Refresh", "Điều hướng tới /login", "Chỉ trả lỗi, không refresh, không điều hướng", "Gửi lại với token cũ còn trong bộ nhớ"],
+                "answer": 2,
+                "explain": "Không có phiên để cứu. Điều hướng ở đây sẽ tranh chấp với điều hướng của logout()."
+              },
+              {
+                "prompt": "POST /api/auth/refresh trả status 0 (mất mạng). Nên?",
+                "options": ["Đăng xuất ngay", "Giữ phiên, báo lỗi cho request đang chờ, lần sau thử refresh lại", "Lặp refresh liên tục tới khi có mạng", "Xóa refresh token"],
+                "answer": 1,
+                "explain": "Server chưa từ chối gì cả. Chỉ đăng xuất khi refresh trả 401 (hết hạn, bị revoke, reuse)."
+              },
+              {
+                "prompt": "Request A và B cùng gửi bằng token T1. A nhận 401, refresh xong có T2. Một giây sau B mới nhận 401. Đúng nhất?",
+                "options": ["B refresh tiếp bằng refresh token hiện tại", "B gửi lại ngay với T2 (token hiện tại đã khác T1), không refresh", "B báo lỗi cho người dùng", "B đăng xuất"],
+                "answer": 1,
+                "explain": "401 'về muộn' của token đã được thay. Refresh thêm là thừa (và nếu dùng nhầm refresh token cũ thì bị coi là reuse)."
+              }
+            ]
+          }
+        </script>
+      </div>
+
+      <h2>Phần 2 · Code này có vấn đề gì? (5 câu)</h2>
+      <div class="quiz" id="quiz-code" data-quiz>
+        <script type="application/json">
+          {
+            "questions": [
+              {
+                "prompt": "if (req.url.startsWith(config.apiUrl)) req = req.clone({ setHeaders: { Authorization: 'Bearer ' + token } }); với apiUrl = 'https://api.care.vn'",
+                "options": ["Đúng", "Lộ token cho https://api.care.vn.evil.com và https://api.care.vn@evil.com; phải so origin bằng new URL()", "Chỉ sai khi dùng HTTP", "Sai vì thiếu dấu cách"],
+                "answer": 1,
+                "explain": "So chuỗi đầu không biết đâu là host. new URL(req.url).origin === new URL(apiUrl).origin mới đúng."
+              },
+              {
+                "prompt": "refresh() { return this.http.post('/api/auth/refresh', { refreshToken: this.rt }).pipe(shareReplay(1)); } và interceptor gọi refresh() mỗi khi gặp 401.",
+                "options": ["Đúng: shareReplay chia sẻ kết quả", "Sai: mỗi lần gọi refresh() tạo observable mới, N request vẫn N lần POST", "Sai vì thiếu catchError", "Đúng nếu dùng zoneless"],
+                "answer": 1,
+                "explain": "Chia sẻ chỉ có tác dụng khi mọi người dùng CÙNG một observable. Phải giữ nó trong một field trong lúc chờ, xong thì xóa."
+              },
+              {
+                "prompt": "Trong catchError của từng request: if (refreshFailed) { this.auth.logout(); this.router.navigate(['/login']); }. Có 3 request đang chờ.",
+                "options": ["Đúng", "Điều hướng 3 lần, logout 3 lần; đặt việc đăng xuất ở phần dùng chung (nơi refresh) để chạy một lần", "Không chạy vì router không có trong interceptor", "Chỉ sai trên Safari"],
+                "answer": 1,
+                "explain": "Side effect của sự kiện chung (refresh thất bại) phải nằm ở chỗ chung."
+              },
+              {
+                "prompt": "this.html = this.sanitizer.bypassSecurityTrustHtml(ticket.description); rồi [innerHTML]=\"html\". Mô tả phiếu do khách gửi qua web.",
+                "options": ["An toàn vì Angular luôn sanitize", "XSS: tắt sanitize cho dữ liệu người ngoài nhập; script đọc được token trong sessionStorage", "Chỉ ảnh hưởng hiển thị", "An toàn nếu backend dùng JPA"],
+                "answer": 1,
+                "explain": "bypassSecurityTrust* chỉ dùng cho nội dung mình kiểm soát. Để mặc định [innerHTML] (Angular sanitize) hoặc hiển thị dạng text."
+              },
+              {
+                "prompt": "Đổi sang lưu refresh token trong cookie HttpOnly; SameSite=None; Secure, API ở domain khác. Còn thiếu gì quan trọng nhất?",
+                "options": ["Không thiếu gì, HttpOnly là đủ", "Chống CSRF: trình duyệt tự gửi cookie theo mọi request chéo site (SameSite=None) → cần CSRF token và CORS chặt", "Phải mã hóa cookie bằng base64", "Phải lưu thêm bản sao trong localStorage"],
+                "answer": 1,
+                "explain": "HttpOnly chặn đọc bằng JS, không chặn trình duyệt tự đính cookie. SameSite=None bỏ luôn hàng rào mặc định."
+              }
+            ]
+          }
+        </script>
+      </div>
+
+      <h2>Phần 3 · Vận dụng: tải hóa đơn PDF (10 phút)</h2>
+      <p>
+        Tính năng mới: ở trang chi tiết thuê bao có danh sách hóa đơn, mỗi dòng có nút <em>Tải PDF</em>. Backend thêm
+        <code>GET /api/subscribers/{id}/invoices/{invoiceId}.pdf</code>. Lập trình viên định viết
+        <code>&lt;a [href]="apiUrl + '/api/subscribers/' + id + '/invoices/' + inv.id + '.pdf'" download&gt;</code>.
+      </p>
+      <ol class="steps">
+        <li>Link này có tải được không? Vì sao (gợi ý: ai gắn header <code>Authorization</code>)?</li>
+        <li>Đề xuất hai cách tải đúng, nêu ưu nhược điểm. Cách nào <strong>không</strong> được dùng: đặt token vào query string
+          <code>?access_token=...</code>? Vì sao?</li>
+        <li>Viết 4 dòng cho ma trận kiểm thử bảo mật của API này (tình huống, vai trò, kỳ vọng). Ít nhất một dòng về
+          <strong>quyền theo dữ liệu</strong>: hóa đơn <code>invoiceId</code> không thuộc thuê bao <code>id</code>.</li>
+      </ol>
+      <details>
+        <summary>Đáp án tham khảo (chỉ mở sau khi đã viết)</summary>
+        <ol>
+          <li>Không. Trình duyệt tự tải link, không đi qua <code>HttpClient</code> nên interceptor không gắn Bearer → 401 (trình duyệt hiện
+            trang lỗi hoặc file JSON lỗi).</li>
+          <li>(a) <code>HttpClient.get(url, { responseType: 'blob' })</code> qua interceptor, rồi <code>URL.createObjectURL</code> + thẻ
+            <code>a</code> tạm để lưu; nhược: cả file nằm trong bộ nhớ, không có thanh tiến trình của trình duyệt. (b) API cấp
+            <em>link ký sẵn</em> ngắn hạn (vài chục giây, chỉ cho đúng hóa đơn đó, dùng một lần); nhược: thêm một endpoint, phải làm đúng signature
+            và hạn. <strong>Không</strong> đặt access token vào query string: lọt vào log server/proxy, lịch sử trình duyệt, header
+            <code>Referer</code>, và token đó dùng được cho mọi API.</li>
+          <li>Ví dụ: không token → 401; AGENT tải hóa đơn hợp lệ → 200, <code>Content-Type: application/pdf</code>;
+            <code>invoiceId</code> của thuê bao khác ghép với <code>id</code> này → 404 (không lộ hóa đơn tồn tại) và không trả nội dung;
+            hóa đơn không tồn tại → 404; (nếu dùng link ký sẵn) link hết hạn hoặc dùng lần hai → 403/410.</li>
+        </ol>
+      </details>
+
+      <h2>Phần tùy chọn · Soi phiên của chính bạn</h2>
+      <p>
+        Chạy Care Portal (<code>session06-end</code>), đăng nhập <code>agent1</code>. Mở DevTools → Application → Session Storage, giải mã phần
+        giữa của access token (<code>atob</code> trong Console). Ghi lại: <code>exp − iat</code> bằng bao nhiêu, có claim nào bạn thấy không nên nằm
+        trong token không? Rồi đăng xuất và thử dùng lại refresh token cũ bằng curl: kết quả? Ghi 3 dòng.
+      </p>
+
+      <h2>Nộp bài</h2>
+      <p>Gửi giảng viên qua kênh của lớp, <strong>trước buổi 7</strong>:</p>
+      <ol>
+        <li>Điểm phần 1 và phần 2.</li>
+        <li>Câu trả lời phần 3 (3 ý).</li>
+        <li>(Tùy chọn) 3 dòng kết quả phần tùy chọn.</li>
+      </ol>
+      <p class="meta">Một ngày trước buổi 7, làm lại phần 2 mà không mở phần ôn tập.</p>
+
+      <h2>Đọc thêm</h2>
+      <p>
+        <strong>Nguồn chính:</strong> <a href="https://angular.dev/best-practices/security">Angular — Security</a> (khoảng 15 phút: XSS,
+        sanitization, XSRF trong HttpClient).
+      </p>
+      <p>
+        Thêm: <a href="https://datatracker.ietf.org/doc/html/rfc9700">RFC 9700 — OAuth 2.0 Security Best Current Practice</a> (mục refresh token rotation) ·
+        <a href="https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_for_Java_Cheat_Sheet.html">OWASP — JSON Web Token Cheat Sheet</a> ·
+        <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS">MDN — CORS</a> ·
+        sản phẩm của lớp: <code>docs/ma-tran-bao-mat.md</code>, <code>docs/vong-doi-phien.md</code> (nhánh <code>session06-end</code>).
+      </p>
+
+      <div class="callout">
+        <p><strong>Còn chỗ nào chưa rõ?</strong> Hỏi giảng viên, hoặc hỏi trợ lý AI ngay trong repo — ví dụ:
+          “vì sao bỏ <code>finalize</code> trong <code>AuthService.refresh</code> thì lần hết hạn sau bị đăng xuất?”.</p>
+      </div>
+
+      <footer>Khóa Angular nâng cao · Bài tập về nhà buổi 6 · Dự án mẫu Care Portal</footer>
+    </main>
+    <script src="assets/quiz.js"></script>
+  </body>
+</html>

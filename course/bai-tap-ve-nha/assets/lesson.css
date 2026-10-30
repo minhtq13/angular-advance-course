@@ -1,4 +1,4 @@
-/* Style chung cho moi bai hoc va tai lieu tra cuu trong course/bai-tap-ve-nha/. Moi bai deu link file nay. */
+/* Style chung cho mọi bài học và tài liệu tra cứu trong course/bai-tap-ve-nha/. Mọi bài đều link file này. */
 :root {
   --bg: #fffff8;
   --text: #1f2328;
@@ -141,7 +141,7 @@ th {
   overflow-x: auto;
 }
 
-/* Hop ghi chu / muc tieu */
+/* Hộp ghi chú / mục tiêu */
 .goal,
 .callout {
   margin: 1.5rem 0;
@@ -155,13 +155,13 @@ th {
   margin: 0.25rem 0;
 }
 
-/* Trich dan nguon ngay canh y (kieu Tufte) */
+/* Trích dẫn nguồn ngay cạnh ý (kiểu Tufte) */
 .cite {
   color: var(--muted);
   font-size: 0.85rem;
 }
 
-/* Bai tap */
+/* Bài tập */
 .exercise {
   margin: 1.5rem 0;
   padding: 1.25rem;
@@ -287,7 +287,7 @@ footer {
   border-top: 1px dashed var(--rule);
 }
 
-/* Thong tin bai tap ve nha: thoi gian, han nop */
+/* Thông tin bài tập về nhà: thời gian, hạn nộp */
 .homework-meta {
   display: grid;
   grid-template-columns: max-content 1fr;

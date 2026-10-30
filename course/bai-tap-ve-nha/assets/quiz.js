@@ -1,5 +1,5 @@
 /**
- * Quiz trac nghiem cham ngay. Dung lai cho moi bai:
+ * Quiz trắc nghiệm chấm ngay. Dùng lại cho mọi bài:
  *
  * <div class="quiz" data-quiz>
  *   <script type="application/json">
@@ -7,7 +7,7 @@
  *   </script>
  * </div>
  *
- * Moi cau chi duoc chon mot lan (de nguoi hoc phai nghi truoc khi bam), sau do hien giai thich.
+ * Mỗi câu chỉ được chọn một lần (để người học phải nghĩ trước khi bấm), sau đó hiện giải thích.
  */
 (function () {
   function el(tag, attrs, text) {

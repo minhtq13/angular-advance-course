@@ -91,7 +91,7 @@
                 "prompt": "Nhiều request cùng nhận 401 vì access token hết hạn; cần gọi /api/auth/refresh. Khi một lần refresh đang chạy, các 401 tiếp theo nên làm gì với việc refresh?",
                 "options": ["switchMap: hủy refresh cũ, gọi refresh mới", "concatMap: xếp hàng nhiều lần refresh", "exhaustMap / chia sẻ: không gọi thêm, chờ kết quả lần đang chạy", "mergeMap: mỗi 401 một lần refresh"],
                 "answer": 2,
-                "explain": "Chỉ một lần refresh; các request khác chờ kết quả đó. Gọi nhiều lần với refresh token xoay vòng sẽ bị coi là tái sử dụng token (buổi 6)."
+                "explain": "Chỉ một lần refresh; các request khác chờ kết quả đó. Gọi nhiều lần với refresh token rotation sẽ bị coi là reuse token (buổi 6)."
               }
             ]
           }

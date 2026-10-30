@@ -1,14 +1,14 @@
 /**
- * Loi nghiep vu ma man hinh can xu ly rieng. Adapter chuyen loi HTTP thanh cac loi nay,
- * nen feature khong can biet ma HTTP hay hinh dang ProblemDetail.
+ * Lỗi nghiệp vụ mà màn hình cần xử lý riêng. Adapter chuyển lỗi HTTP thành các lỗi này,
+ * nên feature không cần biết mã HTTP hay hình dạng ProblemDetail.
  */
 
-/** Du lieu da bi nguoi khac thay doi, hoac trang thai khong cho phep thao tac (HTTP 409). */
+/** Dữ liệu đã bị người khác thay đổi, hoặc trạng thái không cho phép thao tác (HTTP 409). */
 export class TicketConflictError extends Error {
   override readonly name = 'TicketConflictError';
 }
 
-/** Du lieu gui len khong hop le (HTTP 400). fieldErrors: ten truong -> thong bao da dich. */
+/** Dữ liệu gửi lên không hợp lệ (HTTP 400). fieldErrors: tên trường -> thông báo đã dịch. */
 export class TicketValidationError extends Error {
   override readonly name = 'TicketValidationError';
 

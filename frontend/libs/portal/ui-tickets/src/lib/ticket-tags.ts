@@ -8,13 +8,13 @@ export type TagColor =
   'success' | 'processing' | 'warning' | 'error' | 'default';
 
 export interface TicketTag {
-  /** Key dich (Transloco), khong phai chu hien thi. */
+  /** Key dịch (Transloco), không phải chữ hiển thị. */
   labelKey: string;
   color: TagColor;
 }
 
-// Trung voi TICKET_STATUS/TICKET_PRIORITY trong shared-data-access-api: lib ui khong duoc import data-access.
-// No ky thuat: bai tap ve nha buoi 2 thiet ke lai cho nhan hien thi dung chung (lib nao, tag gi).
+// Trùng với TICKET_STATUS/TICKET_PRIORITY trong shared-data-access-api: lib ui không được import data-access.
+// Nợ kỹ thuật: bài tập về nhà buổi 2 thiết kế lại cho nhãn hiển thị dùng chung (lib nào, tag gì).
 export const STATUS_TAG: Record<TicketStatus, TicketTag> = {
   NEW: { labelKey: 'enum.ticketStatus.NEW', color: 'processing' },
   IN_PROGRESS: { labelKey: 'enum.ticketStatus.IN_PROGRESS', color: 'warning' },

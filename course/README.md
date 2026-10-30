@@ -56,7 +56,7 @@ xung đột cập nhật 409 (buổi 2), lỗi triển khai và rollback (buổi
 | [03](session-03/) | Signals và RxJS cho luồng dữ liệu | Truy vấn cũ về muộn, khôi phục hủy request, luồng sống sau lỗi, subscription khi rời màn hình | Pipeline tìm kiếm có hủy, test theo trình tự sự kiện, bảng chọn operator | Đã soạn |
 | [04](session-04/) | State Management và lựa chọn NgRx | Reload cùng query, bộ lọc trên URL, Back/Forward, làm mới sau ghi, xóa state khi đổi phiên | Ma trận chọn state, ADR, test nhất quán bộ lọc | Đã soạn |
 | [05](session-05/) | Hiệu năng và quản lý bộ nhớ | Baseline, DOM thường so với virtual scroll, payload, heap sau 20 lần điều hướng | Bảng benchmark có dữ liệu thô, profile trước/sau, kết luận có điều kiện | Đã soạn |
-| [06](session-06/) | Authentication và bảo mật giao tiếp API | 401/403/409, một refresh cho nhiều 401, refresh lỗi, token reuse, chặn Bearer ra ngoài | Ma trận kiểm thử bảo mật, test refresh đồng thời, vòng đời session | Khung |
+| [06](session-06/) | Authentication và bảo mật giao tiếp API | 401/403/409, một refresh cho nhiều 401, refresh lỗi, token reuse, chặn Bearer ra ngoài | Ma trận kiểm thử bảo mật, test refresh đồng thời, vòng đời session | Đã soạn |
 | [07](session-07/) | SSO và chiến lược kiểm thử hệ thống | Keycloak cục bộ qua thư viện OIDC; TestBed, HTTP testing, Playwright; server từ chối sai quyền | Checklist SSO, test report, regression test | Khung |
 | [08](session-08/) | Ứng dụng AI và Copilot trong phát triển Angular | AI làm thay đổi nhỏ, negative test, lỗi có chủ đích để kiểm chứng test, đo thời gian | Prompt, diff đã review, finding đã xác minh, báo cáo năng suất | Khung |
 | [09](session-09/) | Build và CI/CD triển khai ứng dụng | Gate như CI, budget fail, Docker + Nginx, deep link, cache, rollback | Pipeline YAML, release checklist, smoke test, quy trình rollback | Khung |
@@ -77,5 +77,5 @@ Mỗi nhóm demo, giải thích lựa chọn kỹ thuật và trả lời phản
 | Build và phát hành | 10 | 9 |
 | AI có review và bằng chứng | 5 | 8 |
 
-Mức đạt đề xuất từ 70/100. **Điều kiện bắt buộc:** build thành công, API từ chối hành động sai quyền, không đưa bí mật vào client.
+Mức đạt đề xuất từ 70/100. **Điều kiện bắt buộc:** build thành công, API từ chối hành động sai quyền, không đưa secretKey vào client.
 Mỗi học viên xác định một feature phù hợp để áp dụng sau khóa.

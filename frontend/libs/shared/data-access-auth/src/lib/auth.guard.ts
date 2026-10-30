@@ -3,8 +3,8 @@ import { CanActivateFn, Router } from '@angular/router';
 import { AuthService } from './auth.service';
 
 /**
- * Chi chap nhan duong dan noi bo ("/..."), chan "//evil.com" va quay lai /login -> tranh open redirect
- * khi returnUrl den tu query string ma ai cung sua duoc.
+ * Chỉ chấp nhận đường dẫn nội bộ ("/..."), chặn "//evil.com" và quay lại /login -> tránh open redirect
+ * khi returnUrl đến từ query string mà ai cũng sửa được.
  */
 export function safeReturnUrl(url: unknown): string {
   return typeof url === 'string' &&
@@ -15,7 +15,7 @@ export function safeReturnUrl(url: unknown): string {
     : '/';
 }
 
-/** Chua dang nhap -> sang /login, kem returnUrl de quay lai dung trang. */
+/** Chưa đăng nhập -> sang /login, kèm returnUrl để quay lại đúng trang. */
 export const authGuard: CanActivateFn = (_route, state) =>
   inject(AuthService).isAuthenticated() ||
   inject(Router).createUrlTree(['/login'], {
@@ -23,8 +23,8 @@ export const authGuard: CanActivateFn = (_route, state) =>
   });
 
 /**
- * Da dang nhap ma vao /login (vd mo lai link cu, tai lai trang ngay sau khi dang nhap)
- * -> di tiep toi returnUrl, khong bo ve trang chu.
+ * Đã đăng nhập mà vào /login (vd mở lại link cũ, tải lại trang ngay sau khi đăng nhập)
+ * -> đi tiếp tới returnUrl, không bỏ về trang chủ.
  */
 export const guestGuard: CanActivateFn = (route) =>
   !inject(AuthService).isAuthenticated() ||

@@ -5,6 +5,11 @@ Sau mỗi buổi học có một bài tập về nhà, làm trong khoảng 30 ph
 | Buổi | Bài tập | Chủ đề |
 |---|---|---|
 | 01 | [buoi-01-bon-loai-lib-va-luat-phu-thuoc.html](buoi-01-bon-loai-lib-va-luat-phu-thuoc.html) | Bốn loại lib và luật phụ thuộc |
+| 02 | [buoi-02-hop-dong-component-va-form.html](buoi-02-hop-dong-component-va-form.html) | Hợp đồng component và form nghiệp vụ |
+| 03 | [buoi-03-signals-va-rxjs.html](buoi-03-signals-va-rxjs.html) | Signals và RxJS |
+| 04 | [buoi-04-state-va-ngrx.html](buoi-04-state-va-ngrx.html) | State và NgRx |
+| 05 | [buoi-05-hieu-nang-va-bo-nho.html](buoi-05-hieu-nang-va-bo-nho.html) | Hiệu năng và bộ nhớ |
+| 06 | [buoi-06-xac-thuc-va-bao-mat-api.html](buoi-06-xac-thuc-va-bao-mat-api.html) | Xác thực và bảo mật API |
 
 ## Cách làm
 
