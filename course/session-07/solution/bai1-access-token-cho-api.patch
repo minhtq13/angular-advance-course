@@ -1,0 +1,168 @@
+diff --git a/frontend/apps/portal-e2e/src/sso/sso.spec.ts b/frontend/apps/portal-e2e/src/sso/sso.spec.ts
+new file mode 100644
+index 0000000..f46efbf
+--- /dev/null
++++ b/frontend/apps/portal-e2e/src/sso/sso.spec.ts
+@@ -0,0 +1,61 @@
++import { expect, Page, test } from '@playwright/test';
++
++// Buổi 7: cần Keycloak và portal ở chế độ OIDC:
++//   docker compose -f infra/docker-compose.yml --profile sso up -d
++//   apps/portal/public/config.json: "auth": { "mode": "oidc", ... }   (xem course/session-07/lab)
++//   SSO=1 npx playwright test -c apps/portal-e2e/playwright.config.mts sso --project=chromium
++test.skip(
++  !process.env['SSO'],
++  'Can Keycloak (profile sso) va config.json auth.mode=oidc',
++);
++
++const KEYCLOAK = /localhost:8180\/realms\/care\//;
++
++function payload(token: string): Record<string, unknown> {
++  return JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
++}
++
++/** Đăng nhập trên trang của Keycloak (không phải form của app). */
++async function keycloakLogin(page: Page, user: string) {
++  await page.waitForURL(KEYCLOAK);
++  await page.locator('#username').fill(user);
++  await page.locator('#password').fill(user);
++  await page.locator('#kc-login').click();
++}
++
++test('dang nhap qua Keycloak: Authorization Code + PKCE, API nhan access token', async ({
++  page,
++}) => {
++  await page.goto('/tickets?status=RESOLVED');
++  await expect(page).toHaveURL(/\/login\?returnUrl=/);
++
++  const authorize = page.waitForRequest(/openid-connect\/auth\?/);
++  await page.getByRole('button', { name: 'Đăng nhập bằng SSO' }).click();
++  const params = new URL((await authorize).url()).searchParams;
++  expect(params.get('response_type')).toBe('code');
++  expect(params.get('code_challenge_method')).toBe('S256');
++  expect(params.get('code_challenge')).toMatch(/^[\w-]{43}$/);
++  expect(params.get('state')).toBeTruthy();
++  expect(params.get('nonce')).toBeTruthy();
++
++  const apiCall = page.waitForResponse(
++    (r) => r.url().includes('/api/tickets') && r.request().method() === 'GET',
++  );
++  await keycloakLogin(page, 'agent1');
++
++  // Quay về đúng trang định vào, không phải trang chủ.
++  await expect(page).toHaveURL(/\/tickets\?status=RESOLVED$/);
++  const res = await apiCall;
++  expect(res.status()).toBe(200);
++  const bearer = (res.request().headers()['authorization'] ?? '').replace(
++    'Bearer ',
++    '',
++  );
++  expect(payload(bearer)).toMatchObject({
++    typ: 'Bearer',
++    preferred_username: 'agent1',
++    iss: 'http://localhost:8180/realms/care',
++  });
++  expect(payload(bearer)['aud']).toContain('care-api');
++  await expect(page.locator('tbody tr.ant-table-row').first()).toBeVisible();
++});
+diff --git a/frontend/libs/shared/data-access-auth/src/lib/oidc-auth.service.spec.ts b/frontend/libs/shared/data-access-auth/src/lib/oidc-auth.service.spec.ts
+index 007806a..0f56d2c 100644
+--- a/frontend/libs/shared/data-access-auth/src/lib/oidc-auth.service.spec.ts
++++ b/frontend/libs/shared/data-access-auth/src/lib/oidc-auth.service.spec.ts
+@@ -1,10 +1,18 @@
+-import { provideHttpClient } from '@angular/common/http';
+-import { provideHttpClientTesting } from '@angular/common/http/testing';
++import {
++  HttpClient,
++  provideHttpClient,
++  withInterceptors,
++} from '@angular/common/http';
++import {
++  HttpTestingController,
++  provideHttpClientTesting,
++} from '@angular/common/http/testing';
+ import { TestBed } from '@angular/core/testing';
+ import { provideRouter } from '@angular/router';
+ import { provideAppConfig } from '@care/shared-util-config';
+ import { LoginResponse, OidcSecurityService } from 'angular-auth-oidc-client';
+ import { of, throwError } from 'rxjs';
++import { authInterceptor } from './auth.interceptor';
+ import { AuthService } from './auth.service';
+ import { OidcAuthService } from './oidc-auth.service';
+ 
+@@ -58,7 +66,7 @@ describe('OidcAuthService', () => {
+     oidc = fakeOidc(result);
+     TestBed.configureTestingModule({
+       providers: [
+-        provideHttpClient(),
++        provideHttpClient(withInterceptors([authInterceptor])),
+         provideHttpClientTesting(),
+         provideRouter([{ path: 'login', children: [] }]),
+         provideAppConfig({ apiUrl: 'http://api' }),
+@@ -108,4 +116,49 @@ describe('OidcAuthService', () => {
+     );
+     expect(oidc.authorize).toHaveBeenCalledTimes(1);
+   });
++
++  it('request toi API mang access token, khong phai ID token (aud cua ID token la client)', async () => {
++    const auth = setup(loggedIn);
++    await auth.init();
++
++    TestBed.inject(HttpClient).get('http://api/api/subscribers').subscribe();
++
++    const req = TestBed.inject(HttpTestingController).expectOne(
++      'http://api/api/subscribers',
++    );
++    expect(req.request.headers.get('Authorization')).toBe(
++      `Bearer ${ACCESS_TOKEN}`,
++    );
++  });
++
++  it('access token het han -> refresh qua thu vien, gui lai bang access token moi', async () => {
++    const auth = setup(loggedIn);
++    await auth.init();
++    const renewed = fakeJwt({
++      ...user,
++      typ: 'Bearer',
++      aud: ['care-api'],
++      n: 2,
++    });
++    oidc.forceRefreshSession.mockReturnValue(
++      of({ ...loggedIn, accessToken: renewed }),
++    );
++    const http = TestBed.inject(HttpTestingController);
++    let body: unknown;
++
++    TestBed.inject(HttpClient)
++      .get('http://api/api/me')
++      .subscribe((b) => (body = b));
++    http
++      .expectOne('http://api/api/me')
++      .flush(null, { status: 401, statusText: 'Unauthorized' });
++
++    const retry = http.expectOne('http://api/api/me');
++    expect(retry.request.headers.get('Authorization')).toBe(
++      `Bearer ${renewed}`,
++    );
++    retry.flush({ username: 'agent1' });
++    expect(oidc.forceRefreshSession).toHaveBeenCalledTimes(1);
++    expect(body).toEqual({ username: 'agent1' });
++  });
+ });
+diff --git a/frontend/libs/shared/data-access-auth/src/lib/oidc-auth.service.ts b/frontend/libs/shared/data-access-auth/src/lib/oidc-auth.service.ts
+index 83bd6a2..cf877cd 100644
+--- a/frontend/libs/shared/data-access-auth/src/lib/oidc-auth.service.ts
++++ b/frontend/libs/shared/data-access-auth/src/lib/oidc-auth.service.ts
+@@ -106,8 +106,10 @@ export class OidcAuthService extends AuthService {
+       this.user.set(null);
+       return;
+     }
+-    this.token = result.idToken;
+-    this.user.set(userFromClaims(decodeJwtPayload<UserClaims>(this.token)));
++    // Access token cho API (aud = care-api). ID token chỉ để app biết ai đăng nhập (aud = care-portal),
++    // gửi ID token tới API -> 401 "The aud claim is not valid".
++    this.token = result.accessToken;
++    this.user.set(userFromClaims(decodeJwtPayload<UserClaims>(result.idToken)));
+   }
+ }
+ 

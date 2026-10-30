@@ -56,6 +56,9 @@
     "usernameRequired": "Please enter your username",
     "passwordRequired": "Please enter your password",
     "submit": "Sign in",
+    "ssoSubmit": "Sign in with SSO",
+    "ssoHint": "Use your identity provider account (Keycloak). Demo accounts: agent1 · supervisor1 · admin1",
+    "sessionExpired": "Your session has expired, please sign in again",
     "failed": "Could not sign in, please try again",
     "demoAccounts": "Demo accounts (password = username): agent1 · supervisor1 · admin1"
   },

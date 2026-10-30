@@ -10,6 +10,7 @@ Sau mỗi buổi học có một bài tập về nhà, làm trong khoảng 30 ph
 | 04 | [buoi-04-state-va-ngrx.html](buoi-04-state-va-ngrx.html) | State và NgRx |
 | 05 | [buoi-05-hieu-nang-va-bo-nho.html](buoi-05-hieu-nang-va-bo-nho.html) | Hiệu năng và bộ nhớ |
 | 06 | [buoi-06-xac-thuc-va-bao-mat-api.html](buoi-06-xac-thuc-va-bao-mat-api.html) | Xác thực và bảo mật API |
+| 07 | [buoi-07-sso-va-kiem-thu.html](buoi-07-sso-va-kiem-thu.html) | SSO và chiến lược kiểm thử |
 
 ## Cách làm
 

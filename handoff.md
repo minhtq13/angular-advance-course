@@ -25,7 +25,7 @@ Viết cho: phiên Claude Code (hoặc người) làm tiếp dự án này ở m
 | UI | **ng-zorro-antd** (MIT); ADR-0001 | PrimeNG có license thương mại |
 | i18n | Transloco vi/en, **vi mặc định**; mọi chữ UI qua key ở cả hai file; lỗi backend dịch theo `Accept-Language` | Người dùng |
 | Theme | Sáng/tối, mặc định theo hệ thống; màu chỉ từ token `var(--care-*)`; tương phản ≥ 4.5:1 cả hai theme | Người dùng |
-| Xác thực | Mặc định **JWT HS256 do backend phát** (`POST /api/auth/login`, `/api/auth/refresh`, claim `roles`). Keycloak **chỉ** ở buổi 7, dưới Docker profile tùy chọn `sso` (chưa làm) | Khóa tập trung FE; đề cương buổi 7 cần Keycloak |
+| Xác thực | Mặc định **JWT HS256 do backend phát** (`POST /api/auth/login`, `/api/auth/refresh`, claim `roles`). Keycloak **chỉ** ở buổi 7, dưới Docker profile tùy chọn `sso`; portal chọn chế độ qua `config.json` `auth.mode` (`local`/`oidc`) | Khóa tập trung FE; đề cương buổi 7 cần Keycloak |
 | Môi trường học viên | Chỉ Git, Node, Docker; **không Java** | Cài đặt nhẹ |
 | Backend | Spring Boot 3.5.16, Java 21, Flyway, MapStruct, Testcontainers | |
 | Dữ liệu | Postgres có dump ~200.000 thuê bao + 50.000 phiếu, tự restore | Có dữ liệu ngay |
@@ -37,7 +37,7 @@ Viết cho: phiên Claude Code (hoặc người) làm tiếp dự án này ở m
 
 ## 3. Trạng thái hiện tại
 
-**Git** (đã push hết, `main` = `76cf56f`):
+**Git** (đã push hết):
 
 | Nhánh | Commit | Nội dung |
 |---|---|---|
@@ -47,11 +47,11 @@ Viết cho: phiên Claude Code (hoặc người) làm tiếp dự án này ở m
 | `session04-start` / `session04-end` | d876f58 / f780566 | Buổi 4 |
 | `session05-start` / `session05-end` | 671f847 / 7858396 | Buổi 5 |
 | `session06-start` / `session06-end` | f7f7ce4 / aba73aa | Buổi 6 (start gồm cả đợt đổi comment sang có dấu cho code các buổi trước, ~100 file) |
-| `main` | 76cf56f | Code = `session06-start`, tài liệu buổi 1–6 đầy đủ, `CLAUDE.md`, `.claude/` |
+| `session07-start` / `session07-end` | ec20bef / 129fe68 | Buổi 7 |
+| `main` | (commit "Soạn buổi 7") | Code = `session07-start`, tài liệu buổi 1–7 đầy đủ, `CLAUDE.md`, `.claude/` |
 
-Hash trong bảng là commit nội dung của buổi. Từ 2026-10-30 mỗi nhánh `sessionXX-start/end` có thêm **một commit trên đầu** (cùng nội dung `CLAUDE.md`, `.claude/`, dòng `.gitignore`),
-nên đầu nhánh khác hash trong bảng (vd `session06-start` = `adb9409`, `session06-end` = `a6ea638`). `git diff sessionXX-start sessionXX-end` vẫn chỉ hiện đáp án.
-Sửa `CLAUDE.md`/`.claude/` trên `main` thì phải đồng bộ lại 12 nhánh (thêm commit mới, không viết lại lịch sử).
+Hash trong bảng cũng là đầu nhánh. `CLAUDE.md`, `.claude/` (rules, skills) và dòng `.gitignore` tương ứng **chỉ nằm ở `main`**: các nhánh `sessionXX-*` dành cho học viên checkout
+trước và sau buổi học, không chứa cấu hình của người soạn. (2026-10-30 đã thử thêm vào 12 nhánh rồi gỡ bằng force-with-lease theo yêu cầu của người dùng; đừng thêm lại.)
 
 **Buổi 6 đã commit và push (2026-10-30).** `main` có 2 commit: `a210247` (Soạn buổi 6) và `76cf56f` (CLAUDE.md, rules, skills). Nhánh `session06-start`/`session06-end`
 dựng từ cây đã kiểm tra (không dùng commit tạm), gỡ patch ra đúng `session06-start`. Quy trình ở `.claude/skills/commit-theo-buoi`.
@@ -72,12 +72,16 @@ dựng từ cây đã kiểm tra (không dùng commit tạm), gỡ patch ra đú
 | 5 Hiệu năng | Báo cáo 10.000 dòng chậm, rò bộ nhớ | Backend `MAX_PAGE_SIZE`; màn hình `/subscribers/report` có 4 vấn đề | Virtual scroll (CDK); tách `ShiftClock` + view model + `trackBy`; gỡ listener; `perf/report.perf.spec.ts` (`PERF=1`); `docs/benchmark-buoi-05.md` số đo thật |
 
 | 6 Auth + bảo mật API | Token hết hạn, trang chi tiết thuê bao 2 request 401 → 2 refresh → lần hai bị coi là reuse → bị đá ra | Backend: bảng `refresh_token` (Flyway V5), rotation + revoke cả family khi dùng lại, `POST /api/auth/logout`, claim `aud`, clock skew 10s, `ACCESS_TOKEN_TTL`/`REFRESH_TOKEN_TTL`; FE: `AuthService.refresh()` chưa dùng chung, interceptor refresh mỗi 401, không gắn token cho `/api/auth/*` | Ma trận bảo mật (Playwright `request`, 18 test) + `docs/ma-tran-bao-mat.md`; refresh dùng chung (`share` + `finalize`), 401 về muộn; đăng xuất một lần + `reason=expired` + logout revoke ở server; `apiPathOf` so origin; `docs/vong-doi-phien.md` |
+| 7 SSO + kiểm thử | (1) OIDC gửi ID token tới API → mọi API 401 `aud`; (2) đăng xuất chỉ xóa token trong tab → máy dùng chung vào thẳng tài khoản cũ; (3) lỗi thật từ buổi 2: `PATCH /api/tickets/{id}` cho agent đóng phiếu (200); bộ test cũ lọt 2/4 chỗ phá | Keycloak 26.8.1 (profile `sso`, cổng 8180, realm `infra/keycloak/care-realm.json`); backend nhận token Keycloak (`JwtIssuerAuthenticationManagerResolver`, JWKS, `iss`, `aud`; `SsoTokenTests`); FE: `AuthService` thành port, `LocalAuthService` + `OidcAuthService` (lỗi 1, 2 cố ý), `provideAuth(config.auth)`, nút SSO; `angular-auth-oidc-client` 22.0.1; `ticket-approval.spec.ts` (integration yếu cố ý) | Access token cho API; `logoffAndRevokeTokens`; `docs/checklist-sso.md`; `canApprove` (domain) + integration test viết lại, bảng thử phá M1–M4; E2E hành trình duyệt phiếu, `role-denial.spec.ts`, `sso.spec.ts` (4); `@PreAuthorize` chặn PATCH CLOSED + `TicketApiTests` regression; `docs/bao-cao-kiem-thu.md` |
 
 Mọi đáp án đã kiểm tra: lint + test + build pass **sau từng patch** (16 project), áp/gỡ sạch; các buổi 2–6 còn kiểm tra trên trình duyệt thật
 với backend thật (Playwright). Buổi 6 kiểm tra với backend riêng (Postgres cổng 5434, API cổng 8091 chạy jar, `ACCESS_TOKEN_TTL=30s`,
 seed 2.000 thuê bao → `i18n.spec` báo sai số tổng, không phải hồi quy), không đụng `care-api-1`.
 
-**Buổi 7–10:** chỉ có `README.md` + `instructor-notes.md` dạng khung theo đề cương (mục tiêu, use case, kế hoạch lab, "cần chuẩn bị").
+**Buổi 7 đã commit và push (2026-10-30).** Nhánh `session07-start` (`ec20bef`) / `session07-end` (`129fe68`) dựng từ cây đã kiểm tra (khớp commit tạm),
+`main` có commit "Soạn buổi 7: SSO và chiến lược kiểm thử hệ thống".
+
+**Buổi 8–10:** chỉ có `README.md` + `instructor-notes.md` dạng khung theo đề cương (mục tiêu, use case, kế hoạch lab, "cần chuẩn bị").
 
 **Libs** (`frontend/libs/`): `admin/feature-dashboard`; `portal/{data-access-tickets, domain-tickets, feature-service-plans,
 feature-subscribers, feature-tickets, ui-tickets}`; `shared/{data-access-api, data-access-auth, feature-auth, ui-layout, util-config, util-i18n}`.
@@ -90,8 +94,7 @@ Dữ liệu local đã bị các lần test đóng vài phiếu RESOLVED và t�
 
 1. **Container `care-api-1` của người dùng vẫn chạy code buổi 5**: để thử buổi 6 cần `ACCESS_TOKEN_TTL=30s docker compose -f infra/docker-compose.yml up -d --build api`
    (dump có V1–V4 nên Flyway tự áp V5). Sau buổi học bỏ biến `ACCESS_TOKEN_TTL` để về 15 phút.
-2. **Buổi 7:** service `keycloak` trong `infra/docker-compose.yml` dưới `profiles: [sso]` + realm export (`infra/keycloak/`); auth hỗ trợ
-   2 chế độ (local JWT / OIDC) qua một port; Playwright hành trình Agent tạo → Manager duyệt, API từ chối sai quyền (403).
+2. **Buổi 7:** chưa chạy thử đúng kịch bản học viên (cổng 4200 + `docker compose --profile sso`) trên trình duyệt; E2E SSO chỉ kiểm trên cổng 4210 (realm tạm thêm URI 4210); trên máy học viên dùng 4200 theo realm. Image Keycloak cần tải trước (~475 MB).
 3. **Buổi 8:** diff có lỗi cài sẵn cho bài AI review; mẫu `course/_templates/ai-review.md` đã có.
 4. **Buổi 9:** `frontend/Dockerfile` + `nginx.conf` (SPA fallback, cache, header bảo mật), pipeline GitHub Actions + GitLab CI, diễn tập rollback.
    Job CI kiểm tra import đã có từ buổi 1 (`.github/workflows/ci.yml`).
@@ -165,6 +168,7 @@ từ query params (`ticket-url.ts`: `status`, `priority`, `mine=1`, `page` đế
 DEMO_SLOW_SHORT_QUERY=true docker compose -f infra/docker-compose.yml up -d api        # buổi 3: tìm thuê bao < 5 ký tự chậm 2s
 MAX_PAGE_SIZE=10000 docker compose -f infra/docker-compose.yml up -d --build api      # buổi 5: cho tải 10.000 dòng
 ACCESS_TOKEN_TTL=30s docker compose -f infra/docker-compose.yml up -d --build api     # buổi 6: token hết hạn sau ~40s (lệch 10s)
+docker compose -f infra/docker-compose.yml --profile sso up -d --build                # buổi 7: thêm Keycloak :8180 (admin/admin)
 docker compose -f infra/docker-compose.yml up -d api                                   # về mặc định
 ```
 
@@ -187,6 +191,10 @@ npx @marp-team/marp-cli@4 slides.md --pdf  --allow-local-files -o buoi-XX-<ten>.
 ```
 
 **Bẫy đã gặp:**
+- **Keycloak/OIDC (buổi 7):** `angular-auth-oidc-client` mặc định tự điều hướng tới `postLoginRoute` sau callback (mất `returnUrl`) → `triggerAuthorizationResultEvent: true`.
+  `checkAuth()` ném lỗi khi `state` sai → phải bắt trong `init()`, không thì app initializer làm trắng trang. Realm chỉ cho redirect URI chính xác `:4200`;
+  thử ở cổng khác thì tạo bản realm tạm. Container api lấy JWKS qua `http://keycloak:8180` nhưng `iss` là `http://localhost:8180` (`KC_HOSTNAME`).
+- **Marp:** lệnh xuất gộp (png + pdf + pptx) từng treo ở bước png >10 phút; chạy từng lệnh riêng.
 - **Backend test:** VS Code (extension Java) ghi đè `backend/target/classes` không có bean MapStruct → `./mvnw test` lỗi
   `No qualifying bean ...Mapper`. Chạy trong bản sao: `rsync -a --exclude target backend/ <scratch>/be && cd <scratch>/be && ./mvnw -q test`.
 - **zsh:** biến không tự tách từ (`for p in $L` sai) → viết danh sách trực tiếp; không có lệnh `timeout`. **Không đặt tên biến `path`** (hay `status`, `fpath`, `cdpath`): `path` gắn với `PATH`, gán vào là mất mọi lệnh (`git: command not found`). Script nhiều bước nên viết ra file và chạy bằng `bash`.

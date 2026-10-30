@@ -5,7 +5,19 @@ export interface AppConfig {
   /** Tên môi trường hiện trên header, vd "DEV", "TEST". Bỏ trống ở production. */
   environmentName?: string;
   apiUrl: string;
+  /** Cách đăng nhập. Bỏ trống = local (JWT do backend phát). Buổi 7: "oidc" qua Keycloak. */
+  auth?: AuthConfig;
 }
+
+export type AuthConfig =
+  | { mode: 'local' }
+  | {
+      mode: 'oidc';
+      /** URL realm, cũng là "iss" của token, vd http://localhost:8180/realms/care */
+      authority: string;
+      /** Client public (không có secret), bật PKCE */
+      clientId: string;
+    };
 
 export const APP_CONFIG = new InjectionToken<AppConfig>('APP_CONFIG');
 

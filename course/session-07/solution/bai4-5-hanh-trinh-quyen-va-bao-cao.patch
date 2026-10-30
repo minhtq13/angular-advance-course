@@ -1,0 +1,331 @@
+diff --git a/backend/src/main/java/com/careportal/api/ticket/TicketController.java b/backend/src/main/java/com/careportal/api/ticket/TicketController.java
+index 5b53954..3206ce4 100644
+--- a/backend/src/main/java/com/careportal/api/ticket/TicketController.java
++++ b/backend/src/main/java/com/careportal/api/ticket/TicketController.java
+@@ -74,7 +74,12 @@ public class TicketController {
+         return service.approve(id, request.version());
+     }
+ 
++    /**
++     * Sửa trạng thái, độ ưu tiên, người xử lý. Không ai được đóng phiếu (CLOSED) bằng PATCH:
++     * đóng phiếu là việc của Manager qua /approve (có kiểm tra vai trò và trạng thái RESOLVED).
++     */
+     @PatchMapping("/{id}")
++    @PreAuthorize("#request.status() != T(com.careportal.api.ticket.TicketStatus).CLOSED")
+     public TicketDto update(@PathVariable long id, @Valid @RequestBody UpdateTicketRequest request) {
+         return service.update(id, request);
+     }
+diff --git a/backend/src/test/java/com/careportal/api/TicketApiTests.java b/backend/src/test/java/com/careportal/api/TicketApiTests.java
+index efd4295..ad91b75 100644
+--- a/backend/src/test/java/com/careportal/api/TicketApiTests.java
++++ b/backend/src/test/java/com/careportal/api/TicketApiTests.java
+@@ -3,6 +3,7 @@ package com.careportal.api;
+ import static org.assertj.core.api.Assertions.assertThat;
+ import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
++import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+@@ -65,6 +66,28 @@ class TicketApiTests {
+                 .andExpect(status().isForbidden());
+     }
+ 
++    /** Buổi 7, regression: PATCH từng cho agent đóng phiếu (status=CLOSED), bỏ qua bước Manager duyệt. */
++    @Test
++    void nobodyClosesTicketByPatch() throws Exception {
++        long[] t = resolvedTicket(2);
++        var close = "{\"status\":\"CLOSED\",\"version\":" + t[1] + "}";
++        mvc.perform(patch("/api/tickets/{id}", t[0]).with(user("agent1", "AGENT"))
++                        .contentType(MediaType.APPLICATION_JSON).content(close))
++                .andExpect(status().isForbidden());
++        mvc.perform(patch("/api/tickets/{id}", t[0]).with(user("supervisor1", "AGENT", "SUPERVISOR"))
++                        .contentType(MediaType.APPLICATION_JSON).content(close))
++                .andExpect(status().isForbidden());
++        mvc.perform(get("/api/tickets/{id}", t[0]).with(user("agent1", "AGENT")))
++                .andExpect(jsonPath("$.status").value("RESOLVED"))
++                .andExpect(jsonPath("$.version").value(t[1]));
++
++        // Các thay đổi khác vẫn được (agent nhận phiếu, đổi độ ưu tiên).
++        mvc.perform(patch("/api/tickets/{id}", t[0]).with(user("agent1", "AGENT"))
++                        .contentType(MediaType.APPLICATION_JSON).content("{\"priority\":\"HIGH\",\"version\":" + t[1] + "}"))
++                .andExpect(status().isOk())
++                .andExpect(jsonPath("$.priority").value("HIGH"));
++    }
++
+     @Test
+     void secondApproverWithSameVersionGetsConflict() throws Exception {
+         long[] t = resolvedTicket(1);
+diff --git a/docs/bao-cao-kiem-thu.md b/docs/bao-cao-kiem-thu.md
+new file mode 100644
+index 0000000..cfb0759
+--- /dev/null
++++ b/docs/bao-cao-kiem-thu.md
+@@ -0,0 +1,54 @@
++# Báo cáo kiểm thử: đăng nhập SSO và duyệt phiếu (buổi 7)
++
++Ngày chạy: 2026-10-30. Máy: MacBook, Node 24.22, Chromium của Playwright. Backend chạy riêng (Postgres seed 2.000 thuê bao,
++500 phiếu; API cổng 8091; Keycloak 26.8.1 realm `care`). Mọi số dưới đây lấy từ lần chạy thật.
++
++## 1. Phạm vi
++
++| Rủi ro | Vì sao quan trọng |
++|---|---|
++| Đăng nhập SSO không gọi được API | Cả portal không dùng được ở chế độ OIDC |
++| Đăng xuất không kết thúc phiên SSO | Quầy CSKH dùng máy chung: người sau vào tài khoản người trước |
++| Agent đóng phiếu không qua Manager duyệt | Sai quy trình nghiệp vụ, không ai chịu trách nhiệm duyệt |
++| Manager duyệt nhầm phiếu, mất thông báo 409 | Ghi đè thay đổi của người khác mà không biết |
++
++## 2. Tháp kiểm thử
++
++| Tầng | Công cụ | Số test | Thời gian | Kiểm tra cái gì |
++|---|---|---|---|---|
++| Unit: quy tắc | Vitest, hàm thuần | 9 (`canApprove`) | < 0,6 giây cả project | Bảng trạng thái × vai trò hiện nút Duyệt |
++| Integration: HTTP + state | TestBed, `HttpTestingController` | 9 (`OidcAuthService`), 3 (duyệt phiếu ở app) | ~1–2 giây mỗi project | Header `Authorization`, refresh dùng chung, logout ở Keycloak; route + store + adapter HTTP thật |
++| Toàn bộ frontend | `nx run-many -t test` | 143 (12 project) | — | |
++| Backend | JUnit + Testcontainers | 28 (thêm 4 `SsoTokenTests`, 1 regression) | 15 giây (`./mvnw test`, image đã có sẵn) | JWKS, `iss`, `aud`; 403 theo vai trò; PATCH không đóng được phiếu |
++| API trực tiếp | Playwright `request` | 18 (ma trận buổi 6) + 2 (`role-denial`) | 1,6 giây cả 20 test | 401/403/409 và **dữ liệu không đổi** |
++| E2E hành trình | Playwright, trình duyệt | 1 hành trình duyệt phiếu, 4 SSO | 2,4 giây; 6,7 giây | Agent tạo → Manager duyệt → Agent thấy "Đã đóng"; đăng nhập/đăng xuất qua Keycloak |
++
++E2E toàn bộ ở chế độ local: **30 pass, 5 skip** (4 SSO cần `SSO=1`, 1 perf cần `PERF=1`), 17,5 giây.
++1 fail ở `i18n.spec` ("Total: 200,000" nhưng nhận "Total: 2,000"): do backend riêng chỉ seed 2.000 thuê bao, không phải hồi quy.
++
++## 3. Lỗi tìm được
++
++| # | Lỗi | Tìm bằng | Bằng chứng | Sửa | Test chống tái phát |
++|---|---|---|---|---|---|
++| 1 | Chế độ OIDC gửi **ID token** tới API: mọi API 401, màn hình "Không tải được danh sách" | Trình duyệt + giải mã header | `401 ... The aud claim is not valid`, token `typ: ID`, `aud: care-portal` | `OidcAuthService` dùng `accessToken` | `oidc-auth.service.spec.ts` (2 test), `sso.spec.ts` |
++| 2 | Đăng xuất chỉ xóa token trong tab: bấm SSO là vào lại tài khoản cũ | E2E "máy dùng chung" | Keycloak trả 302 ngay, không hỏi mật khẩu | `logoffAndRevokeTokens()` (RP-initiated logout) | `oidc-auth.service.spec.ts`, `sso.spec.ts` |
++| 3 | `PATCH /api/tickets/{id}` cho **agent đóng phiếu** (`status: CLOSED`), bỏ qua bước duyệt | Test API gọi thẳng, không qua UI | Mong 403, nhận **200** | `@PreAuthorize` ở `TicketController.update`: không ai đóng phiếu bằng PATCH | `role-denial.spec.ts`, `TicketApiTests.nobodyClosesTicketByPatch` |
++| 4 | Bộ test cũ không bắt được: (a) thay thông báo 409 bằng lỗi chung, (b) agent thấy nút Duyệt | Thử phá (mutation bằng tay) | 39 test feature-tickets và 3 test app vẫn xanh | Tách `canApprove`; assertion kiểm URL, body, request tải lại, chữ trên màn hình | `ticket.rules.spec.ts`, `ticket-approval.spec.ts` |
++
++Lỗi 3 tồn tại từ buổi 2: giao diện không có nút đóng phiếu nên mọi test qua UI đều xanh. Ma trận buổi 6 chỉ thử `/approve`.
++
++## 4. Chất lượng assertion: kết quả thử phá
++
++| Phá | Trước (test yếu) | Sau |
++|---|---|---|
++| M1: gửi `version: 0` | Bắt được (test trang dùng fake adapter) | Bắt được ở cả integration |
++| M2: bỏ `store.reload()` sau khi duyệt | Bắt được (test trang) | Bắt được ở cả integration |
++| M3: 409 hiện lỗi chung thay vì lý do từ server | **Lọt** | Integration đỏ |
++| M4: hiện nút Duyệt cho mọi vai trò | **Lọt** (chỉ E2E buổi 2 bắt được) | Unit quy tắc đỏ (3 dòng), integration đỏ |
++
++## 5. Rủi ro còn lại
++
++- E2E SSO cần Keycloak: không chạy trong CI mặc định. Đề xuất job CI riêng chạy `docker compose --profile sso` (buổi 9).
++- Token Keycloak nằm trong `sessionStorage` (xem `docs/checklist-sso.md`, mục rủi ro).
++- Hành trình E2E tạo dữ liệu thật mỗi lần chạy; DB dùng chung sẽ đầy phiếu "Hanh trinh E2E". Dọn bằng `docker compose down -v`.
++- `PATCH` vẫn cho đổi trạng thái tùy ý giữa NEW/IN_PROGRESS/RESOLVED (kể cả quay lui). Cần chốt quy tắc chuyển trạng thái với nghiệp vụ.
+diff --git a/frontend/apps/portal-e2e/src/journeys/ticket-approval.journey.spec.ts b/frontend/apps/portal-e2e/src/journeys/ticket-approval.journey.spec.ts
+new file mode 100644
+index 0000000..45b16bb
+--- /dev/null
++++ b/frontend/apps/portal-e2e/src/journeys/ticket-approval.journey.spec.ts
+@@ -0,0 +1,83 @@
++import { APIRequestContext, expect, Page, test } from '@playwright/test';
++
++// Hành trình nghiệp vụ quan trọng nhất của phiếu, qua giao diện thật và backend thật (chế độ đăng nhập local).
++// Mỗi lần chạy tạo một phiếu mới và đóng nó. Chạy: npx playwright test -c apps/portal-e2e/playwright.config.mts journeys
++const API = process.env['API_URL'] ?? 'http://localhost:8081';
++
++async function login(page: Page, user: string, url: string) {
++  await page.goto(url);
++  await page.getByLabel('Tên đăng nhập').fill(user);
++  await page.getByLabel('Mật khẩu').fill(user);
++  await page.getByRole('button', { name: 'Đăng nhập' }).click();
++}
++
++async function apiToken(request: APIRequestContext, user: string) {
++  const res = await request.post(`${API}/api/auth/login`, {
++    data: { username: user, password: user },
++  });
++  expect(res.status()).toBe(200);
++  return `Bearer ${(await res.json()).accessToken}`;
++}
++
++test('agent tao phieu -> manager duyet -> agent thay phieu da dong', async ({
++  browser,
++  request,
++}) => {
++  const title = `Hanh trinh E2E ${Date.now()}`;
++
++  // 1. Agent tạo phiếu trên giao diện.
++  const agent = await (await browser.newContext()).newPage();
++  await login(agent, 'agent1', '/subscribers/1');
++  await agent.getByRole('link', { name: 'Tạo phiếu' }).click();
++  await agent.locator('#tk-category').click();
++  await agent.locator('nz-option-item').first().click();
++  await agent.getByLabel('Tiêu đề').fill(title);
++  // Đọc body ngay khi response về: sau đó trang chuyển về danh sách, trình duyệt bỏ body.
++  const created = agent
++    .waitForResponse(
++      (r) =>
++        r.url().endsWith('/api/tickets') && r.request().method() === 'POST',
++    )
++    .then(async (r) => ({ status: r.status(), body: await r.json() }));
++  await agent.getByRole('button', { name: 'Tạo phiếu' }).click();
++  const { status, body: ticket } = await created;
++  expect(status).toBe(201);
++  await expect(agent.getByText(`Đã tạo phiếu ${ticket.code}`)).toBeVisible();
++
++  // 2. Arrange qua API: giao diện chưa có nút "Đã xử lý". Bước phụ không cần đi qua UI.
++  const agentToken = await apiToken(request, 'agent1');
++  const resolved = await request.patch(`${API}/api/tickets/${ticket.id}`, {
++    headers: { Authorization: agentToken },
++    data: { status: 'RESOLVED', version: ticket.version },
++  });
++  expect(resolved.status()).toBe(200);
++
++  // 3. Manager duyệt trên giao diện.
++  const manager = await (await browser.newContext()).newPage();
++  await login(manager, 'supervisor1', '/tickets?status=RESOLVED');
++  const row = manager.locator('tbody tr.ant-table-row', {
++    hasText: ticket.code,
++  });
++  await row.getByRole('button', { name: /Duyệt/ }).click();
++  await expect(
++    manager.getByText(`Đã duyệt phiếu ${ticket.code}`),
++  ).toBeVisible();
++  await expect(row).toHaveCount(0);
++
++  // 4. Agent thấy phiếu ở trạng thái mới (phiên vẫn còn, tải lại trang).
++  await agent.goto('/tickets?status=CLOSED');
++  const closedRow = agent.locator('tbody tr.ant-table-row', {
++    hasText: ticket.code,
++  });
++  await expect(closedRow).toContainText('Đã đóng');
++  await expect(closedRow).toContainText(title);
++
++  // 5. Dữ liệu ở server đúng như giao diện nói.
++  const saved = await request.get(`${API}/api/tickets/${ticket.id}`, {
++    headers: { Authorization: agentToken },
++  });
++  expect(await saved.json()).toMatchObject({
++    status: 'CLOSED',
++    version: ticket.version + 2,
++  });
++});
+diff --git a/frontend/apps/portal-e2e/src/security/role-denial.spec.ts b/frontend/apps/portal-e2e/src/security/role-denial.spec.ts
+new file mode 100644
+index 0000000..29b2d89
+--- /dev/null
++++ b/frontend/apps/portal-e2e/src/security/role-denial.spec.ts
+@@ -0,0 +1,74 @@
++import { APIRequestContext, expect, test } from '@playwright/test';
++
++// Quyền phải được kiểm tra ở server: gọi thẳng API, không qua giao diện (ẩn nút không chứng minh gì).
++// Bổ sung cho api-matrix.spec.ts (buổi 6): ở đó đã có "agent gọi /approve -> 403".
++const API = process.env['API_URL'] ?? 'http://localhost:8081';
++test.use({ baseURL: API });
++
++async function token(request: APIRequestContext, user: string) {
++  const res = await request.post('/api/auth/login', {
++    data: { username: user, password: user },
++  });
++  return `Bearer ${(await res.json()).accessToken}`;
++}
++
++/** Phiếu mới do agent tạo rồi đánh dấu đã xử lý: đang chờ Manager duyệt. */
++async function resolvedTicket(request: APIRequestContext, agent: string) {
++  const created = await request.post('/api/tickets', {
++    headers: { Authorization: agent },
++    data: {
++      subscriberId: 1,
++      category: 'OTHER',
++      priority: 'LOW',
++      title: `Kiem tra quyen ${Date.now()}`,
++    },
++  });
++  expect(created.status()).toBe(201);
++  const { id, version } = await created.json();
++  const resolved = await request.patch(`/api/tickets/${id}`, {
++    headers: { Authorization: agent },
++    data: { status: 'RESOLVED', version },
++  });
++  expect(resolved.status()).toBe(200);
++  return resolved.json();
++}
++
++test('agent khong dong phieu bang PATCH (bo qua buoc duyet) -> 403, phieu khong doi', async ({
++  request,
++}) => {
++  const agent = await token(request, 'agent1');
++  const ticket = await resolvedTicket(request, agent);
++
++  const res = await request.patch(`/api/tickets/${ticket.id}`, {
++    headers: { Authorization: agent },
++    data: { status: 'CLOSED', version: ticket.version },
++  });
++
++  expect(res.status()).toBe(403);
++  const after = await (
++    await request.get(`/api/tickets/${ticket.id}`, {
++      headers: { Authorization: agent },
++    })
++  ).json();
++  expect(after).toMatchObject({ status: 'RESOLVED', version: ticket.version });
++});
++
++test('manager cung khong dong phieu bang PATCH: dong phieu chi qua /approve', async ({
++  request,
++}) => {
++  const ticket = await resolvedTicket(request, await token(request, 'agent1'));
++  const manager = await token(request, 'supervisor1');
++
++  const patch = await request.patch(`/api/tickets/${ticket.id}`, {
++    headers: { Authorization: manager },
++    data: { status: 'CLOSED', version: ticket.version },
++  });
++  expect(patch.status()).toBe(403);
++
++  const approve = await request.post(`/api/tickets/${ticket.id}/approve`, {
++    headers: { Authorization: manager },
++    data: { version: ticket.version },
++  });
++  expect(approve.status()).toBe(200);
++  expect(await approve.json()).toMatchObject({ status: 'CLOSED' });
++});
+diff --git a/frontend/apps/portal-e2e/src/sso/sso.spec.ts b/frontend/apps/portal-e2e/src/sso/sso.spec.ts
+index a124288..67da9b2 100644
+--- a/frontend/apps/portal-e2e/src/sso/sso.spec.ts
++++ b/frontend/apps/portal-e2e/src/sso/sso.spec.ts
+@@ -101,3 +101,39 @@ test('callback gia (code va state khong do app tao) -> khong dang nhap', async (
+     page.getByRole('button', { name: 'Đăng nhập bằng SSO' }),
+   ).toBeVisible();
+ });
++
++test('token Keycloak cua agent goi thang API duyet phieu -> 403 (server doc vai tro tu token)', async ({
++  page,
++  request,
++}) => {
++  const API = process.env['API_URL'] ?? 'http://localhost:8081';
++  // Đọc body ngay khi response về: sau đó trang chuyển tiếp, trình duyệt bỏ body.
++  const tokens = page
++    .waitForResponse(/openid-connect\/token/)
++    .then((r) => r.json());
++  await page.goto('/login');
++  await page.getByRole('button', { name: 'Đăng nhập bằng SSO' }).click();
++  await keycloakLogin(page, 'agent1');
++  const { access_token: accessToken } = await tokens;
++  expect(payload(accessToken)['roles']).toEqual(['AGENT']);
++
++  const headers = { Authorization: `Bearer ${accessToken}` };
++  const list = await request.get(`${API}/api/tickets?status=RESOLVED&size=1`, {
++    headers,
++  });
++  expect(list.status()).toBe(200);
++  const [ticket] = (await list.json()).content;
++
++  const res = await request.post(`${API}/api/tickets/${ticket.id}/approve`, {
++    headers,
++    data: { version: ticket.version },
++  });
++  expect(res.status()).toBe(403);
++  const after = await request.get(`${API}/api/tickets/${ticket.id}`, {
++    headers,
++  });
++  expect(await after.json()).toMatchObject({
++    status: 'RESOLVED',
++    version: ticket.version,
++  });
++});

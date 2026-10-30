@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BTVN Buổi 7 · SSO và kiểm thử</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600&display=swap" />
+    <link rel="stylesheet" href="assets/lesson.css" />
+  </head>
+  <body>
+    <main>
+      <p class="kicker">Bài tập về nhà · Buổi 7 · SSO và chiến lược kiểm thử hệ thống</p>
+      <h1>Token nào cho ai, đăng xuất tới đâu, test nào đáng tin</h1>
+      <dl class="homework-meta">
+        <dt>Làm sau</dt>
+        <dd>Buổi 7 (<a href="../session-07/slides/buoi-07-sso-va-kiem-thu.pdf">slide</a> · <a href="../session-07/lab/README.md">lab</a>)</dd>
+        <dt>Hạn nộp</dt>
+        <dd>Trước buổi 8</dd>
+        <dt>Thời gian</dt>
+        <dd>Khoảng 30 phút</dd>
+        <dt>Cần</dt>
+        <dd>Trình duyệt và giấy bút. Phần tùy chọn cần Care Portal và Keycloak (profile <code>sso</code>) đang chạy.</dd>
+      </dl>
+
+      <div class="goal">
+        <p><strong>Mục tiêu:</strong> đọc đúng một luồng OIDC qua tab Network, nhận ra test "xanh mà vô dụng", và thiết kế tháp kiểm thử cho một tính năng mới mà không lặp lại bài lab.</p>
+        <p>Làm phần 0 trước khi mở slide.</p>
+      </div>
+
+      <h2>Phần 0 · Khởi động: viết ra giấy (4 phút)</h2>
+      <ol>
+        <li>Trong Authorization Code + PKCE, <code>code_verifier</code> nằm ở đâu, <code>code_challenge</code> đi đâu? Vì sao SPA cần PKCE?</li>
+        <li>ID token và access token khác nhau ở <code>aud</code> thế nào? Token nào gửi cho API?</li>
+        <li>Vì sao xóa token trong sessionStorage chưa phải là đăng xuất SSO?</li>
+        <li>Kể 4 tầng của tháp kiểm thử Care Portal, mỗi tầng một ví dụ test đã có.</li>
+      </ol>
+      <details>
+        <summary>Ôn lại sau khi đã viết xong</summary>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Câu</th><th>Ý chính</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td><code>code_verifier</code> ngẫu nhiên, chỉ nằm trong tab; <code>code_challenge = SHA256(verifier)</code> đi kèm <code>/auth</code>. Khi đổi <code>code</code> ở <code>/token</code> phải gửi verifier. Client public không giữ được secret, nên <code>code</code> bị lộ cũng vô dụng.</td></tr>
+              <tr><td>2</td><td>ID token: <code>aud = care-portal</code> (app), <code>typ: ID</code>. Access token: <code>aud = care-api</code>, <code>typ: Bearer</code>. API nhận access token; gửi ID token → 401 <code>The aud claim is not valid</code>.</td></tr>
+              <tr><td>3</td><td>Phiên SSO nằm ở Keycloak (cookie <code>KEYCLOAK_IDENTITY</code>). Bấm SSO lần sau, Keycloak thấy phiên còn → trả <code>code</code> ngay. Phải RP-initiated logout: revoke token, <code>end_session_endpoint</code> với <code>id_token_hint</code>.</td></tr>
+              <tr><td>4</td><td>Unit quy tắc (<code>canApprove</code>), integration HTTP + state (<code>ticket-approval.spec.ts</code>, <code>oidc-auth.service.spec.ts</code>), API trực tiếp (<code>role-denial.spec.ts</code>, ma trận buổi 6), E2E hành trình (<code>ticket-approval.journey.spec.ts</code>, <code>sso.spec.ts</code>).</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+
+      <h2>Phần 1 · Đọc luồng OIDC (5 câu)</h2>
+      <div class="quiz" id="quiz-oidc" data-quiz>
+        <script type="application/json">
+          {
+            "questions": [
+              {
+                "prompt": "Tab Network sau khi bấm 'Đăng nhập bằng SSO' có: GET /auth?...&code_challenge=1YMS...&code_challenge_method=S256&state=dfd6...&nonce=1b9d.... Giá trị code_challenge này nếu bị kẻ gian chụp màn hình thì sao?",
+                "options": ["Kẻ gian đăng nhập được vì có challenge", "Không sao: từ challenge (SHA-256) không suy ra được code_verifier, mà /token cần verifier", "Phải đổi mật khẩu ngay", "Kẻ gian dùng được nếu nhanh hơn app"],
+                "answer": 1,
+                "explain": "Challenge là hash một chiều của verifier. Thứ cần giữ kín là code_verifier, chỉ nằm trong tab và chỉ gửi ở bước POST /token."
+              },
+              {
+                "prompt": "Một đồng nghiệp đề xuất đăng ký redirect URI là http://localhost:4200/* cho 'đỡ phải sửa khi thêm route'. Rủi ro là gì?",
+                "options": ["Không có rủi ro vì cùng origin", "Chỉ làm chậm đăng nhập", "Mọi trang cùng origin (kể cả trang có lỗ hổng, redirect mở) đều nhận được code; mất một lớp bảo vệ", "Keycloak sẽ từ chối mọi request"],
+                "answer": 2,
+                "explain": "Redirect URI chính xác là lớp chặn code bị gửi tới chỗ không mong muốn. Trên lớp đã thử: URI lạ → 400 'Tham số không hợp lệ: redirect_uri'."
+              },
+              {
+                "prompt": "Ai đó gửi cho nhân viên link http://localhost:4200/auth/callback?code=abc&state=xyz. State này app chưa từng tạo. Care Portal (đã sửa) làm gì?",
+                "options": ["Đổi code lấy token rồi đăng nhập bằng tài khoản trong code", "Thư viện thấy state không khớp, không gọi /token; app về /login", "Hiện trang trắng", "Gọi /token nhưng bỏ qua state"],
+                "answer": 1,
+                "explain": "Đây là login CSRF: ép nạn nhân đăng nhập vào tài khoản của kẻ gian. state chặn nó. Lúc đầu checkAuth ném lỗi làm trắng app; init() bắt lỗi và coi như chưa đăng nhập."
+              },
+              {
+                "prompt": "Đăng nhập SSO xong, GET /api/tickets trả 401 với WWW-Authenticate: ... The aud claim is not valid. Giải mã header Authorization thấy typ: ID. Sửa ở đâu?",
+                "options": ["Backend: bỏ kiểm tra aud cho tiện", "Keycloak: thêm care-api vào aud của ID token", "Frontend: gửi access token cho API, ID token chỉ dùng để hiển thị người dùng", "Tăng thời hạn token"],
+                "answer": 2,
+                "explain": "Server đang làm đúng. Bỏ kiểm tra aud hoặc nhét care-api vào ID token là làm yếu API để che lỗi của app."
+              },
+              {
+                "prompt": "Bấm Đăng xuất, Network chỉ có điều hướng tới /login, không có request nào tới localhost:8180. Kết luận?",
+                "options": ["Đúng, đăng xuất là việc của app", "Phiên SSO còn: người tiếp theo bấm SSO sẽ vào thẳng tài khoản này", "Keycloak tự biết người dùng đã đăng xuất", "Chỉ sai nếu dùng localStorage"],
+                "answer": 1,
+                "explain": "Đúng phải thấy POST /revoke và GET .../logout?id_token_hint=...&post_logout_redirect_uri=.../login."
+              }
+            ]
+          }
+        </script>
+      </div>
+
+      <h2>Phần 2 · Soi test: xanh nhưng có bảo vệ được gì? (5 câu)</h2>
+      <div class="quiz" id="quiz-test" data-quiz>
+        <script type="application/json">
+          {
+            "questions": [
+              {
+                "prompt": "Test: roles.set(['AGENT']); tạo trang danh sách phiếu; expect(nút Duyệt).toHaveLength(0). Không flush request danh sách. Vấn đề?",
+                "options": ["Không có vấn đề", "Danh sách chưa có dòng nào nên 0 nút là đương nhiên; test xanh cả khi mọi vai trò đều thấy nút", "Thiếu fakeAsync", "Nên dùng toBeFalsy"],
+                "answer": 1,
+                "explain": "Kiểm tra điều kiện trước (đã có 1 dòng RESOLVED hiện ra) rồi mới kết luận. Trên lớp: phá M4, test này vẫn xanh."
+              },
+              {
+                "prompt": "Assertion nào bắt được lỗi 'gửi nhầm version khi duyệt phiếu'?",
+                "options": ["expect(req.request.method).toBe('POST')", "expect(req.request.body).toEqual({ version: 3 })", "expect(component).toBeTruthy()", "expect(http.expectOne).toBeDefined()"],
+                "answer": 1,
+                "explain": "Assertion phải chạm vào dữ liệu có thể sai. Method POST đúng cả khi body sai."
+              },
+              {
+                "prompt": "Quy tắc 'Manager mới thấy nút Duyệt, phiếu phải RESOLVED' nên test ở tầng nào trước tiên?",
+                "options": ["E2E với 3 tài khoản", "Unit: hàm thuần canApprove(ticket, roles) + bảng it.each", "Chỉ cần test API 403", "Không cần test vì server đã chặn"],
+                "answer": 1,
+                "explain": "Rẻ nhất, nhanh nhất, chỉ đúng chỗ hỏng. Server chặn là việc khác (quyền thật); hiện sai nút vẫn là lỗi trải nghiệm."
+              },
+              {
+                "prompt": "E2E: agent tạo phiếu, rồi const t = await created.json() sau khi trang đã chuyển về danh sách. Lỗi 'No data found for resource'. Cách sửa tốt?",
+                "options": ["Thêm waitForTimeout(2000)", "Đọc body ngay trong .then của waitForResponse, trước khi trang chuyển", "Tắt điều hướng sau khi tạo", "Bỏ kiểm tra response"],
+                "answer": 1,
+                "explain": "Trình duyệt bỏ body khi trang chuyển. Chờ cứng không sửa được nguyên nhân và làm test chậm, chập chờn."
+              },
+              {
+                "prompt": "Giao diện không có nút 'Đóng phiếu'. Test UI xác nhận agent không đóng được phiếu. Đủ chưa?",
+                "options": ["Đủ, vì không có nút", "Chưa: phải gọi thẳng PATCH /api/tickets/{id} bằng token agent, mong 403 và kiểm phiếu không đổi", "Chỉ cần unit test", "Chỉ cần đọc code backend"],
+                "answer": 1,
+                "explain": "Đúng lỗi thật tìm thấy trên lớp: PATCH status=CLOSED trả 200 từ buổi 2 tới buổi 7 mà không test UI nào thấy."
+              }
+            ]
+          }
+        </script>
+      </div>
+
+      <h2>Phần 3 · Vận dụng: giao phiếu cho nhân viên khác (10 phút)</h2>
+      <p>
+        Tính năng mới: Manager giao phiếu cho một agent khác; agent chỉ được <em>tự nhận</em> phiếu chưa có người xử lý. Phiếu đã đóng không giao
+        được. Hiện tại <code>PATCH /api/tickets/{id}</code> nhận trường <code>assignee</code> từ bất kỳ ai đã đăng nhập (đọc
+        <code>TicketService.update</code>).
+      </p>
+      <ol class="steps">
+        <li>Viết quy tắc thành một hàm thuần <code>canAssign(ticket, roles, currentUser, newAssignee)</code> và ít nhất 6 dòng bảng
+          <code>it.each</code> (trạng thái × vai trò × người được giao).</li>
+        <li>Một integration test (TestBed + <code>HttpTestingController</code>) cho màn hình giao phiếu: kể 4 assertion cụ thể (URL, body, request
+          tiếp theo, chữ trên màn hình). Mỗi assertion bắt được lỗi gì nếu code sai?</li>
+        <li>Ba test gọi thẳng API (Playwright <code>request</code>) chứng minh server từ chối sai quyền, kèm kỳ vọng status và <strong>dữ liệu sau khi gọi</strong>.</li>
+      </ol>
+      <details>
+        <summary>Đáp án tham khảo (chỉ mở sau khi đã viết)</summary>
+        <ol>
+          <li>Ví dụ: CLOSED + bất kỳ → false; SUPERVISOR + RESOLVED/NEW + giao cho agent2 → true; AGENT + phiếu chưa ai nhận + giao cho chính mình → true;
+            AGENT + phiếu chưa ai nhận + giao cho agent2 → false; AGENT + phiếu đã của agent2 + giao cho mình → false; vai trò rỗng → false.</li>
+          <li><code>expectOne(.../api/tickets/42)</code> method PATCH (sai endpoint); body <code>{ assignee: 'agent2', version: 3 }</code> (gửi nhầm người, version cũ);
+            sau khi xong có <strong>một</strong> request tải lại đúng bộ lọc (quên reload); thông báo "Đã giao phiếu TK-000042 cho agent2" và khi 409 hiện lý do từ server (nuốt lỗi).
+            Kết thúc bằng <code>http.verify()</code>.</li>
+          <li>AGENT giao phiếu của mình cho agent2 → 403, <code>assignee</code> không đổi; AGENT nhận phiếu đã thuộc agent2 → 403 (hoặc 409), vẫn của agent2;
+            SUPERVISOR giao phiếu CLOSED → 409, <code>version</code> không đổi. Thêm một dòng đúng quyền (SUPERVISOR giao phiếu NEW → 200) để chắc test không đỏ vì lý do khác.</li>
+        </ol>
+      </details>
+
+      <h2>Phần tùy chọn · Soi SSO trên máy bạn</h2>
+      <p>
+        Chạy <code>session07-end</code> với <code>--profile sso</code> và <code>config.json</code> chế độ OIDC. Đăng nhập <code>agent1</code>, trong
+        Network tìm response của <code>POST .../token</code>: giải mã <code>id_token</code> và <code>access_token</code>, ghi <code>exp − iat</code>,
+        <code>aud</code>, các claim chỉ có ở một bên. Rồi đăng xuất và ghi thứ tự request tới <code>localhost:8180</code>. Không gửi token thật của
+        hệ thống công ty.
+      </p>
+
+      <h2>Nộp bài</h2>
+      <p>Gửi giảng viên qua kênh của lớp, <strong>trước buổi 8</strong>:</p>
+      <ol>
+        <li>Điểm phần 1 và phần 2.</li>
+        <li>Câu trả lời phần 3 (3 ý).</li>
+        <li>(Tùy chọn) kết quả phần tùy chọn.</li>
+      </ol>
+      <p class="meta">Một ngày trước buổi 8, làm lại phần 2 mà không mở phần ôn tập.</p>
+
+      <h2>Đọc thêm</h2>
+      <p>
+        <strong>Nguồn chính:</strong> <a href="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-browser-based-apps">IETF — OAuth 2.0 for Browser-Based Applications</a>
+        (khoảng 20 phút: mục về SPA giữ token và BFF).
+      </p>
+      <p>
+        Thêm: <a href="https://datatracker.ietf.org/doc/html/rfc7636">RFC 7636 — PKCE</a> ·
+        <a href="https://openid.net/specs/openid-connect-rpinitiated-1_0.html">OpenID Connect RP-Initiated Logout</a> ·
+        <a href="https://angular.dev/guide/http/testing">Angular — Testing HTTP requests</a> ·
+        <a href="https://playwright.dev/docs/api-testing">Playwright — API testing</a> ·
+        sản phẩm của lớp: <code>docs/checklist-sso.md</code>, <code>docs/bao-cao-kiem-thu.md</code> (nhánh <code>session07-end</code>).
+      </p>
+
+      <div class="callout">
+        <p><strong>Còn chỗ nào chưa rõ?</strong> Hỏi giảng viên, hoặc hỏi trợ lý AI ngay trong repo — ví dụ:
+          “vì sao <code>logoff()</code> của thư viện không đủ, phải dùng <code>logoffAndRevokeTokens()</code>?”.</p>
+      </div>
+
+      <footer>Khóa Angular nâng cao · Bài tập về nhà buổi 7 · Dự án mẫu Care Portal</footer>
+    </main>
+    <script src="assets/quiz.js"></script>
+  </body>
+</html>
