@@ -6,7 +6,8 @@ import {
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { provideAppConfig } from '@care/shared-util-config';
-import { AuthService, userFromClaims } from './auth.service';
+import { userFromClaims } from './auth.service';
+import { LocalAuthService } from './local-auth.service';
 
 /** Tạo JWT giả (không ký) - FE chỉ đọc payload, backend mới kiểm tra signature. */
 function fakeJwt(payload: object): string {
@@ -14,8 +15,8 @@ function fakeJwt(payload: object): string {
   return `${encode({ alg: 'none' })}.${encode(payload)}.sig`;
 }
 
-describe('AuthService', () => {
-  let service: AuthService;
+describe('LocalAuthService', () => {
+  let service: LocalAuthService;
   let http: HttpTestingController;
 
   beforeEach(() => {
@@ -28,7 +29,7 @@ describe('AuthService', () => {
         provideAppConfig({ apiUrl: 'http://api' }),
       ],
     });
-    service = TestBed.inject(AuthService);
+    service = TestBed.inject(LocalAuthService);
     http = TestBed.inject(HttpTestingController);
   });
 

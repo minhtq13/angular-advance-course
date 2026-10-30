@@ -55,6 +55,9 @@ export class LoginPage {
   /** ?reason=expired: bị đăng xuất vì hết phiên (refresh bị từ chối), không phải tự bấm đăng xuất. */
   readonly reason = input<string>();
 
+  /** Chế độ OIDC: không có form, đăng nhập ở máy chủ định danh. */
+  protected readonly sso = this.auth.mode === 'oidc';
+
   protected readonly form = inject(NonNullableFormBuilder).group({
     username: ['', Validators.required],
     password: ['', Validators.required],
@@ -63,11 +66,15 @@ export class LoginPage {
   protected readonly error = signal<string | null>(null);
 
   private readonly usernameInput =
-    viewChild.required<ElementRef<HTMLInputElement>>('usernameInput');
+    viewChild<ElementRef<HTMLInputElement>>('usernameInput');
 
   constructor() {
     // Trang chỉ có một mục đích -> đặt sẵn con trỏ vào ô đầu tiên.
-    afterNextRender(() => this.usernameInput().nativeElement.focus());
+    afterNextRender(() => this.usernameInput()?.nativeElement.focus());
+  }
+
+  protected loginWithSso(): void {
+    this.auth.loginWithSso(safeReturnUrl(this.returnUrl()));
   }
 
   protected submit(): void {

@@ -1,9 +1,5 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { computed, inject, Injectable, signal } from '@angular/core';
-import { Router } from '@angular/router';
-import { APP_CONFIG } from '@care/shared-util-config';
-import { finalize, map, Observable, share, tap } from 'rxjs';
-import { decodeJwtPayload, isExpired } from './jwt';
+import { computed, signal } from '@angular/core';
+import { Observable } from 'rxjs';
 
 export type AppRole = 'AGENT' | 'SUPERVISOR' | 'ADMIN';
 
@@ -20,14 +16,17 @@ export interface AuthUser {
   roles: AppRole[];
 }
 
-/** Claim trong access token do backend phát (xem TokenService.issue). */
-export interface AccessTokenClaims {
+/**
+ * Claim mô tả người dùng: access token do backend phát (TokenService.issue)
+ * hoặc ID token của Keycloak (mapper "roles" trong infra/keycloak/care-realm.json).
+ */
+export interface UserClaims {
   preferred_username?: string;
   name?: string;
   roles?: string[];
 }
 
-export function userFromClaims(claims: AccessTokenClaims): AuthUser {
+export function userFromClaims(claims: UserClaims): AuthUser {
   const username = claims.preferred_username ?? '';
   const roles = (claims.roles ?? []).filter((role): role is AppRole =>
     Object.hasOwn(ROLE_LABEL_KEYS, role),
@@ -35,27 +34,18 @@ export function userFromClaims(claims: AccessTokenClaims): AuthUser {
   return { username, displayName: claims.name ?? username, roles };
 }
 
-interface TokenResponse {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
-}
-
-const STORAGE_KEY = 'care.auth';
+export type AuthMode = 'local' | 'oidc';
 
 /**
- * Đăng nhập bằng JWT do backend phát: POST /api/auth/login -> access token (ngắn hạn) + refresh token.
- * Refresh token rotation: mỗi token chỉ đổi được MỘT lần, gửi lại token đã dùng -> server revoke cả phiên.
- * Token lưu trong sessionStorage (mất khi đóng tab). Buổi 6 bàn về nơi lưu token.
+ * Port xác thực: guard, interceptor, màn hình chỉ biết lớp này (cùng ý tưởng TicketPort ở buổi 1).
+ * Hai adapter: LocalAuthService (JWT do backend phát, mặc định) và OidcAuthService (Keycloak, buổi 7).
+ * App chọn adapter trong provideAuth(config.auth) (composition root); không cấu hình gì thì dùng local.
+ * Abstract class thay vì interface để làm luôn DI token.
  */
-@Injectable({ providedIn: 'root' })
-export class AuthService {
-  private readonly http = inject(HttpClient);
-  private readonly router = inject(Router);
-  private readonly apiUrl = inject(APP_CONFIG).apiUrl;
+export abstract class AuthService {
+  abstract readonly mode: AuthMode;
 
-  private tokens: TokenResponse | null = null;
-  private readonly user = signal<AuthUser | null>(null);
+  protected readonly user = signal<AuthUser | null>(null);
 
   readonly isAuthenticated = computed(() => this.user() !== null);
   readonly username = computed(() => this.user()?.username ?? '');
@@ -69,126 +59,29 @@ export class AuthService {
     return roles.some((role) => this.roles().includes(role));
   }
 
-  /**
-   * Chạy trong provideAppInitializer, trước khi app render: khôi phục phiên từ sessionStorage.
-   * Access token hết hạn không sao (sẽ refresh); refresh token hết hạn thì phiên đã kết thúc.
-   */
-  async init(): Promise<void> {
-    const saved = readStorage();
-    if (saved && !isExpired(saved.refreshToken)) {
-      this.setTokens(saved);
-    } else {
-      this.clear();
-    }
-  }
+  /** Chạy trong provideAppInitializer, trước khi app render: khôi phục phiên (và xử lý callback OIDC). */
+  abstract init(): Promise<void>;
 
-  loginWithPassword(username: string, password: string): Observable<void> {
-    return this.http
-      .post<TokenResponse>(`${this.apiUrl}/api/auth/login`, {
-        username,
-        password,
-      })
-      .pipe(
-        tap((tokens) => this.setTokens(tokens)),
-        map(() => undefined),
-      );
-  }
+  /** Token gửi kèm request tới API (interceptor gắn vào header Authorization). */
+  abstract accessToken(): string | null;
 
-  /** Gửi nguyên token, kể cả khi đã hết hạn: server mới quyết định, hết hạn thì trả 401 và interceptor refresh. */
-  accessToken(): string | null {
-    return this.tokens?.accessToken ?? null;
-  }
+  /** Lấy access token mới khi API trả 401; dùng chung một request cho mọi người gọi đồng thời. */
+  abstract refresh(): Observable<string>;
 
-  /** Lần refresh đang chạy (nếu có): mọi request 401 trong lúc này dùng chung nó. */
-  private refreshing: Observable<string> | null = null;
+  /** Chế độ local: đăng nhập bằng form. */
+  abstract loginWithPassword(
+    username: string,
+    password: string,
+  ): Observable<void>;
 
-  /**
-   * Đổi refresh token lấy cặp token mới; trả về access token mới.
-   * Dùng chung một request cho mọi người gọi đồng thời: refresh token rotation chỉ dùng được MỘT lần,
-   * gửi 2 lần cùng token -> server coi là reuse và revoke cả phiên.
-   */
-  refresh(): Observable<string> {
-    this.refreshing ??= this.http
-      .post<TokenResponse>(`${this.apiUrl}/api/auth/refresh`, {
-        refreshToken: this.tokens?.refreshToken,
-      })
-      .pipe(
-        tap({
-          next: (tokens) => this.setTokens(tokens),
-          // Đăng xuất ở đây (phần dùng chung) -> chỉ MỘT lần dù bao nhiêu request đang chờ.
-          // Chỉ khi server từ chối (401: hết hạn, bị revoke, reuse); mất mạng thì giữ phiên, thử lại sau.
-          error: (error: unknown) => {
-            if (error instanceof HttpErrorResponse && error.status === 401) {
-              this.login(this.router.url, 'expired');
-            }
-          },
-        }),
-        map((tokens) => tokens.accessToken),
-        // Xong (thành công hay lỗi) -> lần hết hạn sau phải refresh mới, không phát lại kết quả cũ.
-        finalize(() => (this.refreshing = null)),
-        share(),
-      );
-    return this.refreshing;
-  }
+  /** Chế độ OIDC: chuyển trình duyệt sang máy chủ định danh, xong quay lại returnUrl. */
+  abstract loginWithSso(returnUrl: string): void;
 
   /**
    * Đưa người dùng tới trang đăng nhập; sau khi xong quay lại returnUrl.
-   * reason 'expired': phiên kết thúc ngoài ý muốn (refresh bị từ chối) -> trang đăng nhập nói rõ lý do.
+   * reason 'expired': phiên kết thúc ngoài ý muốn -> trang đăng nhập nói rõ lý do.
    */
-  login(returnUrl = this.router.url, reason?: 'expired'): void {
-    this.clear();
-    const queryParams = {
-      ...(returnUrl && !returnUrl.startsWith('/login') ? { returnUrl } : {}),
-      ...(reason ? { reason } : {}),
-    };
-    this.router.navigate(['/login'], { queryParams });
-  }
+  abstract login(returnUrl?: string, reason?: 'expired'): void;
 
-  /** Revoke refresh token ở server (token bị lộ cũng vô dụng), rồi xóa phiên. Server lỗi vẫn đăng xuất. */
-  logout(): void {
-    const refreshToken = this.tokens?.refreshToken;
-    this.clear();
-    if (refreshToken) {
-      this.http
-        .post(`${this.apiUrl}/api/auth/logout`, { refreshToken })
-        .subscribe({ error: () => undefined });
-    }
-    this.router.navigate(['/login']);
-  }
-
-  private setTokens(tokens: TokenResponse): void {
-    this.tokens = tokens;
-    writeStorage(tokens);
-    this.user.set(
-      userFromClaims(decodeJwtPayload<AccessTokenClaims>(tokens.accessToken)),
-    );
-  }
-
-  private clear(): void {
-    this.tokens = null;
-    writeStorage(null);
-    this.user.set(null);
-  }
-}
-
-// sessionStorage có thể bị chặn (chế độ riêng tư, chính sách trình duyệt) -> không để app vỡ vì nó.
-function readStorage(): TokenResponse | null {
-  try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as TokenResponse) : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeStorage(tokens: TokenResponse | null): void {
-  try {
-    if (tokens) {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(tokens));
-    } else {
-      sessionStorage.removeItem(STORAGE_KEY);
-    }
-  } catch {
-    // bỏ qua
-  }
+  abstract logout(): void;
 }

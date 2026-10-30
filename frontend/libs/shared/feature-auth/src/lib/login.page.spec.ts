@@ -6,14 +6,18 @@ import { provideI18nTesting } from '@care/shared-util-i18n/testing';
 import { LoginPage } from './login.page';
 
 describe('LoginPage', () => {
+  const auth = { mode: 'local', loginWithSso: vi.fn() };
+
   beforeEach(async () => {
+    auth.mode = 'local';
+    auth.loginWithSso.mockReset();
     await TestBed.configureTestingModule({
       imports: [LoginPage],
       providers: [
         provideRouter([]),
         provideUi(),
         provideI18nTesting(),
-        { provide: AuthService, useValue: {} },
+        { provide: AuthService, useValue: auth },
       ],
     }).compileComponents();
   });
@@ -33,5 +37,26 @@ describe('LoginPage', () => {
     await fixture.whenStable();
 
     expect(fixture.nativeElement.textContent).not.toContain('hết hạn');
+  });
+
+  it('che do oidc -> khong co form, nut SSO giu trang dinh vao (chan open redirect)', async () => {
+    auth.mode = 'oidc';
+    const fixture = TestBed.createComponent(LoginPage);
+    fixture.componentRef.setInput('returnUrl', '/tickets?status=NEW');
+    await fixture.whenStable();
+    const el: HTMLElement = fixture.nativeElement;
+    const ssoButton = () =>
+      [...el.querySelectorAll('button')].find((b) =>
+        b.textContent?.includes('Đăng nhập bằng SSO'),
+      );
+
+    expect(el.querySelector('form')).toBeNull();
+    expect(ssoButton()).toBeDefined();
+    ssoButton()?.click();
+    expect(auth.loginWithSso).toHaveBeenCalledWith('/tickets?status=NEW');
+
+    fixture.componentRef.setInput('returnUrl', '//evil.com');
+    ssoButton()?.click();
+    expect(auth.loginWithSso).toHaveBeenLastCalledWith('/');
   });
 });

@@ -32,6 +32,19 @@
       }
     </div>
 
+    @if (sso) {
+    <button
+      nz-button
+      nzType="primary"
+      nzSize="large"
+      nzBlock
+      type="button"
+      (click)="loginWithSso()"
+    >
+      {{ 'auth.ssoSubmit' | transloco }}
+    </button>
+    <p class="hint muted">{{ 'auth.ssoHint' | transloco }}</p>
+    } @else {
     <form
       nz-form
       nzLayout="vertical"
@@ -85,5 +98,6 @@
     </form>
 
     <p class="hint muted">{{ 'auth.demoAccounts' | transloco }}</p>
+    }
   </div>
 </main>

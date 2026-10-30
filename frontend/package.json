@@ -68,6 +68,7 @@
     "@ngrx/signals": "^22.0.1",
     "@ngrx/store": "^22.0.1",
     "@ngrx/store-devtools": "^22.0.1",
+    "angular-auth-oidc-client": "22.0.1",
     "ng-zorro-antd": "^22.1.2",
     "rxjs": "~7.8.0"
   }

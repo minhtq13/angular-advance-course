@@ -13,6 +13,7 @@ import { provideRouter, Router } from '@angular/router';
 import { provideAppConfig } from '@care/shared-util-config';
 import { authInterceptor } from './auth.interceptor';
 import { AuthService } from './auth.service';
+import { LocalAuthService } from './local-auth.service';
 
 /** JWT giả (không ký): FE chỉ đọc payload. exp cố định (năm 2100) để cùng tên -> cùng chuỗi token. */
 function fakeJwt(name: string): string {
@@ -53,6 +54,7 @@ describe('authInterceptor', () => {
         provideHttpClient(withInterceptors([authInterceptor])),
         provideHttpClientTesting(),
         provideRouter([]),
+        { provide: AuthService, useExisting: LocalAuthService },
         provideAppConfig({ apiUrl }),
       ],
     });

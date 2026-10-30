@@ -3,6 +3,7 @@ name: care
 # Mặc định (học viên chỉ cần lệnh này):   docker compose -f infra/docker-compose.yml up -d
 #   -> postgres (có sẵn dữ liệu) + api :8081 + adminer :8088
 # Thêm Redis cache (tùy chọn):             docker compose -f infra/docker-compose.yml --profile cache up -d
+# Thêm Keycloak cho buổi 7 (tùy chọn):     docker compose -f infra/docker-compose.yml --profile sso up -d
 
 services:
   postgres:
@@ -36,6 +37,10 @@ services:
       # Buổi 6: ACCESS_TOKEN_TTL=30s docker compose -f infra/docker-compose.yml up -d api  (tái hiện token hết hạn trong lớp)
       ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-15m}
       REFRESH_TOKEN_TTL: ${REFRESH_TOKEN_TTL:-8h}
+      # Buổi 7: ngoài token tự phát, API nhận thêm access token của Keycloak (profile sso).
+      # iss phải khớp URL trình duyệt thấy (localhost:8180); key công khai (JWKS) lấy qua mạng nội bộ docker.
+      SSO_ISSUER_URI: ${SSO_ISSUER_URI:-http://localhost:8180/realms/care}
+      SSO_JWK_SET_URI: ${SSO_JWK_SET_URI:-http://keycloak:8180/realms/care/protocol/openid-connect/certs}
     ports:
       - "8081:8081"
     depends_on:
@@ -55,6 +60,23 @@ services:
       - "8088:8080"
     depends_on:
       - postgres
+
+  # Buổi 7: máy chủ định danh OIDC. Admin console http://localhost:8180/admin (admin/admin).
+  # Realm "care" import từ infra/keycloak/care-realm.json mỗi lần tạo container (không có volume: xóa container là về ban đầu).
+  keycloak:
+    profiles: ["sso"]
+    image: quay.io/keycloak/keycloak:26.8.1
+    command: ["start-dev", "--import-realm", "--http-port=8180"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      # Cố định issuer = URL trình duyệt dùng; api gọi JWKS qua http://keycloak:8180 vẫn được.
+      KC_HOSTNAME: http://localhost:8180
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+    ports:
+      - "8180:8180"
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import:ro
 
   redis:
     profiles: ["cache"]

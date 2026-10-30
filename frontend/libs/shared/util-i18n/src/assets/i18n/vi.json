@@ -56,6 +56,8 @@
     "usernameRequired": "Vui lòng nhập tên đăng nhập",
     "passwordRequired": "Vui lòng nhập mật khẩu",
     "submit": "Đăng nhập",
+    "ssoSubmit": "Đăng nhập bằng SSO",
+    "ssoHint": "Dùng tài khoản của hệ thống định danh (Keycloak). Tài khoản mẫu: agent1 · supervisor1 · admin1",
     "sessionExpired": "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại",
     "failed": "Không đăng nhập được, vui lòng thử lại",
     "demoAccounts": "Tài khoản mẫu (mật khẩu trùng tên đăng nhập): agent1 · supervisor1 · admin1"

@@ -44,6 +44,10 @@ care:
     # Buổi 6: ACCESS_TOKEN_TTL=30s để thấy access token hết hạn và refresh trong lớp.
     access-token-ttl: ${ACCESS_TOKEN_TTL:15m}
     refresh-token-ttl: ${REFRESH_TOKEN_TTL:8h}
+  sso:
+    # Buổi 7 (Keycloak, profile docker "sso"). Để trống -> chỉ nhận token tự phát.
+    issuer-uri: ${SSO_ISSUER_URI:}
+    jwk-set-uri: ${SSO_JWK_SET_URI:}
   cors:
     allowed-origins: ${CORS_ORIGINS:http://localhost:4200,http://localhost:4300}
   demo:
