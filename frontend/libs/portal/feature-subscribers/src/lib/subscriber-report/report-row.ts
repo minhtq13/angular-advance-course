@@ -4,7 +4,7 @@ import {
   SUBSCRIBER_TYPE,
 } from '@care/shared-data-access-api';
 
-/** Mot dong bao cao da tinh san: template chi doc thuoc tinh, khong goi ham cho tung dong moi lan kiem tra. */
+/** Một dòng báo cáo đã tính sẵn: template chỉ đọc thuộc tính, không gọi hàm cho từng dòng mỗi lần kiểm tra. */
 export interface ReportRow {
   id: number;
   msisdn: string;

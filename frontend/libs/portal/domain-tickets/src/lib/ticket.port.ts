@@ -8,22 +8,22 @@ import {
 } from './ticket';
 
 /**
- * Hop dong (port) ma man hinh phieu yeu cau can. Man hinh chi biet lop nay;
- * app quyet dinh dung adapter nao (HTTP that, fake trong test) qua DI.
- * Dung abstract class thay vi interface de lam luon DI token.
+ * Hợp đồng (port) mà màn hình phiếu yêu cầu cần. Màn hình chỉ biết lớp này;
+ * app quyết định dùng adapter nào (HTTP thật, fake trong test) qua DI.
+ * Dùng abstract class thay vì interface để làm luôn DI token.
  */
 export abstract class TicketPort {
   abstract search(query: TicketQuery, page: PageQuery): Observable<TicketPage>;
 
   /**
-   * Tao phieu. Cung idempotencyKey -> cung mot phieu (an toan khi gui lai).
-   * Loi: TicketValidationError (du lieu sai).
+   * Tạo phiếu. Cùng idempotencyKey -> cùng một phiếu (an toàn khi gửi lại).
+   * Lỗi: TicketValidationError (dữ liệu sai).
    */
   abstract create(
     command: CreateTicketCommand,
     idempotencyKey: string,
   ): Observable<TicketSummary>;
 
-  /** Manager duyet phieu da xu ly. Loi: TicketConflictError (version cu, sai trang thai). */
+  /** Manager duyệt phiếu đã xử lý. Lỗi: TicketConflictError (version cũ, sai trạng thái). */
   abstract approve(id: number, version: number): Observable<TicketSummary>;
 }

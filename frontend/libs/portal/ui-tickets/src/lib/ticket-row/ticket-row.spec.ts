@@ -6,7 +6,7 @@ import { aTicket } from '@care/portal-domain-tickets/testing';
 import { provideI18nTesting } from '@care/shared-util-i18n/testing';
 import { TicketRow } from './ticket-row';
 
-// Test hop dong: dua input vao, kiem tra DOM va output; khong co service nao.
+// Test hợp đồng: đưa input vào, kiểm tra DOM và output; không có service nào.
 @Component({
   imports: [TicketRow],
   template: `<table>

@@ -6,8 +6,8 @@ import { TranslocoService } from '@jsverse/transloco';
 import { BehaviorSubject, combineLatest, map, of, switchMap } from 'rxjs';
 
 /**
- * Tieu de tab = "<title cua route> · <ten app trong index.html>", vd "Thuê bao · Care Portal".
- * `title` tren route la KEY dich (vd 'title.subscribers'); doi ngon ngu -> tieu de tu doi theo.
+ * Tiêu đề tab = "<title của route> · <tên app trong index.html>", vd "Thuê bao · Care Portal".
+ * `title` trên route là KEY dịch (vd 'title.subscribers'); đổi ngôn ngữ -> tiêu đề tự đổi theo.
  */
 @Injectable()
 export class CareTitleStrategy extends TitleStrategy {

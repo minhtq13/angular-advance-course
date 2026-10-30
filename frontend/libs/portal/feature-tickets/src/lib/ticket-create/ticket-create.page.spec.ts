@@ -51,7 +51,7 @@ describe('TicketCreatePage', () => {
     return { fixture, el, input, type, submit };
   }
 
-  /** nz-select khong co input that de go: dat gia tri qua form control. */
+  /** nz-select không có input thật để gõ: đặt giá trị qua form control. */
   function chooseCategory(page: {
     fixture: { componentInstance: TicketCreatePage };
   }) {
@@ -108,7 +108,7 @@ describe('TicketCreatePage', () => {
       'Dữ liệu không hợp lệ',
     );
 
-    // Sua lai gia tri -> loi server tu mat.
+    // Sửa lại giá trị -> lỗi server tự mất.
     await page.type('tk-title', 'Mat song 4G tai nha');
     expect(page.el.querySelector('#tk-title-error')).toBeNull();
   });
@@ -190,7 +190,7 @@ describe('TicketCreatePage', () => {
     const button = page.el.querySelector(
       'button[type=submit]',
     ) as HTMLButtonElement;
-    // Fake tra ve dong bo nen gia lap "dang gui" bang cach chan navigateByUrl lai.
+    // Fake trả về đồng bộ nên giả lập "đang gửi" bằng cách chặn navigateByUrl lại.
     vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockReturnValue(
       new Promise(() => undefined),
     );

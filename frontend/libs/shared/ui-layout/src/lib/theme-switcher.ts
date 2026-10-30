@@ -18,7 +18,7 @@ const ICON: Record<ThemePreference, string> = {
   system: 'desktop',
 };
 
-/** Nhom nut Sang | Toi | Theo he thong. Nut chi co icon -> bat buoc co aria-label va title. */
+/** Nhóm nút Sáng | Tối | Theo hệ thống. Nút chỉ có icon -> bắt buộc có aria-label và title. */
 @Component({
   selector: 'care-theme-switcher',
   imports: [TranslocoPipe, NzIconDirective],
@@ -48,6 +48,6 @@ export class ThemeSwitcher {
   protected readonly theme = inject(ThemeService);
   protected readonly options = THEME_PREFERENCES;
   protected readonly icons = ICON;
-  /** true khi dat tren nen toi (header). */
+  /** true khi đặt trên nền tối (header). */
   readonly onDark = input(false);
 }

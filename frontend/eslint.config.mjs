@@ -15,8 +15,8 @@ export default [
         {
           enforceBuildableLibDependency: true,
           allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
-          // Quy tac phu thuoc (buoi 1): app -> feature -> ui/data-access -> domain -> util; scope chi dung chinh no + shared.
-          // domain (port + mo hinh nghiep vu) nam duoi data-access: adapter phu thuoc hop dong, khong nguoc lai.
+          // Quy tắc phụ thuộc (buổi 1): app -> feature -> ui/data-access -> domain -> util; scope chỉ dùng chính nó + shared.
+          // domain (port + mô hình nghiệp vụ) nằm dưới data-access: adapter phụ thuộc hợp đồng, không ngược lại.
           depConstraints: [
             {
               sourceTag: 'type:app',
@@ -36,11 +36,11 @@ export default [
                 'type:domain',
                 'type:util',
               ],
-              // Feature lay du lieu qua port/API service, khong tu dung HttpClient.
+              // Feature lấy dữ liệu qua port/API service, không tự dùng HttpClient.
               bannedExternalImports: ['@angular/common/http'],
             },
             {
-              // Buoi 2: ui duoc dung kieu cua domain (TypeScript thuan, khong Angular) lam input.
+              // Buổi 2: ui được dùng kiểu của domain (TypeScript thuần, không Angular) làm input.
               sourceTag: 'type:ui',
               onlyDependOnLibsWithTags: ['type:ui', 'type:domain', 'type:util'],
             },
@@ -55,8 +55,8 @@ export default [
             {
               sourceTag: 'type:domain',
               onlyDependOnLibsWithTags: ['type:domain', 'type:util'],
-              // Domain khong biet Angular, HTTP hay UI: chi TypeScript thuan + rxjs.
-              // (@angular/compiler van duoc dung trong test-setup.ts do generator sinh ra.)
+              // Domain không biết Angular, HTTP hay UI: chỉ TypeScript thuần + rxjs.
+              // (@angular/compiler vẫn được dùng trong test-setup.ts do generator sinh ra.)
               bannedExternalImports: [
                 '@angular/core*',
                 '@angular/common*',
@@ -100,8 +100,8 @@ export default [
   {
     files: ['**/*.html'],
     rules: {
-      // ng-zorro gan control truc tiep len <label> (<label nz-checkbox>, <label nz-radio-button>)
-      // -> rule nay bao loi sai voi cach dung chuan cua thu vien.
+      // ng-zorro gắn control trực tiếp lên <label> (<label nz-checkbox>, <label nz-radio-button>)
+      // -> rule này báo lỗi sai với cách dùng chuẩn của thư viện.
       '@angular-eslint/template/label-has-associated-control': 'off',
     },
   },

@@ -5,7 +5,7 @@ import en from './assets/i18n/en.json';
 import vi from './assets/i18n/vi.json';
 import { DEFAULT_LANG, LANGUAGES, LOCALE_OF } from './lib/languages';
 
-/** Dung trong unit test: nap san ban dich that (dong bo, khong goi HTTP). */
+/** Dùng trong unit test: nạp sẵn bản dịch thật (đồng bộ, không gọi HTTP). */
 export function provideI18nTesting() {
   return [
     importProvidersFrom(

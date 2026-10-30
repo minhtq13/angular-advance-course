@@ -8,6 +8,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -77,6 +80,72 @@ class AuthApiTests {
                 .andExpect(jsonPath("$.accessToken").isNotEmpty());
     }
 
+    private org.springframework.test.web.servlet.ResultActions refresh(String refreshToken) throws Exception {
+        return mvc.perform(post("/api/auth/refresh").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"refreshToken\":\"%s\"}".formatted(refreshToken)));
+    }
+
+    @Test
+    void refreshRotatesAndOldTokenCannotBeUsedTwice() throws Exception {
+        var r1 = login("agent1", "agent1").get("refreshToken").asText();
+
+        var body = refresh(r1).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        var r2 = json.readTree(body).get("refreshToken").asText();
+        assertThat(r2).isNotEqualTo(r1);
+
+        // Dùng lại r1 -> 401, và cả family bị revoke: r2 (chưa dùng) cũng hết hiệu lực.
+        refresh(r1).andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.detail").value("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại"));
+        refresh(r2).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void reuseOnlyRevokesItsOwnFamily() throws Exception {
+        var tab1 = login("agent1", "agent1").get("refreshToken").asText();
+        var tab2 = login("agent1", "agent1").get("refreshToken").asText();
+
+        refresh(tab1).andExpect(status().isOk());
+        refresh(tab1).andExpect(status().isUnauthorized());
+
+        // Phiên đăng nhập khác (tab khác, máy khác) không bị ảnh hưởng.
+        refresh(tab2).andExpect(status().isOk());
+    }
+
+    @Test
+    void concurrentRefreshWithSameTokenOnlyOneSucceeds() throws Exception {
+        var r1 = login("agent1", "agent1").get("refreshToken").asText();
+
+        var pool = Executors.newFixedThreadPool(3);
+        try {
+            List<Future<Integer>> results = new java.util.ArrayList<>();
+            for (int i = 0; i < 3; i++) {
+                results.add(pool.submit(() -> refresh(r1).andReturn().getResponse().getStatus()));
+            }
+            var statuses = new java.util.ArrayList<Integer>();
+            for (var f : results) {
+                statuses.add(f.get());
+            }
+            assertThat(statuses).containsOnlyOnce(200).contains(401);
+        } finally {
+            pool.shutdown();
+        }
+    }
+
+    @Test
+    void logoutRevokesRefreshToken() throws Exception {
+        var r1 = login("agent1", "agent1").get("refreshToken").asText();
+
+        mvc.perform(post("/api/auth/logout").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"%s\"}".formatted(r1)))
+                .andExpect(status().isNoContent());
+        refresh(r1).andExpect(status().isUnauthorized());
+
+        // Token rác -> vẫn 204: đăng xuất không bao giờ "thất bại" với người dùng.
+        mvc.perform(post("/api/auth/logout").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"rac\"}"))
+                .andExpect(status().isNoContent());
+    }
+
     @Test
     void roleFromLocalTokenIsEnforced() throws Exception {
         var agent = login("agent1", "agent1").get("accessToken").asText();
@@ -93,7 +162,7 @@ class AuthApiTests {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.detail").value("Incorrect username or password"));
 
-        // Ngon ngu khong ho tro -> tieng Viet (mac dinh), khong roi ve locale cua may chu.
+        // Ngôn ngữ không hỗ trợ -> tiếng Việt (mặc định), không rơi về locale của máy chủ.
         mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).header("Accept-Language", "fr")
                         .content("{\"username\":\"agent1\",\"password\":\"sai\"}"))
                 .andExpect(status().isUnauthorized())

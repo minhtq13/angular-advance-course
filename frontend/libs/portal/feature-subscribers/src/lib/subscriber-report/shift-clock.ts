@@ -6,8 +6,8 @@ import { TranslocoDatePipe } from '@jsverse/transloco-locale';
 import { interval, map } from 'rxjs';
 
 /**
- * Dong ho ca truc. Tach thanh component rieng: moi giay chi view nho nay duoc kiem tra lai,
- * khong phai ca bang bao cao. toSignal tu huy interval khi component bi huy (khong ro bo nho).
+ * Đồng hồ ca trực. Tách thành component riêng: mỗi giây chỉ view nhỏ này được kiểm tra lại,
+ * không phải cả bảng báo cáo. toSignal tự hủy interval khi component bị hủy (không rò bộ nhớ).
  */
 @Component({
   selector: 'care-shift-clock',

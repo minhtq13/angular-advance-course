@@ -48,7 +48,7 @@ public class SecurityConfig {
         config.setAllowedOrigins(props.allowedOrigins());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
-        // Cho JS doc duoc header nay (buoi 2: quan sat idempotency trong tab Network va trong code).
+        // Cho JS đọc được header này (buổi 2: quan sát idempotency trong tab Network và trong code).
         config.setExposedHeaders(List.of("Idempotent-Replayed"));
         var source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);

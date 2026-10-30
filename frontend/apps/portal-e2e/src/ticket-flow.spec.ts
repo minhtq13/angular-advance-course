@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-// Buoi 2: chay voi backend that (docker compose). Moi lan chay se dong mot phieu RESOLVED va tao mot phieu moi.
+// Buổi 2: chạy với backend thật (docker compose). Mỗi lần chạy sẽ đóng một phiếu RESOLVED và tạo một phiếu mới.
 
 async function login(page: Page, user: string, url: string) {
   await page.goto(url);

@@ -27,8 +27,8 @@ import { ShiftClock } from './shift-clock';
 export const REPORT_SIZES = [1000, 5000, 10000] as const;
 
 /**
- * Bao cao thue bao: tai mot lan nhieu dong de doi chieu/in. Buoi 5 dung man hinh nay de do hieu nang.
- * Can backend chay voi MAX_PAGE_SIZE >= 10000.
+ * Báo cáo thuê bao: tải một lần nhiều dòng để đối chiếu/in. Buổi 5 dùng màn hình này để đo hiệu năng.
+ * Cần backend chạy với MAX_PAGE_SIZE >= 10000.
  */
 @Component({
   selector: 'care-subscriber-report-page',
@@ -55,7 +55,7 @@ export class SubscriberReportPage {
 
   protected readonly sizes = REPORT_SIZES;
   protected readonly dateFormat = DATE_FORMAT;
-  /** Phai khop $row-height trong scss: CDK tinh vi tri tung dong bang chieu cao co dinh. */
+  /** Phải khớp $row-height trong scss: CDK tính vị trí từng dòng bằng chiều cao cố định. */
   protected readonly rowHeight = 33;
   protected readonly size = signal<number>(REPORT_SIZES[0]);
 
@@ -66,7 +66,7 @@ export class SubscriberReportPage {
         .search({}, { page: 0, size: params.size, sort: 'id,asc' })
         .pipe(map((page) => page.content)),
   });
-  /** Tinh san mot lan moi khi du lieu doi, khong tinh lai moi lan kiem tra view. */
+  /** Tính sẵn một lần mỗi khi dữ liệu đổi, không tính lại mỗi lần kiểm tra view. */
   protected readonly rows = computed(() => {
     const today = new Date();
     return this.result.hasValue()
@@ -75,9 +75,9 @@ export class SubscriberReportPage {
   });
 
   /**
-   * Man hinh hep -> an bot cot. toSignal go listener khi component bi huy. Ban dau dung
-   * fromEvent(...).subscribe() khong huy: window giu closure -> giu trang nay va ca nghin dong du lieu
-   * sau moi lan dieu huong (heap tang ~11 MB sau 20 lan).
+   * Màn hình hẹp -> ẩn bớt cột. toSignal gỡ listener khi component bị hủy. Ban đầu dùng
+   * fromEvent(...).subscribe() không hủy: window giữ closure -> giữ trang này và cả nghìn dòng dữ liệu
+   * sau mỗi lần điều hướng (heap tăng ~11 MB sau 20 lần).
    */
   protected readonly compact = toSignal(
     fromEvent(window, 'resize').pipe(
@@ -91,6 +91,6 @@ export class SubscriberReportPage {
     this.result.reload();
   }
 
-  /** Dong giu nguyen DOM khi tai lai cung du lieu: so theo id, khong theo object moi tu server. */
+  /** Dòng giữ nguyên DOM khi tải lại cùng dữ liệu: so theo id, không theo object mới từ server. */
   protected readonly trackById = (_: number, row: ReportRow) => row.id;
 }

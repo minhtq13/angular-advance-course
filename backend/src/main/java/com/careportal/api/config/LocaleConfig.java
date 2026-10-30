@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.LocaleResolver;
 import org.springframework.web.servlet.i18n.AcceptHeaderLocaleResolver;
 
-/** Chon ngon ngu theo header Accept-Language (FE gui kem moi request); khong co / khong ho tro -> tieng Viet. */
+/** Chọn ngôn ngữ theo header Accept-Language (FE gửi kèm mọi request); không có / không hỗ trợ -> tiếng Việt. */
 @Configuration
 public class LocaleConfig {
 

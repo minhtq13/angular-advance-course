@@ -1,4 +1,4 @@
-/** Giai ma phan payload cua JWT (KHONG kiem tra chu ky - viec do la cua backend). */
+/** Giải mã phần payload của JWT (KHÔNG kiểm tra signature - việc đó là của backend). */
 export function decodeJwtPayload<T>(token: string): T {
   const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
   const json = new TextDecoder().decode(

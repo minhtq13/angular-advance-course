@@ -7,7 +7,7 @@ import { decodeJwtPayload, isExpired } from './jwt';
 
 export type AppRole = 'AGENT' | 'SUPERVISOR' | 'ADMIN';
 
-/** Key dich ten vai tro (khong hien ma ky thuat AGENT/SUPERVISOR cho nguoi dung). */
+/** Key dịch tên vai trò (không hiện mã kỹ thuật AGENT/SUPERVISOR cho người dùng). */
 export const ROLE_LABEL_KEYS: Record<AppRole, string> = {
   AGENT: 'roles.AGENT',
   SUPERVISOR: 'roles.SUPERVISOR',
@@ -20,7 +20,7 @@ export interface AuthUser {
   roles: AppRole[];
 }
 
-/** Claim trong access token do backend phat (xem TokenService.issue). */
+/** Claim trong access token do backend phát (xem TokenService.issue). */
 export interface AccessTokenClaims {
   preferred_username?: string;
   name?: string;
@@ -44,8 +44,9 @@ interface TokenResponse {
 const STORAGE_KEY = 'care.auth';
 
 /**
- * Dang nhap bang JWT do backend phat: POST /api/auth/login -> access + refresh token.
- * Token luu trong sessionStorage (mat khi dong tab). Buoi 6 se ban ve noi luu token va lam refresh token.
+ * Đăng nhập bằng JWT do backend phát: POST /api/auth/login -> access token (ngắn hạn) + refresh token.
+ * Refresh token rotation: mỗi token chỉ đổi được MỘT lần, gửi lại token đã dùng -> server revoke cả phiên.
+ * Token lưu trong sessionStorage (mất khi đóng tab). Buổi 6 bàn về nơi lưu token.
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -68,10 +69,13 @@ export class AuthService {
     return roles.some((role) => this.roles().includes(role));
   }
 
-  /** Chay trong provideAppInitializer, truoc khi app render: khoi phuc phien tu sessionStorage. */
+  /**
+   * Chạy trong provideAppInitializer, trước khi app render: khôi phục phiên từ sessionStorage.
+   * Access token hết hạn không sao (sẽ refresh); refresh token hết hạn thì phiên đã kết thúc.
+   */
   async init(): Promise<void> {
     const saved = readStorage();
-    if (saved && !isExpired(saved.accessToken)) {
+    if (saved && !isExpired(saved.refreshToken)) {
       this.setTokens(saved);
     } else {
       this.clear();
@@ -90,13 +94,24 @@ export class AuthService {
       );
   }
 
+  /** Gửi nguyên token, kể cả khi đã hết hạn: server mới quyết định, hết hạn thì trả 401 và interceptor refresh. */
   accessToken(): string | null {
-    return this.tokens && !isExpired(this.tokens.accessToken)
-      ? this.tokens.accessToken
-      : null;
+    return this.tokens?.accessToken ?? null;
   }
 
-  /** Dua nguoi dung toi trang dang nhap; sau khi xong quay lai returnUrl. */
+  /** Đổi refresh token lấy cặp token mới; trả về access token mới. */
+  refresh(): Observable<string> {
+    return this.http
+      .post<TokenResponse>(`${this.apiUrl}/api/auth/refresh`, {
+        refreshToken: this.tokens?.refreshToken,
+      })
+      .pipe(
+        tap((tokens) => this.setTokens(tokens)),
+        map((tokens) => tokens.accessToken),
+      );
+  }
+
+  /** Đưa người dùng tới trang đăng nhập; sau khi xong quay lại returnUrl. */
   login(returnUrl = this.router.url): void {
     this.clear();
     const queryParams =
@@ -124,7 +139,7 @@ export class AuthService {
   }
 }
 
-// sessionStorage co the bi chan (che do rieng tu, chinh sach trinh duyet) -> khong de app vo vi no.
+// sessionStorage có thể bị chặn (chế độ riêng tư, chính sách trình duyệt) -> không để app vỡ vì nó.
 function readStorage(): TokenResponse | null {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
@@ -142,6 +157,6 @@ function writeStorage(tokens: TokenResponse | null): void {
       sessionStorage.removeItem(STORAGE_KEY);
     }
   } catch {
-    // bo qua
+    // bỏ qua
   }
 }

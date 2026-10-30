@@ -67,7 +67,7 @@ export class SubscriberDetailPage {
   private readonly transloco = inject(TranslocoService);
   private readonly recent = inject(RecentSubscribers);
 
-  /** Bind tu route param :id nho withComponentInputBinding(). */
+  /** Bind từ route param :id nhờ withComponentInputBinding(). */
   readonly id = input.required({ transform: numberAttribute });
 
   protected readonly dateFormat = DATE_FORMAT;
@@ -98,7 +98,7 @@ export class SubscriberDetailPage {
       ),
   });
 
-  // value() throw khi resource o trang thai loi -> luon kiem tra hasValue() truoc.
+  // value() throw khi resource ở trạng thái lỗi -> luôn kiểm tra hasValue() trước.
   protected readonly recentTickets = computed(() =>
     this.tickets.hasValue() ? this.tickets.value().content : [],
   );
@@ -110,7 +110,7 @@ export class SubscriberDetailPage {
       this.subscriber.value().status !== 'TERMINATED',
   );
 
-  /** Trang thai dang gui len server -> hien loading tren dung nut va chan bam lap. */
+  /** Trạng thái đang gửi lên server -> hiện loading trên đúng nút và chặn bấm lặp. */
   protected readonly pendingStatus = signal<SubscriberStatus | null>(null);
 
   protected changeStatus(status: SubscriberStatus): void {

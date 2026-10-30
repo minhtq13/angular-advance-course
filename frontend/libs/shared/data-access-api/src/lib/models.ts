@@ -9,7 +9,7 @@ export interface PageResponse<T> {
 export interface PageRequest {
   page: number;
   size: number;
-  /** Dang "field,asc" | "field,desc" theo quy uoc Spring Data. */
+  /** Dạng "field,asc" | "field,desc" theo quy ước Spring Data. */
   sort?: string;
 }
 
@@ -105,7 +105,7 @@ export interface AdminStats {
   ticketsByStatus: Partial<Record<TicketStatus, number>>;
 }
 
-/** RFC 9457 - backend tra ve khi loi. */
+/** RFC 9457 - backend trả về khi lỗi. */
 export interface ProblemDetail {
   status: number;
   title?: string;

@@ -29,7 +29,7 @@ export default [
   {
     files: ['**/*.ts'],
     rules: {
-      // ADR-0002: man hinh phieu yeu cau chi phu thuoc TicketPort.
+      // ADR-0002: màn hình phiếu yêu cầu chỉ phụ thuộc TicketPort.
       'no-restricted-imports': [
         'error',
         {

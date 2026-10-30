@@ -39,11 +39,11 @@ public final class TicketDtos {
             @Size(max = 4000) String description) {
     }
 
-    /** Manager phe duyet ket qua xu ly (RESOLVED -> CLOSED). version: ban ma nguoi duyet dang nhin thay. */
+    /** Manager phê duyệt kết quả xử lý (RESOLVED -> CLOSED). version: bản mà người duyệt đang nhìn thấy. */
     public record ApproveTicketRequest(long version) {
     }
 
-    /** Cap nhat tung phan; truong null = giu nguyen. version dung cho optimistic locking. */
+    /** Cập nhật từng phần; trường null = giữ nguyên. version dùng cho optimistic locking. */
     public record UpdateTicketRequest(TicketStatus status, TicketPriority priority, String assignee, long version) {
     }
 }

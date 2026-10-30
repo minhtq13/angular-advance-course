@@ -33,7 +33,7 @@ import { TicketRow } from '@care/portal-ui-tickets';
 import { TicketListStore } from './ticket-list.store';
 import { finalize } from 'rxjs';
 
-/** Thong bao tren trang: key dich (kem tham so) hoac chu da dich san tu backend. */
+/** Thông báo trên trang: key dịch (kèm tham số) hoặc chữ đã dịch sẵn từ backend. */
 type Notice =
   { key: string; params?: Record<string, unknown> } | { text: string };
 
@@ -58,21 +58,21 @@ type Notice =
   providers: [TicketListStore],
 })
 export class TicketListPage {
-  /** Chi phu thuoc hop dong; adapter (HTTP hay fake) do app/test cung cap. */
+  /** Chỉ phụ thuộc hợp đồng; adapter (HTTP hay fake) do app/test cung cấp. */
   private readonly tickets = inject(TicketPort);
   private readonly auth = inject(AuthService);
   private readonly destroyRef = inject(DestroyRef);
 
-  /** Thong bao thanh cong: phieu vua tao (tu navigation state) hoac phieu vua duyet. */
+  /** Thông báo thành công: phiếu vừa tạo (từ navigation state) hoặc phiếu vừa duyệt. */
   protected readonly notice = signal<Notice | null>(
     this.createdNotice(
       inject(Router).currentNavigation()?.extras.state?.['created'],
     ),
   );
-  /** Loi khi duyet (409: du lieu da doi). Nguoi dung chon tai lai, khong tu dong ghi de man hinh. */
+  /** Lỗi khi duyệt (409: dữ liệu đã đổi). Người dùng chọn tải lại, không tự động ghi đè màn hình. */
   protected readonly approveError = signal<Notice | null>(null);
   protected readonly approvingId = signal<number | null>(null);
-  /** Chi an/hien nut. Quyen that su do API kiem tra (agent goi thang API van nhan 403). */
+  /** Chỉ ẩn/hiện nút. Quyền thật sự do API kiểm tra (agent gọi thẳng API vẫn nhận 403). */
   protected readonly isManager = computed(() =>
     this.auth.hasAnyRole('SUPERVISOR'),
   );
@@ -80,7 +80,7 @@ export class TicketListPage {
   protected readonly statusOptions = toOptions(TICKET_STATUS);
   protected readonly priorityOptions = toOptions(TICKET_PRIORITY);
 
-  /** Bo loc, trang va ket qua nam trong store; component chi giu state UI cuc bo (thong bao, dang duyet). */
+  /** Bộ lọc, trang và kết quả nằm trong store; component chỉ giữ state UI cục bộ (thông báo, đang duyệt). */
   protected readonly store = inject(TicketListStore);
 
   protected approve(ticket: TicketSummary): void {
@@ -88,7 +88,7 @@ export class TicketListPage {
     this.approvingId.set(ticket.id);
     this.approveError.set(null);
     this.notice.set(null);
-    // Gui version dang hien tren man hinh: neu nguoi khac da duyet/sua truoc, backend tra 409.
+    // Gửi version đang hiện trên màn hình: nếu người khác đã duyệt/sửa trước, backend trả 409.
     this.tickets
       .approve(ticket.id, ticket.version)
       .pipe(

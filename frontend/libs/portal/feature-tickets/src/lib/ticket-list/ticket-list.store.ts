@@ -29,7 +29,7 @@ import {
 
 export { NO_FILTERS, type TicketFilters } from './ticket-url';
 
-/** Chi con server state; bo loc va trang nam tren URL. */
+/** Chỉ còn server state; bộ lọc và trang nằm trên URL. */
 interface TicketListState {
   items: TicketSummary[];
   total: number;
@@ -37,9 +37,9 @@ interface TicketListState {
 }
 
 /**
- * State cua man hinh danh sach phieu. Nguon su that cua bo loc, trang, sort la URL (query params):
- * F5, gui link, Back/Forward deu ra dung danh sach. Store chi doc URL va dieu huong de doi URL.
- * Cung cap o component (providers: [TicketListStore]) -> moi lan vao man hinh la mot store moi.
+ * State của màn hình danh sách phiếu. Nguồn sự thật của bộ lọc, trang, sort là URL (query params):
+ * F5, gửi link, Back/Forward đều ra đúng danh sách. Store chỉ đọc URL và điều hướng để đổi URL.
+ * Cung cấp ở component (providers: [TicketListStore]) -> mỗi lần vào màn hình là một store mới.
  */
 export const TicketListStore = signalStore(
   withState<TicketListState>({ items: [], total: 0, status: 'loading' }),
@@ -73,7 +73,7 @@ export const TicketListStore = signalStore(
     };
   }),
   withComputed(({ _router, _route, filters, page }) => ({
-    /** URL danh sach hien tai (kem bo loc) de man hinh khac quay ve, vd sau khi tao phieu. */
+    /** URL danh sách hiện tại (kèm bộ lọc) để màn hình khác quay về, vd sau khi tạo phiếu. */
     listUrl: computed(() =>
       _router.serializeUrl(
         _router.createUrlTree([], {
@@ -84,7 +84,7 @@ export const TicketListStore = signalStore(
     ),
   })),
   withMethods((store, tickets = inject(TicketPort)) => {
-    // switchMap: doi bo loc nhanh thi huy request cu (buoi 3). catchError ben trong: loi khong lam chet luong.
+    // switchMap: đổi bộ lọc nhanh thì hủy request cũ (buổi 3). catchError bên trong: lỗi không làm chết luồng.
     const load = rxMethod<{ query: TicketQuery; page: PageRequest }>(
       pipe(
         tap(() => patchState(store, { status: 'loading' })),
@@ -102,7 +102,7 @@ export const TicketListStore = signalStore(
       ),
     );
 
-    /** Moi lan doi bo loc/trang la mot muc lich su moi -> Back quay ve bo loc truoc. */
+    /** Mỗi lần đổi bộ lọc/trang là một mục lịch sử mới -> Back quay về bộ lọc trước. */
     const navigate = (filters: TicketFilters, page: PageRequest) =>
       store._router.navigate([], {
         relativeTo: store._route,
@@ -110,7 +110,7 @@ export const TicketListStore = signalStore(
       });
 
     return {
-      /** Doi bo loc -> ve trang dau, giu kich thuoc trang va sort. */
+      /** Đổi bộ lọc -> về trang đầu, giữ kích thước trang và sort. */
       setFilters(change: Partial<TicketFilters>): Promise<boolean> {
         return navigate(
           { ...store.filters(), ...change },
@@ -121,11 +121,11 @@ export const TicketListStore = signalStore(
         return navigate(NO_FILTERS, { ...store.page(), page: 0 });
       },
       setPage(page: PageRequest): Promise<boolean> {
-        // nz-table phat lai cung trang khi khoi tao: bo qua de khong dieu huong/goi API trung.
+        // nz-table phát lại cùng trang khi khởi tạo: bỏ qua để không điều hướng/gọi API trùng.
         if (samePage(page, store.page())) return Promise.resolve(false);
         return navigate(store.filters(), page);
       },
-      /** Tai lai dung query va trang hien tai (nut Thu lai, sau khi duyet). URL khong doi nen phai goi tay. */
+      /** Tải lại đúng query và trang hiện tại (nút Thử lại, sau khi duyệt). URL không đổi nên phải gọi tay. */
       reload(): void {
         load({ query: store.query(), page: store.page() });
       },
@@ -134,7 +134,7 @@ export const TicketListStore = signalStore(
   }),
   withHooks({
     onInit(store) {
-      // Truyen signal vao rxMethod: moi lan URL doi (chon bo loc, Back/Forward, mo link) la tai lai.
+      // Truyền signal vào rxMethod: mỗi lần URL đổi (chọn bộ lọc, Back/Forward, mở link) là tải lại.
       store._load(
         computed(() => ({ query: store.query(), page: store.page() })),
       );

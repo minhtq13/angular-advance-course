@@ -11,7 +11,7 @@ import { provideUi } from '@care/shared-ui-layout';
 import { provideI18nTesting } from '@care/shared-util-i18n/testing';
 import { TicketListPage } from './ticket-list.page';
 
-// Khong co HttpClient trong test: man hinh chay hoan toan tren fake adapter.
+// Không có HttpClient trong test: màn hình chạy hoàn toàn trên fake adapter.
 describe('TicketListPage', () => {
   let port: InMemoryTicketAdapter;
 
@@ -37,7 +37,7 @@ describe('TicketListPage', () => {
     }).compileComponents();
   });
 
-  // nz-table chen them mot hang do (measure row) rong o dau tbody -> bo qua.
+  // nz-table chèn thêm một hàng đo (measure row) rỗng ở đầu tbody -> bỏ qua.
   function codes(el: HTMLElement): string[] {
     return [...el.querySelectorAll('tbody tr td:first-child')]
       .map((td) => td.textContent?.trim() ?? '')
@@ -72,7 +72,7 @@ describe('TicketListPage', () => {
   });
 });
 
-// Buoi 2: Manager duyet phieu, hai nguoi duyet cung mot version.
+// Buổi 2: Manager duyệt phiếu, hai người duyệt cùng một version.
 describe('TicketListPage - phe duyet', () => {
   let port: InMemoryTicketAdapter;
 
@@ -114,7 +114,7 @@ describe('TicketListPage - phe duyet', () => {
     await fixture.whenStable();
 
     expect(port.approveCalls).toEqual([{ id: 101, version: 3 }]);
-    // Lam moi sau ghi: dung mot lan, dung bo loc va trang dang xem.
+    // Làm mới sau ghi: đúng một lần, đúng bộ lọc và trang đang xem.
     expect(port.calls).toHaveLength(searches + 1);
     expect(port.calls.at(-1)).toEqual(before);
     expect(el.textContent).toContain('Đã duyệt phiếu TK-R');
@@ -126,7 +126,7 @@ describe('TicketListPage - phe duyet', () => {
     await fixture.whenStable();
     const el = fixture.nativeElement as HTMLElement;
 
-    // Manager thu hai duyet truoc tren may khac: phieu len version 4, man hinh nay van giu version 3.
+    // Manager thứ hai duyệt trước trên máy khác: phiếu lên version 4, màn hình này vẫn giữ version 3.
     port.approve(101, 3).subscribe();
 
     approveButtons(el)[0].click();

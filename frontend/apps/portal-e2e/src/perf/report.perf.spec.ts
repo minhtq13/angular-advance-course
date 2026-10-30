@@ -3,10 +3,10 @@
 import { expect, Page, test } from '@playwright/test';
 
 /**
- * Buoi 5: do hieu nang man hinh Bao cao thue bao, in mot dong "PERF {...}" (du lieu tho) de ghi vao bang benchmark.
- * Chi chay khi PERF=1, can backend chay voi MAX_PAGE_SIZE=10000:
+ * Buổi 5: đo hiệu năng màn hình Báo cáo thuê bao, in một dòng "PERF {...}" (dữ liệu thô) để ghi vào bảng benchmark.
+ * Chỉ chạy khi PERF=1, cần backend chạy với MAX_PAGE_SIZE=10000:
  *   PERF=1 THROTTLE=4 npx playwright test -c apps/portal-e2e/playwright.config.mts report.perf --project=chromium
- * THROTTLE: he so lam cham CPU (1 = khong lam cham, 4 = gia lap may yeu).
+ * THROTTLE: hệ số làm chậm CPU (1 = không làm chậm, 4 = giả lập máy yếu).
  */
 test.skip(!process.env['PERF'], 'Chi chay khi PERF=1');
 test.setTimeout(240_000);
@@ -46,7 +46,7 @@ test('bao cao 10.000 dong: tai, tai lai, ngoi yen, heap sau 20 lan dieu huong', 
   if (throttle > 1)
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: throttle });
 
-  // 1) Lan dau chuyen sang 10.000 dong.
+  // 1) Lần đầu chuyển sang 10.000 dòng.
   await page.locator('nz-select:has(#rp-size)').click();
   let t = Date.now();
   await Promise.all([
@@ -59,7 +59,7 @@ test('bao cao 10.000 dong: tai, tai lai, ngoi yen, heap sau 20 lan dieu huong', 
   await frames(page);
   const firstLoadMs = Date.now() - t;
 
-  // 2) Tai lai cung 10.000 dong, 3 lan.
+  // 2) Tải lại cùng 10.000 dòng, 3 lần.
   const reloadMs: number[] = [];
   for (let run = 0; run < 3; run++) {
     t = Date.now();
@@ -75,7 +75,7 @@ test('bao cao 10.000 dong: tai, tai lai, ngoi yen, heap sau 20 lan dieu huong', 
     () => document.getElementsByTagName('*').length,
   );
 
-  // 3) Ngoi yen 5 giay voi 10.000 dong (dong ho cap nhat moi giay).
+  // 3) Ngồi yên 5 giây với 10.000 dòng (đồng hồ cập nhật mỗi giây).
   const s0 = await metric('ScriptDuration');
   const r0 = await metric('RecalcStyleDuration');
   const l0 = await metric('LayoutDuration');
@@ -87,7 +87,7 @@ test('bao cao 10.000 dong: tai, tai lai, ngoi yen, heap sau 20 lan dieu huong', 
   };
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
 
-  // 4) Heap: 20 lan Bao cao (mac dinh 1.000 dong) <-> Danh sach.
+  // 4) Heap: 20 lần Báo cáo (mặc định 1.000 dòng) <-> Danh sách.
   await page.getByRole('link', { name: 'Về danh sách' }).click();
   await expect(listRow).toBeVisible();
   const heapBefore = await heapMb();

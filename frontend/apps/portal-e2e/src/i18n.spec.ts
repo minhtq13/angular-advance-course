@@ -22,7 +22,7 @@ test.describe('Da ngon ngu', () => {
       'true',
     );
 
-    // Loi tu backend cung bang tieng Anh (header Accept-Language).
+    // Lỗi từ backend cũng bằng tiếng Anh (header Accept-Language).
     await page.getByLabel('Username').fill('agent1');
     await page.getByLabel('Password').fill('wrong');
     await page.getByRole('button', { name: 'Sign in' }).click();
@@ -37,17 +37,17 @@ test.describe('Da ngon ngu', () => {
       'Subscribers',
     );
     await expect(page).toHaveTitle('Subscribers · Care Portal');
-    // So theo dinh dang en-US.
+    // Số theo định dạng en-US.
     await expect(page.getByRole('status')).toHaveText('Total: 200,000');
     await expect(page.locator('nz-table thead')).toContainText('Phone number');
 
-    // Tai lai trang: van la English.
+    // Tải lại trang: vẫn là English.
     await page.reload();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(
       'Subscribers',
     );
 
-    // Doi lai tieng Viet tu header, khong can tai lai trang.
+    // Đổi lại tiếng Việt từ header, không cần tải lại trang.
     await page.getByRole('button', { name: 'Tiếng Việt' }).click();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(
       'Thuê bao',

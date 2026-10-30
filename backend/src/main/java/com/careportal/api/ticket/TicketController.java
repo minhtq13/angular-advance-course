@@ -50,8 +50,8 @@ public class TicketController {
     }
 
     /**
-     * Gui kem header Idempotency-Key (UUID do client sinh cho moi lan "tao phieu") thi gui lai bao nhieu lan
-     * cung chi tao mot phieu; lan gui lai nhan header Idempotent-Replayed: true.
+     * Gửi kèm header Idempotency-Key (UUID do client sinh cho mỗi lần "tạo phiếu") thì gửi lại bao nhiêu lần
+     * cũng chỉ tạo một phiếu; lần gửi lại nhận header Idempotent-Replayed: true.
      */
     @PostMapping
     public ResponseEntity<TicketDto> create(

@@ -4,9 +4,9 @@ import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * @param jwtSecret      khoa HMAC ky JWT, toi thieu 32 byte
- * @param accessTokenTtl thoi han access token
- * @param refreshTokenTtl thoi han refresh token
+ * @param jwtSecret      signing key HMAC cho JWT, tối thiểu 32 byte
+ * @param accessTokenTtl thời hạn access token
+ * @param refreshTokenTtl thời hạn refresh token
  */
 @ConfigurationProperties("care.auth")
 public record AuthProperties(String jwtSecret, Duration accessTokenTtl, Duration refreshTokenTtl) {

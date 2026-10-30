@@ -50,7 +50,7 @@ export class LoginPage {
   private readonly router = inject(Router);
   private readonly transloco = inject(TranslocoService);
 
-  /** Bind tu query param ?returnUrl= nho withComponentInputBinding(). */
+  /** Bind từ query param ?returnUrl= nhờ withComponentInputBinding(). */
   readonly returnUrl = input<string>();
 
   protected readonly form = inject(NonNullableFormBuilder).group({
@@ -64,7 +64,7 @@ export class LoginPage {
     viewChild.required<ElementRef<HTMLInputElement>>('usernameInput');
 
   constructor() {
-    // Trang chi co mot muc dich -> dat san con tro vao o dau tien.
+    // Trang chỉ có một mục đích -> đặt sẵn con trỏ vào ô đầu tiên.
     afterNextRender(() => this.usernameInput().nativeElement.focus());
   }
 

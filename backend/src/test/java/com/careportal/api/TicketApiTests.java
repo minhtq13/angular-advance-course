@@ -44,7 +44,7 @@ class TicketApiTests {
                 .authorities(new RolesClaimConverter());
     }
 
-    /** Lay id va version cua mot phieu RESOLVED trong du lieu seed, bo qua cac phieu da dung. */
+    /** Lấy id và version của một phiếu RESOLVED trong dữ liệu seed, bỏ qua các phiếu đã dùng. */
     private long[] resolvedTicket(int index) throws Exception {
         var json = mvc.perform(get("/api/tickets").param("status", "RESOLVED").param("size", "10").with(user("supervisor1", "SUPERVISOR")))
                 .andReturn().getResponse().getContentAsString();

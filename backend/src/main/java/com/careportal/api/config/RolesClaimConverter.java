@@ -7,7 +7,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 
-/** Doc claim "roles" cua JWT va doi thanh ROLE_xxx cho Spring Security (vd AGENT -> ROLE_AGENT). */
+/** Đọc claim "roles" của JWT và đổi thành ROLE_xxx cho Spring Security (vd AGENT -> ROLE_AGENT). */
 public class RolesClaimConverter implements Converter<Jwt, Collection<GrantedAuthority>> {
 
     @Override

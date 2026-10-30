@@ -79,7 +79,7 @@
   }
 }
 
-// Navy cua thuong hieu khong doc duoc tren be mat toi -> dung mau chu thuong.
+// Navy của thương hiệu không đọc được trên bề mặt tối -> dùng màu chữ thường.
 :host-context(html[data-theme='dark']) .brand,
 :host-context(html[data-theme='dark']) .login-card h1 {
   color: var(--care-text);

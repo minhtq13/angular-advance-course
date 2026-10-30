@@ -47,14 +47,14 @@ import { LanguageSwitcher } from './language-switcher';
 import { ThemeSwitcher } from './theme-switcher';
 
 export interface NavItem {
-  /** Key dich, vd 'nav.subscribers'. */
+  /** Key dịch, vd 'nav.subscribers'. */
   label: string;
-  /** Ten icon ant-design, vd 'team'. Icon phai duoc dang ky qua provideNzIcons. */
+  /** Tên icon ant-design, vd 'team'. Icon phải được đăng ký qua provideNzIcons. */
   icon: string;
   route: string;
 }
 
-/** Tu 992px (breakpoint lg cua ng-zorro) tro len: menu co dinh ben trai; nho hon: menu trong drawer. */
+/** Từ 992px (breakpoint lg của ng-zorro) trở lên: menu cố định bên trái; nhỏ hơn: menu trong drawer. */
 const DESKTOP = '(min-width: 992px)';
 const DRAWER_CLOSE_MS = 350;
 
@@ -91,7 +91,7 @@ export class Shell {
   readonly appName = input.required<string>();
   readonly navItems = input<NavItem[]>([]);
   readonly userName = input('');
-  /** Key dich cua vai tro, vd 'roles.AGENT'. */
+  /** Key dịch của vai trò, vd 'roles.AGENT'. */
   readonly roles = input<string[]>([]);
   readonly environmentName = input<string>();
   readonly logout = output<void>();
@@ -104,14 +104,14 @@ export class Shell {
   );
   protected readonly navOpen = signal(false);
 
-  // #main nam tren component nz-content -> phai doc ElementRef, neu khong se nhan instance component.
+  // #main nằm trên component nz-content -> phải đọc ElementRef, nếu không sẽ nhận instance component.
   private readonly main = viewChild.required('main', {
     read: ElementRef<HTMLElement>,
   });
 
   constructor() {
-    // Doi trang -> dua focus ve noi dung chinh de nguoi dung ban phim / trinh doc man hinh
-    // bat dau tu dau trang moi (bo qua lan dieu huong dau tien khi mo app).
+    // Đổi trang -> đưa focus về nội dung chính để người dùng bàn phím / trình đọc màn hình
+    // bắt đầu từ đầu trang mới (bỏ qua lần điều hướng đầu tiên khi mở app).
     inject(Router)
       .events.pipe(
         filter((e) => e instanceof NavigationEnd),
@@ -119,8 +119,8 @@ export class Shell {
         takeUntilDestroyed(inject(DestroyRef)),
       )
       .subscribe(() => {
-        // Drawer (dien thoai) tu dong khi dieu huong va tra focus ve nut menu sau animation 300ms
-        // (NzDrawerComponent.close) -> doi qua moc do roi moi dua focus vao noi dung chinh.
+        // Drawer (điện thoại) tự đóng khi điều hướng và trả focus về nút menu sau animation 300ms
+        // (NzDrawerComponent.close) -> đợi qua mốc đó rồi mới đưa focus vào nội dung chính.
         const delay = this.navOpen() ? DRAWER_CLOSE_MS : 0;
         this.navOpen.set(false);
         setTimeout(() => this.focusMain(), delay);

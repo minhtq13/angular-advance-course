@@ -1,8 +1,8 @@
 import { AbstractControl, ValidationErrors } from '@angular/forms';
 
 /**
- * Chuoi chi gom khoang trang -> loi `blank`. Validators.required coi "   " la hop le
- * vi chi kiem tra rong. Chuoi rong de cho required bao loi, tranh hien hai loi cung luc.
+ * Chuỗi chỉ gồm khoảng trắng -> lỗi `blank`. Validators.required coi "   " là hợp lệ
+ * vì chỉ kiểm tra rỗng. Chuỗi rỗng để cho required báo lỗi, tránh hiện hai lỗi cùng lúc.
  */
 export function notBlank(
   control: AbstractControl<string | null>,

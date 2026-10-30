@@ -55,7 +55,7 @@
   }
 }
 
-// Nhan moi truong (Bai 4): dat sat ten app; mau dam de dat >= 4.5:1.
+// Nhãn môi trường (Bài 4): đặt sát tên app; màu đậm để đạt >= 4.5:1.
 .brand:has(+ .env-tag) {
   margin-right: 0;
 }
@@ -74,7 +74,7 @@
   margin-right: var(--care-space-2);
 }
 
-// Tuy chon trong menu tai khoan: chi hien tren man hinh hep (header khong du cho).
+// Tùy chọn trong menu tài khoản: chỉ hiện trên màn hình hẹp (header không đủ chỗ).
 .menu-prefs {
   display: none;
   flex-wrap: wrap;
@@ -166,7 +166,7 @@
   }
 }
 
-// Man hinh hep: chi giu avatar, ten va vai tro xem trong menu tai khoan.
+// Màn hình hẹp: chỉ giữ avatar, tên và vai trò xem trong menu tài khoản.
 @media (max-width: 575px) {
   .user-info,
   .header-prefs {
@@ -178,7 +178,7 @@
   }
 }
 
-// Ten vai tro ngan cach bang dau cham giua (khong dua dau vao chuoi dich).
+// Tên vai trò ngăn cách bằng dấu chấm giữa (không đưa dấu vào chuỗi dịch).
 .roles span + span::before {
   content: ' · ';
 }

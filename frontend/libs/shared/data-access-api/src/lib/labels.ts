@@ -6,11 +6,11 @@ import {
   TicketStatus,
 } from './models';
 
-/** Mau preset cua nz-tag. */
+/** Màu preset của nz-tag. */
 export type TagColor =
   'success' | 'processing' | 'warning' | 'error' | 'default';
 
-/** labelKey la key dich (Transloco), KHONG phai chu hien thi: dung voi pipe `| transloco`. */
+/** labelKey là key dịch (Transloco), KHÔNG phải chữ hiển thị: dùng với pipe `| transloco`. */
 export interface TagLabel {
   labelKey: string;
   color: TagColor;
@@ -48,7 +48,7 @@ export const TICKET_CATEGORY: Record<TicketCategory, string> = {
   OTHER: 'enum.ticketCategory.OTHER',
 };
 
-/** Chuyen Record nhan thanh danh sach option cho nz-select (labelKey can dich bang pipe transloco). */
+/** Chuyển Record nhãn thành danh sách option cho nz-select (labelKey cần dịch bằng pipe transloco). */
 export function toOptions<K extends string>(
   labels: Record<K, string | TagLabel>,
 ) {

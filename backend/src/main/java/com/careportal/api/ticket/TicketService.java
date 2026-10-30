@@ -27,7 +27,7 @@ public class TicketService {
 
     public PageResponse<TicketDto> search(TicketSearch search, Pageable pageable) {
         Specification<Ticket> fetchSubscriber = (root, query, cb) -> {
-            // Tranh N+1 khi map subscriberMsisdn/subscriberName; khong fetch trong cau count.
+            // Tránh N+1 khi map subscriberMsisdn/subscriberName; không fetch trong câu count.
             if (query.getResultType() != Long.class && query.getResultType() != long.class) {
                 root.fetch("subscriber", JoinType.INNER);
             }
@@ -80,7 +80,7 @@ public class TicketService {
         return mapper.toDto(repository.saveAndFlush(ticket));
     }
 
-    /** Hai Manager duyet cung mot phieu: nguoi gui sau mang version cu -> 409 error.staleData. */
+    /** Hai Manager duyệt cùng một phiếu: người gửi sau mang version cũ -> 409 error.staleData. */
     @Transactional
     public TicketDto approve(long id, long version) {
         var ticket = find(id);

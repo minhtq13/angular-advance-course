@@ -50,7 +50,7 @@ describe('SubscriberReportPage', () => {
       { page: 0, size: 1000, sort: 'id,asc' },
     );
     const el = fixture.nativeElement as HTMLElement;
-    // Virtual scroll: bang van bao du 1.000 dong cho trinh doc man hinh, nhung chi ve vai dong trong DOM.
+    // Virtual scroll: bảng vẫn báo đủ 1.000 dòng cho trình đọc màn hình, nhưng chỉ vẽ vài dòng trong DOM.
     expect(
       el.querySelector('[role=table]')?.getAttribute('aria-rowcount'),
     ).toBe('1001');

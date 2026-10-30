@@ -75,7 +75,7 @@ export class SubscriberListPage {
   protected readonly statusOptions = toOptions(SUBSCRIBER_STATUS);
   protected readonly typeOptions = toOptions(SUBSCRIBER_TYPE);
 
-  // --- Bo loc: signal cho state, RxJS cho debounce (buoi 3: interop signals <-> observables) ---
+  // --- Bộ lọc: signal cho state, RxJS cho debounce (buổi 3: interop signals <-> observables) ---
   protected readonly keyword = signal('');
   private readonly debouncedKeyword = toSignal(
     toObservable(this.keyword).pipe(debounceTime(400), distinctUntilChanged()),
@@ -92,7 +92,7 @@ export class SubscriberListPage {
     type: this.type(),
   }));
 
-  // Doi bo loc -> ve trang dau, giu nguyen page size & sort.
+  // Đổi bộ lọc -> về trang đầu, giữ nguyên page size & sort.
   protected readonly page = linkedSignal<
     ReturnType<typeof this.filters>,
     PageRequest
@@ -131,7 +131,7 @@ export class SubscriberListPage {
     this.page.set(toPageRequest(query));
   }
 
-  /** Click ca hang de mo (chuot). Ban phim dung link o cot so thue bao. */
+  /** Click cả hàng để mở (chuột). Bàn phím dùng link ở cột số thuê bao. */
   protected open(subscriber: Subscriber, event: MouseEvent): void {
     if ((event.target as HTMLElement).closest('a')) {
       return;

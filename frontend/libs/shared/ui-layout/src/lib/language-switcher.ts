@@ -8,8 +8,8 @@ import { LANGUAGES, LanguageService } from '@care/shared-util-i18n';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 /**
- * Nhom nut VI | EN. Dung nut that + aria-pressed (khong dung dropdown) de thao tac
- * duoc ngay bang ban phim va trinh doc man hinh doc ro trang thai dang chon.
+ * Nhóm nút VI | EN. Dùng nút thật + aria-pressed (không dùng dropdown) để thao tác
+ * được ngay bằng bàn phím và trình đọc màn hình đọc rõ trạng thái đang chọn.
  */
 @Component({
   selector: 'care-language-switcher',
@@ -39,6 +39,6 @@ import { TranslocoPipe } from '@jsverse/transloco';
 export class LanguageSwitcher {
   protected readonly language = inject(LanguageService);
   protected readonly languages = LANGUAGES;
-  /** true khi dat tren nen toi (header). */
+  /** true khi đặt trên nền tối (header). */
   readonly onDark = input(false);
 }

@@ -25,7 +25,7 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'tickets',
-        // Composition root: chon adapter cho TicketPort tai day, feature khong biet HTTP.
+        // Composition root: chọn adapter cho TicketPort tại đây, feature không biết HTTP.
         providers: [provideHttpTicketPort()],
         loadChildren: () =>
           import('@care/portal-feature-tickets').then((m) => m.ticketRoutes),
