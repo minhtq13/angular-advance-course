@@ -37,7 +37,7 @@ Viết cho: phiên Claude Code (hoặc người) làm tiếp dự án này ở m
 
 ## 3. Trạng thái hiện tại
 
-**Git** (đã push hết, `main` = `799305a`):
+**Git** (đã push hết, `main` = `76cf56f`):
 
 | Nhánh | Commit | Nội dung |
 |---|---|---|
@@ -46,16 +46,19 @@ Viết cho: phiên Claude Code (hoặc người) làm tiếp dự án này ở m
 | `session03-start` / `session03-end` | 4e2a559 / 4e3b4e4 | Buổi 3 |
 | `session04-start` / `session04-end` | d876f58 / f780566 | Buổi 4 |
 | `session05-start` / `session05-end` | 671f847 / 7858396 | Buổi 5 |
-| `main` | 799305a | Code = `session05-start`, tài liệu buổi 1–5 đầy đủ |
+| `session06-start` / `session06-end` | f7f7ce4 / aba73aa | Buổi 6 (start gồm cả đợt đổi comment sang có dấu cho code các buổi trước, ~100 file) |
+| `main` | 76cf56f | Code = `session06-start`, tài liệu buổi 1–6 đầy đủ, `CLAUDE.md`, `.claude/` |
 
-**Buổi 6 đã soạn xong nhưng CHƯA commit** (chờ người dùng xem diff): working tree `main` có code = `session06-start` (đáp án buổi 5 +
-phần chuẩn bị buổi 6), tài liệu `course/session-06/*`, BTVN buổi 6, `course/README.md`. **Commit tạm trong worktree `wt6` đã LỖI THỜI** (còn comment không dấu, trước đợt đổi comment 2026-10-30): đừng dùng `f05cd60`/`bca411f`.
-Dựng lại từ working tree hiện tại: `session06-start` = code `frontend/`, `backend/`, `infra/`, `docs/` đang có trên `main` (đã có dấu);
-`session06-end` = áp 4 patch trong `course/session-06/solution/` theo thứ tự trong `solution/README.md` (patch đã đổi comment sang có dấu, đã kiểm tra áp/gỡ khớp).
+Hash trong bảng là commit nội dung của buổi. Từ 2026-10-30 mỗi nhánh `sessionXX-start/end` có thêm **một commit trên đầu** (cùng nội dung `CLAUDE.md`, `.claude/`, dòng `.gitignore`),
+nên đầu nhánh khác hash trong bảng (vd `session06-start` = `adb9409`, `session06-end` = `a6ea638`). `git diff sessionXX-start sessionXX-end` vẫn chỉ hiện đáp án.
+Sửa `CLAUDE.md`/`.claude/` trên `main` thì phải đồng bộ lại 12 nhánh (thêm commit mới, không viết lại lịch sử).
+
+**Buổi 6 đã commit và push (2026-10-30).** `main` có 2 commit: `a210247` (Soạn buổi 6) và `76cf56f` (CLAUDE.md, rules, skills). Nhánh `session06-start`/`session06-end`
+dựng từ cây đã kiểm tra (không dùng commit tạm), gỡ patch ra đúng `session06-start`. Quy trình ở `.claude/skills/commit-theo-buoi`.
 
 **Thay đổi chưa commit của người dùng (đừng đụng, đừng commit nếu không được bảo):**
 `course/session-01/slides/*` (đang sửa slide buổi 1), `course/session-02/README.md`, `course/session-02/react-to-angular-guide.md`,
-`course/react-to-angular/`, một phần `handoff.md`.
+`course/react-to-angular/`.
 
 **Buổi đã soạn đủ (1–6)**: mỗi buổi có `README.md`, `slides/` (slides.md + PDF + PPTX), `lab/README.md`, `solution/README.md` + patch,
 `instructor-notes.md`, `note-cho-giang-vien.md`, bài tập về nhà.
@@ -85,10 +88,8 @@ Dữ liệu local đã bị các lần test đóng vài phiếu RESOLVED và t�
 
 ## 4. Việc còn dở
 
-1. **Buổi 6: chờ người dùng duyệt rồi commit** theo bước 7 mục 5 (nhánh `session06-start` từ working tree hiện tại, `session06-end` từ đầu
-   worktree `wt6`; commit `main` loại `course/session-01/slides`, `course/react-to-angular`, `course/session-02/*` riêng của người dùng).
-   Container `care-api-1` của người dùng vẫn chạy code buổi 5: cần `ACCESS_TOKEN_TTL=30s docker compose -f infra/docker-compose.yml up -d --build api`
-   để có V5 (dump có V1–V4 nên Flyway tự nâng). Dọn worktree `wt6` sau khi tạo nhánh (container tạm `care6-pg` đã xóa).
+1. **Container `care-api-1` của người dùng vẫn chạy code buổi 5**: để thử buổi 6 cần `ACCESS_TOKEN_TTL=30s docker compose -f infra/docker-compose.yml up -d --build api`
+   (dump có V1–V4 nên Flyway tự áp V5). Sau buổi học bỏ biến `ACCESS_TOKEN_TTL` để về 15 phút.
 2. **Buổi 7:** service `keycloak` trong `infra/docker-compose.yml` dưới `profiles: [sso]` + realm export (`infra/keycloak/`); auth hỗ trợ
    2 chế độ (local JWT / OIDC) qua một port; Playwright hành trình Agent tạo → Manager duyệt, API từ chối sai quyền (403).
 3. **Buổi 8:** diff có lỗi cài sẵn cho bài AI review; mẫu `course/_templates/ai-review.md` đã có.
@@ -188,7 +189,7 @@ npx @marp-team/marp-cli@4 slides.md --pdf  --allow-local-files -o buoi-XX-<ten>.
 **Bẫy đã gặp:**
 - **Backend test:** VS Code (extension Java) ghi đè `backend/target/classes` không có bean MapStruct → `./mvnw test` lỗi
   `No qualifying bean ...Mapper`. Chạy trong bản sao: `rsync -a --exclude target backend/ <scratch>/be && cd <scratch>/be && ./mvnw -q test`.
-- **zsh:** biến không tự tách từ (`for p in $L` sai) → viết danh sách trực tiếp; không có lệnh `timeout`.
+- **zsh:** biến không tự tách từ (`for p in $L` sai) → viết danh sách trực tiếp; không có lệnh `timeout`. **Không đặt tên biến `path`** (hay `status`, `fpath`, `cdpath`): `path` gắn với `PATH`, gán vào là mất mọi lệnh (`git: command not found`). Script nhiều bước nên viết ra file và chạy bằng `bash`.
 - **Playwright:** nz-table có hàng đo rỗng → dùng `tbody tr.ant-table-row`; `nz-select` đã có giá trị thì bấm vào `nz-select:has(#id)`,
   không bấm input; `page.goto` tải lại cả trang (mất state trong bộ nhớ) → điều hướng bằng nút trong app; tiến trình Playwright đôi khi
   không thoát sau khi test xong (chạy nền, đọc file log).
