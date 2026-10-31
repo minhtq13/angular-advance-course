@@ -28,7 +28,8 @@ public final class TicketDtos {
             long version) {
     }
 
-    public record TicketSearch(TicketStatus status, TicketPriority priority, Long subscriberId, String assignee) {
+    /** Buổi 8: thêm category (loại yêu cầu). Tham số lạ (vd type=...) bị Spring bỏ qua, không báo lỗi. */
+    public record TicketSearch(TicketStatus status, TicketPriority priority, TicketCategory category, Long subscriberId, String assignee) {
     }
 
     public record CreateTicketRequest(

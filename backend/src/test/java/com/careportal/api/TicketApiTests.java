@@ -101,6 +101,24 @@ class TicketApiTests {
                 .andExpect(jsonPath("$.detail").exists());
     }
 
+    /** Buổi 8: lọc theo loại yêu cầu ở server; tham số sai tên bị bỏ qua (không lọc), giá trị sai -> 400. */
+    @Test
+    void filtersByCategory() throws Exception {
+        var json = mvc.perform(get("/api/tickets").param("category", "BILLING").param("size", "50").with(user("agent1", "AGENT")))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        List<String> categories = JsonPath.read(json, "$.content[*].category");
+        assertThat(categories).isNotEmpty().containsOnly("BILLING");
+
+        var ignored = mvc.perform(get("/api/tickets").param("type", "BILLING").param("size", "50").with(user("agent1", "AGENT")))
+                .andReturn().getResponse().getContentAsString();
+        List<String> all = JsonPath.read(ignored, "$.content[*].category");
+        assertThat(all).contains("BILLING").anyMatch(c -> !c.equals("BILLING"));
+
+        mvc.perform(get("/api/tickets").param("category", "abc").with(user("agent1", "AGENT")))
+                .andExpect(status().isBadRequest());
+    }
+
     @Test
     void rejectsBlankTitle() throws Exception {
         var body = "{\"subscriberId\":1,\"category\":\"BILLING\",\"priority\":\"LOW\",\"title\":\"   \"}";

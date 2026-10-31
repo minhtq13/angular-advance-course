@@ -37,6 +37,7 @@ public class TicketService {
                 fetchSubscriber,
                 search.status() == null ? null : (root, q, cb) -> cb.equal(root.get("status"), search.status()),
                 search.priority() == null ? null : (root, q, cb) -> cb.equal(root.get("priority"), search.priority()),
+                search.category() == null ? null : (root, q, cb) -> cb.equal(root.get("category"), search.category()),
                 search.subscriberId() == null ? null : (root, q, cb) -> cb.equal(root.get("subscriber").get("id"), search.subscriberId()),
                 !StringUtils.hasText(search.assignee()) ? null : (root, q, cb) -> cb.equal(root.get("assignee"), search.assignee()));
         return PageResponse.of(repository.findAll(spec, pageable).map(mapper::toDto));
