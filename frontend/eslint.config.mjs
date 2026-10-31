@@ -94,8 +94,19 @@ export default [
       '**/*.cjs',
       '**/*.mjs',
     ],
-    // Override or add rules here
-    rules: {},
+    rules: {
+      // Buổi 9: import * từ bộ icon kéo cả 848 icon (~720 kB) vào bundle ban đầu. Budget chỉ bắt được ở bước build,
+      // lint bắt sớm hơn và chỉ đúng dòng.
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "ImportDeclaration[source.value='@ant-design/icons-angular/icons'] > ImportNamespaceSpecifier",
+          message:
+            'Chỉ import icon cần dùng (vd { SearchOutline }) rồi thêm vào ICONS; import * kéo cả bộ icon vào bundle ban đầu.',
+        },
+      ],
+    },
   },
   {
     files: ['**/*.html'],

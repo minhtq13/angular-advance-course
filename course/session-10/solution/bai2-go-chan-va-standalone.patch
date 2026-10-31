@@ -1,0 +1,638 @@
+diff --git a/fixtures/legacy-a21/angular.json b/fixtures/legacy-a21/angular.json
+index 02be4ea..fcd8ab5 100644
+--- a/fixtures/legacy-a21/angular.json
++++ b/fixtures/legacy-a21/angular.json
+@@ -40,8 +40,7 @@
+               }
+             ],
+             "styles": [
+-              "src/styles.scss",
+-              "node_modules/ngx-toastr/toastr.css"
++              "src/styles.scss"
+             ]
+           },
+           "configurations": {
+diff --git a/fixtures/legacy-a21/package-lock.json b/fixtures/legacy-a21/package-lock.json
+index 5f070da..eb075a7 100644
+--- a/fixtures/legacy-a21/package-lock.json
++++ b/fixtures/legacy-a21/package-lock.json
+@@ -15,7 +15,6 @@
+         "@angular/platform-browser": "^21.2.0",
+         "@angular/router": "^21.2.0",
+         "ngx-pipes": "3.2.2",
+-        "ngx-toastr": "20.0.5",
+         "rxjs": "~7.8.0",
+         "tslib": "^2.3.0",
+         "zone.js": "~0.16.0"
+@@ -6966,20 +6965,6 @@
+         "@angular/core": ">=14"
+       }
+     },
+-    "node_modules/ngx-toastr": {
+-      "version": "20.0.5",
+-      "resolved": "https://registry.npmjs.org/ngx-toastr/-/ngx-toastr-20.0.5.tgz",
+-      "integrity": "sha512-JcGu1Cbl+0SovPhxma72ygGeZHtpHWWKwBCyiabb+MSWYtXu/SOwEZ2HTWtZ4wcEYOOiy9tDQZgiEKWXpibpRw==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "tslib": "^2.8.1"
+-      },
+-      "peerDependencies": {
+-        "@angular/common": "^21.0.0",
+-        "@angular/core": "^21.0.0",
+-        "rxjs": "^7.8.2"
+-      }
+-    },
+     "node_modules/node-addon-api": {
+       "version": "6.1.0",
+       "resolved": "https://registry.npmjs.org/node-addon-api/-/node-addon-api-6.1.0.tgz",
+diff --git a/fixtures/legacy-a21/package.json b/fixtures/legacy-a21/package.json
+index e58ee38..cc96f85 100644
+--- a/fixtures/legacy-a21/package.json
++++ b/fixtures/legacy-a21/package.json
+@@ -18,7 +18,6 @@
+     "@angular/platform-browser": "^21.2.0",
+     "@angular/router": "^21.2.0",
+     "ngx-pipes": "3.2.2",
+-    "ngx-toastr": "20.0.5",
+     "rxjs": "~7.8.0",
+     "tslib": "^2.3.0",
+     "zone.js": "~0.16.0"
+diff --git a/fixtures/legacy-a21/src/app/app-module.ts b/fixtures/legacy-a21/src/app/app-module.ts
+deleted file mode 100644
+index bcce915..0000000
+--- a/fixtures/legacy-a21/src/app/app-module.ts
++++ /dev/null
+@@ -1,30 +0,0 @@
+-import { HttpClientModule } from '@angular/common/http';
+-import { NgModule, provideBrowserGlobalErrorListeners, provideZoneChangeDetection } from '@angular/core';
+-import { ReactiveFormsModule } from '@angular/forms';
+-import { BrowserModule } from '@angular/platform-browser';
+-import { NgPipesModule } from 'ngx-pipes';
+-import { ToastrModule } from 'ngx-toastr';
+-
+-import { AppRoutingModule } from './app-routing-module';
+-import { App } from './app';
+-import { PriorityLabelPipe } from './tickets/priority-label.pipe';
+-import { TicketListComponent } from './tickets/ticket-list.component';
+-import { TicketRowComponent } from './tickets/ticket-row.component';
+-
+-@NgModule({
+-  declarations: [App, TicketListComponent, TicketRowComponent, PriorityLabelPipe],
+-  imports: [
+-    BrowserModule,
+-    AppRoutingModule,
+-    HttpClientModule,
+-    ReactiveFormsModule,
+-    NgPipesModule,
+-    ToastrModule.forRoot({ positionClass: 'toast-bottom-right' }),
+-  ],
+-  providers: [
+-    provideBrowserGlobalErrorListeners(),
+-    provideZoneChangeDetection({ eventCoalescing: true }),
+-  ],
+-  bootstrap: [App],
+-})
+-export class AppModule {}
+diff --git a/fixtures/legacy-a21/src/app/app-routing-module.ts b/fixtures/legacy-a21/src/app/app-routing-module.ts
+deleted file mode 100644
+index afbb0c3..0000000
+--- a/fixtures/legacy-a21/src/app/app-routing-module.ts
++++ /dev/null
+@@ -1,14 +0,0 @@
+-import { NgModule } from '@angular/core';
+-import { RouterModule, Routes } from '@angular/router';
+-import { TicketListComponent } from './tickets/ticket-list.component';
+-
+-const routes: Routes = [
+-  { path: '', pathMatch: 'full', redirectTo: 'tickets' },
+-  { path: 'tickets', component: TicketListComponent },
+-];
+-
+-@NgModule({
+-  imports: [RouterModule.forRoot(routes)],
+-  exports: [RouterModule],
+-})
+-export class AppRoutingModule {}
+diff --git a/fixtures/legacy-a21/src/app/app.config.ts b/fixtures/legacy-a21/src/app/app.config.ts
+new file mode 100644
+index 0000000..55d39a0
+--- /dev/null
++++ b/fixtures/legacy-a21/src/app/app.config.ts
+@@ -0,0 +1,19 @@
++import { provideHttpClient } from '@angular/common/http';
++import {
++  ApplicationConfig,
++  provideBrowserGlobalErrorListeners,
++  provideZoneChangeDetection,
++} from '@angular/core';
++import { provideRouter } from '@angular/router';
++import { routes } from './app.routes';
++
++// Migration standalone-bootstrap sinh importProvidersFrom(HttpClientModule, AppRoutingModule, ...):
++// chạy được nhưng vẫn là API kiểu NgModule. Viết lại bằng provide*.
++export const appConfig: ApplicationConfig = {
++  providers: [
++    provideBrowserGlobalErrorListeners(),
++    provideZoneChangeDetection({ eventCoalescing: true }),
++    provideHttpClient(),
++    provideRouter(routes),
++  ],
++};
+diff --git a/fixtures/legacy-a21/src/app/app.html b/fixtures/legacy-a21/src/app/app.html
+index cb871bf..96d7472 100644
+--- a/fixtures/legacy-a21/src/app/app.html
++++ b/fixtures/legacy-a21/src/app/app.html
+@@ -1,2 +1,3 @@
+ <header><strong>Care Portal (bản cũ, Angular 21)</strong></header>
+ <router-outlet></router-outlet>
++<app-notifications></app-notifications>
+diff --git a/fixtures/legacy-a21/src/app/app.routes.ts b/fixtures/legacy-a21/src/app/app.routes.ts
+new file mode 100644
+index 0000000..d40be5c
+--- /dev/null
++++ b/fixtures/legacy-a21/src/app/app.routes.ts
+@@ -0,0 +1,7 @@
++import { Routes } from '@angular/router';
++import { TicketListComponent } from './tickets/ticket-list.component';
++
++export const routes: Routes = [
++  { path: '', pathMatch: 'full', redirectTo: 'tickets' },
++  { path: 'tickets', component: TicketListComponent },
++];
+diff --git a/fixtures/legacy-a21/src/app/app.spec.ts b/fixtures/legacy-a21/src/app/app.spec.ts
+index 7844923..e5025a3 100644
+--- a/fixtures/legacy-a21/src/app/app.spec.ts
++++ b/fixtures/legacy-a21/src/app/app.spec.ts
+@@ -1,12 +1,13 @@
+ import { TestBed } from '@angular/core/testing';
+-import { RouterModule } from '@angular/router';
++import { provideRouter } from '@angular/router';
+ import { App } from './app';
++import { NotificationService } from './shared/notification.service';
+ 
+ describe('App', () => {
+   beforeEach(async () => {
+     await TestBed.configureTestingModule({
+-      imports: [RouterModule.forRoot([])],
+-      declarations: [App],
++      imports: [App],
++      providers: [provideRouter([])],
+     }).compileComponents();
+   });
+ 
+@@ -15,4 +16,13 @@ describe('App', () => {
+     fixture.detectChanges();
+     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Care Portal');
+   });
++
++  it('thong bao hien tren man hinh (thay ngx-toastr)', async () => {
++    const fixture = TestBed.createComponent(App);
++    fixture.autoDetectChanges();
++    TestBed.inject(NotificationService).success('Đã duyệt phiếu TK-1', 50);
++    await fixture.whenStable();
++    const el = fixture.nativeElement as HTMLElement;
++    expect(el.querySelector('[role=status]')?.textContent).toContain('Đã duyệt phiếu TK-1');
++  });
+ });
+diff --git a/fixtures/legacy-a21/src/app/app.ts b/fixtures/legacy-a21/src/app/app.ts
+index 612e046..2993f54 100644
+--- a/fixtures/legacy-a21/src/app/app.ts
++++ b/fixtures/legacy-a21/src/app/app.ts
+@@ -1,9 +1,11 @@
+ import { Component } from '@angular/core';
++import { RouterOutlet } from '@angular/router';
++import { NotificationsComponent } from './shared/notifications.component';
+ 
+ @Component({
+   selector: 'app-root',
+   templateUrl: './app.html',
+-  standalone: false,
+   styleUrl: './app.scss',
++  imports: [RouterOutlet, NotificationsComponent],
+ })
+ export class App {}
+diff --git a/fixtures/legacy-a21/src/app/shared/notification.service.spec.ts b/fixtures/legacy-a21/src/app/shared/notification.service.spec.ts
+new file mode 100644
+index 0000000..6076cd2
+--- /dev/null
++++ b/fixtures/legacy-a21/src/app/shared/notification.service.spec.ts
+@@ -0,0 +1,21 @@
++import { TestBed } from '@angular/core/testing';
++import { NotificationService } from './notification.service';
++
++describe('NotificationService', () => {
++  it('hien thong bao roi tu an sau thoi gian quy dinh', async () => {
++    const service = TestBed.inject(NotificationService);
++    service.success('Đã duyệt phiếu TK-1', 20);
++    expect(service.messages().map((m) => m.text)).toEqual(['Đã duyệt phiếu TK-1']);
++
++    await new Promise((r) => setTimeout(r, 40));
++    expect(service.messages()).toEqual([]);
++  });
++
++  it('nhieu thong bao hien cung luc, an rieng tung cai', async () => {
++    const service = TestBed.inject(NotificationService);
++    service.success('A', 20);
++    service.success('B', 200);
++    await new Promise((r) => setTimeout(r, 40));
++    expect(service.messages().map((m) => m.text)).toEqual(['B']);
++  });
++});
+diff --git a/fixtures/legacy-a21/src/app/shared/notification.service.ts b/fixtures/legacy-a21/src/app/shared/notification.service.ts
+new file mode 100644
+index 0000000..7a42f6b
+--- /dev/null
++++ b/fixtures/legacy-a21/src/app/shared/notification.service.ts
+@@ -0,0 +1,23 @@
++import { Injectable, signal } from '@angular/core';
++
++export interface Notification {
++  id: number;
++  text: string;
++}
++
++/**
++ * Thay ngx-toastr (peer dependency chỉ nhận Angular ^21, chặn ng update lên 22).
++ * Signal -> màn hình tự cập nhật cả khi không có zone.js.
++ */
++@Injectable({ providedIn: 'root' })
++export class NotificationService {
++  private nextId = 1;
++  private readonly list = signal<Notification[]>([]);
++  readonly messages = this.list.asReadonly();
++
++  success(text: string, durationMs = 3000): void {
++    const id = this.nextId++;
++    this.list.update((l) => [...l, { id, text }]);
++    setTimeout(() => this.list.update((l) => l.filter((n) => n.id !== id)), durationMs);
++  }
++}
+diff --git a/fixtures/legacy-a21/src/app/shared/notifications.component.ts b/fixtures/legacy-a21/src/app/shared/notifications.component.ts
+new file mode 100644
+index 0000000..4a7c0c2
+--- /dev/null
++++ b/fixtures/legacy-a21/src/app/shared/notifications.component.ts
+@@ -0,0 +1,33 @@
++import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
++import { NotificationService } from './notification.service';
++
++@Component({
++  selector: 'app-notifications',
++  changeDetection: ChangeDetectionStrategy.OnPush,
++  template: `
++    <div class="notifications" role="status" aria-live="polite">
++      @for (n of notifications.messages(); track n.id) {
++        <p class="notification">{{ n.text }}</p>
++      }
++    </div>
++  `,
++  styles: `
++    .notifications {
++      position: fixed;
++      right: 16px;
++      bottom: 16px;
++      display: grid;
++      gap: 8px;
++    }
++    .notification {
++      margin: 0;
++      padding: 8px 12px;
++      border-radius: 6px;
++      background: #135200;
++      color: #fff;
++    }
++  `,
++})
++export class NotificationsComponent {
++  protected readonly notifications = inject(NotificationService);
++}
+diff --git a/fixtures/legacy-a21/src/app/tickets/priority-label.pipe.ts b/fixtures/legacy-a21/src/app/tickets/priority-label.pipe.ts
+index 33056a5..6456755 100644
+--- a/fixtures/legacy-a21/src/app/tickets/priority-label.pipe.ts
++++ b/fixtures/legacy-a21/src/app/tickets/priority-label.pipe.ts
+@@ -8,7 +8,7 @@ const LABELS: Record<TicketPriority, string> = {
+   URGENT: 'Khẩn cấp',
+ };
+ 
+-@Pipe({ name: 'priorityLabel', standalone: false })
++@Pipe({ name: 'priorityLabel' })
+ export class PriorityLabelPipe implements PipeTransform {
+   transform(value: TicketPriority): string {
+     return LABELS[value] ?? value;
+diff --git a/fixtures/legacy-a21/src/app/tickets/ticket-list.component.spec.ts b/fixtures/legacy-a21/src/app/tickets/ticket-list.component.spec.ts
+index 9d1b27d..d99a188 100644
+--- a/fixtures/legacy-a21/src/app/tickets/ticket-list.component.spec.ts
++++ b/fixtures/legacy-a21/src/app/tickets/ticket-list.component.spec.ts
+@@ -1,17 +1,28 @@
+-import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
++import { provideHttpClient } from '@angular/common/http';
++import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+ import { provideZoneChangeDetection } from '@angular/core';
+ import { ComponentFixture, TestBed } from '@angular/core/testing';
+-import { ReactiveFormsModule } from '@angular/forms';
+-import { NgPipesModule } from 'ngx-pipes';
+-import { ToastrService } from 'ngx-toastr';
++import { NotificationService } from '../shared/notification.service';
+ import { Ticket } from './ticket';
+-import { PriorityLabelPipe } from './priority-label.pipe';
+ import { TicketListComponent } from './ticket-list.component';
+-import { TicketRowComponent } from './ticket-row.component';
+ 
+ const TICKETS: Ticket[] = [
+-  { id: 1, title: 'Mạng yếu', subscriber: '0900000001', priority: 'HIGH', status: 'NEW', createdAt: '2026-10-30T08:00:00Z' },
+-  { id: 2, title: 'Đổi gói', subscriber: '0900000002', priority: 'LOW', status: 'RESOLVED', createdAt: '2026-10-30T09:00:00Z' },
++  {
++    id: 1,
++    title: 'Mạng yếu',
++    subscriber: '0900000001',
++    priority: 'HIGH',
++    status: 'NEW',
++    createdAt: '2026-10-30T08:00:00Z',
++  },
++  {
++    id: 2,
++    title: 'Đổi gói',
++    subscriber: '0900000002',
++    priority: 'LOW',
++    status: 'RESOLVED',
++    createdAt: '2026-10-30T09:00:00Z',
++  },
+ ];
+ 
+ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+@@ -19,14 +30,18 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+ describe('TicketListComponent', () => {
+   let fixture: ComponentFixture<TicketListComponent>;
+   let el: HTMLElement;
+-  const toastr = { success: vi.fn() };
++  const notifications = { success: vi.fn() };
+ 
+   beforeEach(async () => {
+     await TestBed.configureTestingModule({
+-      imports: [HttpClientTestingModule, ReactiveFormsModule, NgPipesModule],
+-      declarations: [TicketListComponent, TicketRowComponent, PriorityLabelPipe],
++      imports: [TicketListComponent],
+       // Như AppModule: app chạy với zone.js.
+-      providers: [provideZoneChangeDetection(), { provide: ToastrService, useValue: toastr }],
++      providers: [
++        provideZoneChangeDetection(),
++        provideHttpClient(),
++        provideHttpClientTesting(),
++        { provide: NotificationService, useValue: notifications },
++      ],
+     }).compileComponents();
+     fixture = TestBed.createComponent(TicketListComponent);
+     el = fixture.nativeElement;
+@@ -53,7 +68,7 @@ describe('TicketListComponent', () => {
+     fixture.autoDetectChanges();
+     (el.querySelector('tbody button') as HTMLButtonElement).click();
+     await sleep(0);
+-    expect(toastr.success).toHaveBeenCalledWith('Đã duyệt phiếu TK-1');
++    expect(notifications.success).toHaveBeenCalledWith('Đã duyệt phiếu TK-1');
+     expect(el.querySelector('.flash')?.textContent).toContain('TK-1');
+ 
+     // Như người dùng: không ai gọi detectChanges, màn hình phải tự cập nhật.
+diff --git a/fixtures/legacy-a21/src/app/tickets/ticket-list.component.ts b/fixtures/legacy-a21/src/app/tickets/ticket-list.component.ts
+index 6d1b619..9f69c44 100644
+--- a/fixtures/legacy-a21/src/app/tickets/ticket-list.component.ts
++++ b/fixtures/legacy-a21/src/app/tickets/ticket-list.component.ts
+@@ -1,30 +1,47 @@
+-import { Component, OnInit } from '@angular/core';
+-import { FormControl } from '@angular/forms';
+-import { ToastrService } from 'ngx-toastr';
++import { Component, OnInit, inject } from '@angular/core';
++import { FormControl, ReactiveFormsModule } from '@angular/forms';
+ import { Observable, combineLatest, map, startWith } from 'rxjs';
+ import { Ticket, TicketStatus } from './ticket';
++import { NotificationService } from '../shared/notification.service';
+ import { TicketService } from './ticket.service';
++import { AsyncPipe } from '@angular/common';
++import { TicketRowComponent } from './ticket-row.component';
+ 
+ @Component({
+   selector: 'app-ticket-list',
+-  standalone: false,
+   template: `
+-    <h1>Phiếu yêu cầu <small>({{ newCount$ | async }} phiếu mới)</small></h1>
++    <h1>
++      Phiếu yêu cầu <small>({{ newCount$ | async }} phiếu mới)</small>
++    </h1>
+     <label for="status">Trạng thái</label>
+     <select id="status" [formControl]="status">
+       <option value="">Tất cả</option>
+-      <option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
++      @for (s of statuses; track s) {
++        <option [value]="s">{{ s }}</option>
++      }
+     </select>
+-    <p *ngIf="lastApproved" class="flash">Đã duyệt TK-{{ lastApproved }}</p>
+-    <table *ngIf="visible$ | async as list">
+-      <tbody>
+-        <tr *ngFor="let t of list; trackBy: byId" app-ticket-row [ticket]="t" (approve)="onApprove($event)"></tr>
+-      </tbody>
+-    </table>
+-    <p *ngIf="(visible$ | async)?.length === 0" class="empty">Không có phiếu nào</p>
++    @if (lastApproved) {
++      <p class="flash">Đã duyệt TK-{{ lastApproved }}</p>
++    }
++    @if (visible$ | async; as list) {
++      <table>
++        <tbody>
++          @for (t of list; track byId($index, t)) {
++            <tr app-ticket-row [ticket]="t" (approve)="onApprove($event)"></tr>
++          }
++        </tbody>
++      </table>
++    }
++    @if ((visible$ | async)?.length === 0) {
++      <p class="empty">Không có phiếu nào</p>
++    }
+   `,
++  imports: [ReactiveFormsModule, TicketRowComponent, AsyncPipe],
+ })
+ export class TicketListComponent implements OnInit {
++  private tickets = inject(TicketService);
++  private notifications = inject(NotificationService);
++
+   readonly statuses: TicketStatus[] = ['NEW', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
+   readonly status = new FormControl<TicketStatus | ''>('', { nonNullable: true });
+   visible$!: Observable<Ticket[]>;
+@@ -34,11 +51,6 @@ export class TicketListComponent implements OnInit {
+   /** Kiểu cũ (cố ý): field thường, gán trong setTimeout -> chỉ hiện/ẩn đúng nhờ zone.js. */
+   lastApproved: number | null = null;
+ 
+-  constructor(
+-    private tickets: TicketService,
+-    private toastr: ToastrService,
+-  ) {}
+-
+   ngOnInit(): void {
+     this.tickets.load().subscribe();
+     this.newCount$ = this.tickets.countNew();
+@@ -50,7 +62,7 @@ export class TicketListComponent implements OnInit {
+ 
+   onApprove(id: number): void {
+     this.tickets.approve(id);
+-    this.toastr.success(`Đã duyệt phiếu TK-${id}`);
++    this.notifications.success(`Đã duyệt phiếu TK-${id}`);
+     this.lastApproved = id;
+     setTimeout(() => (this.lastApproved = null), TicketListComponent.flashMs);
+   }
+diff --git a/fixtures/legacy-a21/src/app/tickets/ticket-row.component.ts b/fixtures/legacy-a21/src/app/tickets/ticket-row.component.ts
+index 15575cf..6ff4996 100644
+--- a/fixtures/legacy-a21/src/app/tickets/ticket-row.component.ts
++++ b/fixtures/legacy-a21/src/app/tickets/ticket-row.component.ts
+@@ -1,24 +1,31 @@
+-import { Component, EventEmitter, Input, Output } from '@angular/core';
++import { DatePipe } from '@angular/common';
++import { Component, input, output } from '@angular/core';
++import { NgStringPipesModule } from 'ngx-pipes';
++import { PriorityLabelPipe } from './priority-label.pipe';
+ import { Ticket } from './ticket';
+ 
+ @Component({
+   selector: 'tr[app-ticket-row]',
+-  standalone: false,
++  // signal-input-migration bỏ qua input này (dùng trong @if, sợ hỏng narrowing): chuyển tay,
++  // đọc ticket() một lần bằng @let.
+   template: `
+-    <td>TK-{{ ticket.id }}</td>
+-    <td>{{ ticket.title | shorten: 40 : '…' }}</td>
+-    <td>{{ ticket.subscriber }}</td>
+-    <td>{{ ticket.priority | priorityLabel }}</td>
+-    <td>{{ ticket.createdAt | date: 'dd/MM HH:mm' }}</td>
++    @let t = ticket();
++    <td>TK-{{ t.id }}</td>
++    <td>{{ t.title | shorten: 40 : '…' }}</td>
++    <td>{{ t.subscriber }}</td>
++    <td>{{ t.priority | priorityLabel }}</td>
++    <td>{{ t.createdAt | date: 'dd/MM HH:mm' }}</td>
+     <td>
+-      <button *ngIf="ticket.status === 'NEW'; else done" type="button" (click)="approve.emit(ticket.id)">
+-        Duyệt
+-      </button>
+-      <ng-template #done>{{ ticket.status }}</ng-template>
++      @if (t.status === 'NEW') {
++        <button type="button" (click)="approve.emit(t.id)">Duyệt</button>
++      } @else {
++        {{ t.status }}
++      }
+     </td>
+   `,
++  imports: [DatePipe, NgStringPipesModule, PriorityLabelPipe],
+ })
+ export class TicketRowComponent {
+-  @Input() ticket!: Ticket;
+-  @Output() approve = new EventEmitter<number>();
++  readonly ticket = input.required<Ticket>();
++  readonly approve = output<number>();
+ }
+diff --git a/fixtures/legacy-a21/src/app/tickets/ticket.service.spec.ts b/fixtures/legacy-a21/src/app/tickets/ticket.service.spec.ts
+index 07083f2..e32a7d6 100644
+--- a/fixtures/legacy-a21/src/app/tickets/ticket.service.spec.ts
++++ b/fixtures/legacy-a21/src/app/tickets/ticket.service.spec.ts
+@@ -1,12 +1,27 @@
+-import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
++import { provideHttpClient } from '@angular/common/http';
++import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+ import { TestBed } from '@angular/core/testing';
+ import { firstValueFrom } from 'rxjs';
+ import { Ticket } from './ticket';
+ import { TicketService } from './ticket.service';
+ 
+ const TICKETS: Ticket[] = [
+-  { id: 1, title: 'A', subscriber: '0900000001', priority: 'HIGH', status: 'NEW', createdAt: '2026-10-30T08:00:00Z' },
+-  { id: 2, title: 'B', subscriber: '0900000002', priority: 'LOW', status: 'RESOLVED', createdAt: '2026-10-30T09:00:00Z' },
++  {
++    id: 1,
++    title: 'A',
++    subscriber: '0900000001',
++    priority: 'HIGH',
++    status: 'NEW',
++    createdAt: '2026-10-30T08:00:00Z',
++  },
++  {
++    id: 2,
++    title: 'B',
++    subscriber: '0900000002',
++    priority: 'LOW',
++    status: 'RESOLVED',
++    createdAt: '2026-10-30T09:00:00Z',
++  },
+ ];
+ 
+ describe('TicketService', () => {
+@@ -14,7 +29,9 @@ describe('TicketService', () => {
+   let http: HttpTestingController;
+ 
+   beforeEach(() => {
+-    TestBed.configureTestingModule({ imports: [HttpClientTestingModule] });
++    TestBed.configureTestingModule({
++      providers: [provideHttpClient(), provideHttpClientTesting()],
++    });
+     service = TestBed.inject(TicketService);
+     http = TestBed.inject(HttpTestingController);
+   });
+diff --git a/fixtures/legacy-a21/src/app/tickets/ticket.service.ts b/fixtures/legacy-a21/src/app/tickets/ticket.service.ts
+index 18639f7..79c4274 100644
+--- a/fixtures/legacy-a21/src/app/tickets/ticket.service.ts
++++ b/fixtures/legacy-a21/src/app/tickets/ticket.service.ts
+@@ -1,36 +1,30 @@
+ import { HttpClient } from '@angular/common/http';
+-import { Injectable } from '@angular/core';
++import { Injectable, inject } from '@angular/core';
+ import { BehaviorSubject, Observable, map, tap } from 'rxjs';
+ import { Ticket } from './ticket';
+ 
+ /** Kiểu cũ (cố ý): constructor DI, BehaviorSubject làm state. */
+ @Injectable({ providedIn: 'root' })
+ export class TicketService {
+-  private readonly tickets$ = new BehaviorSubject<Ticket[]>([]);
++  private http = inject(HttpClient);
+ 
+-  constructor(private http: HttpClient) {}
++  private readonly tickets$ = new BehaviorSubject<Ticket[]>([]);
+ 
+   get tickets(): Observable<Ticket[]> {
+     return this.tickets$.asObservable();
+   }
+ 
+   load(): Observable<Ticket[]> {
+-    return this.http
+-      .get<Ticket[]>('tickets.json')
+-      .pipe(tap((list) => this.tickets$.next(list)));
++    return this.http.get<Ticket[]>('tickets.json').pipe(tap((list) => this.tickets$.next(list)));
+   }
+ 
+   approve(id: number): void {
+     this.tickets$.next(
+-      this.tickets$.value.map((t) =>
+-        t.id === id ? { ...t, status: 'RESOLVED' } : t,
+-      ),
++      this.tickets$.value.map((t) => (t.id === id ? { ...t, status: 'RESOLVED' } : t)),
+     );
+   }
+ 
+   countNew(): Observable<number> {
+-    return this.tickets$.pipe(
+-      map((list) => list.filter((t) => t.status === 'NEW').length),
+-    );
++    return this.tickets$.pipe(map((list) => list.filter((t) => t.status === 'NEW').length));
+   }
+ }
+diff --git a/fixtures/legacy-a21/src/main.ts b/fixtures/legacy-a21/src/main.ts
+index 1e40aff..2108cd9 100644
+--- a/fixtures/legacy-a21/src/main.ts
++++ b/fixtures/legacy-a21/src/main.ts
+@@ -1,7 +1,5 @@
+-import { platformBrowser } from '@angular/platform-browser';
+-import { AppModule } from './app/app-module';
++import { bootstrapApplication } from '@angular/platform-browser';
++import { App } from './app/app';
++import { appConfig } from './app/app.config';
+ 
+-platformBrowser().bootstrapModule(AppModule, {
+-  
+-})
+-  .catch(err => console.error(err));
++bootstrapApplication(App, appConfig).catch((err) => console.error(err));

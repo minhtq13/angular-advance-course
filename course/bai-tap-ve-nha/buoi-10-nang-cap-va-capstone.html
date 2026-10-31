@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BTVN Buổi 10 · Nâng cấp và capstone</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600&display=swap" />
+    <link rel="stylesheet" href="assets/lesson.css" />
+  </head>
+  <body>
+    <main>
+      <p class="kicker">Bài tập sau khóa · Buổi 10 · Nâng cấp, hiện đại hóa và bảo vệ dự án cuối khóa</p>
+      <h1>Nâng từng bước, mỗi bước có test xanh và đường lui</h1>
+      <dl class="homework-meta">
+        <dt>Làm sau</dt>
+        <dd>Buổi 10 (<a href="../session-10/slides/buoi-10-nang-cap-va-capstone.pdf">slide</a> · <a href="../session-10/lab/README.md">lab</a>)</dd>
+        <dt>Hạn nộp</dt>
+        <dd>Trong 1 tuần sau buổi 10</dd>
+        <dt>Thời gian</dt>
+        <dd>Khoảng 30 phút</dd>
+        <dt>Cần</dt>
+        <dd>Trình duyệt và giấy bút. Phần tùy chọn cần một dự án bạn được phép đọc <code>package.json</code>.</dd>
+      </dl>
+
+      <div class="goal">
+        <p><strong>Mục tiêu:</strong> đọc đúng thông báo của <code>ng update</code> và migration, nhận ra code chỉ chạy nhờ zone.js, và lập kế hoạch nâng cấp theo checkpoint cho một dự án mới.</p>
+        <p>Làm phần 0 trước khi mở slide.</p>
+      </div>
+
+      <h2>Phần 0 · Khởi động: viết ra giấy (4 phút)</h2>
+      <ol>
+        <li>Thứ tự 4 checkpoint khi nâng fixture từ 21 lên 22? Vì sao hiện đại hóa trước khi nâng major?</li>
+        <li>Vì sao <code>--force</code> "chạy được trên máy tôi" mà vẫn là lỗi?</li>
+        <li>Kể 3 việc CLI migration bỏ sót mà bạn phải làm tay.</li>
+        <li>Ba điều kiện bắt buộc của capstone và lệnh kiểm từng điều kiện?</li>
+      </ol>
+      <details>
+        <summary>Ôn lại sau khi đã viết xong</summary>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Câu</th><th>Ý chính</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>Gỡ thư viện chặn (<code>ngx-toastr</code>) → standalone, control flow, <code>inject()</code>, signal input/output (vẫn 21) → <code>ng update</code> lên 22 → zoneless. Lên 22 khi còn <code>NgModule</code> thì test không biên dịch; mỗi bước nhỏ thì biết lỗi từ đâu, rollback bằng một commit.</td></tr>
+              <tr><td>2</td><td><code>node_modules</code> trên máy đã cài sẵn; <code>npm ci</code> từ lockfile (CI, đồng nghiệp) kiểm peer từ đầu và dừng với <code>ERESOLVE</code>.</td></tr>
+              <tr><td>3</td><td>Spec còn <code>declarations</code>; <code>main.ts</code> dùng <code>importProvidersFrom(HttpClientModule, ...)</code>; input dùng trong <code>@if</code> không được chuyển sang <code>input()</code>; <code>track byId($index, t)</code> thay vì <code>track t.id</code>.</td></tr>
+              <tr><td>4</td><td>Build (<code>nx run-many -t lint test build</code>); API từ chối (401 không token, 403 <code>agent1</code> đóng phiếu hoặc gọi <code>/api/admin/stats</code>); không secretKey trong client (<code>grep</code> trên <code>dist</code>).</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+
+      <h2>Phần 1 · Đọc thông báo, phản ứng đúng (5 câu)</h2>
+      <div class="quiz" id="quiz-nang-cap" data-quiz>
+        <script type="application/json">
+          {
+            "questions": [
+              {
+                "prompt": "`npx ng update @angular/core@22 @angular/cli@22` báo: Package \"ngx-toastr\" has an incompatible peer dependency to \"@angular/common\" (requires \"^21.0.0\"). Việc đầu tiên?",
+                "options": [
+                  "Chạy lại với --force cho nhanh",
+                  "Xóa package-lock.json rồi npm install",
+                  "Xem thư viện còn được bảo trì không (npm view ngx-toastr time.modified), rồi chọn: chờ bản mới, thay thư viện, hoặc overrides có ghi rủi ro, trước khi nâng",
+                  "Hạ @angular/core về 21 vĩnh viễn"
+                ],
+                "answer": 2,
+                "explain": "Thư viện chặn là quyết định có lựa chọn. ngx-toastr 20.0.5 không phát hành từ 2026-02-06; trong lab thay bằng NotificationService khoảng 30 dòng. Xóa lockfile phá build tái lập."
+              },
+              {
+                "prompt": "Bạn nâng bằng --force, test chạy trên máy bạn. Đồng nghiệp clone về chạy npm ci: ERESOLVE ... peer @angular/common@\"^21.0.0\" from ngx-toastr. Vì sao máy bạn không lỗi?",
+                "options": [
+                  "node_modules của bạn cài từ trước với --force; npm ci đọc lockfile và kiểm peer từ đầu nên dừng",
+                  "Máy đồng nghiệp sai phiên bản Node",
+                  "Cache npm của đồng nghiệp hỏng",
+                  "GitHub làm hỏng lockfile"
+                ],
+                "answer": 0,
+                "explain": "Gate trên máy dev không bắt được --force. Bước rm -rf node_modules && npm ci (như CI) mới bắt."
+              },
+              {
+                "prompt": "App còn NgModule, nâng lên 22 xong: ng build xanh, ng test báo NG8004: No pipe found with name 'async' cho mọi component. Nguyên nhân?",
+                "options": [
+                  "Angular 22 bỏ AsyncPipe",
+                  "Vitest không hỗ trợ pipe",
+                  "Thiếu CommonModule trong angular.json",
+                  "Builder test của 22 chỉ biên dịch những gì spec import tới; app-module.ts không được import nên component mất phạm vi NgModule"
+                ],
+                "answer": 3,
+                "explain": "Đo trong lab: thêm import './app-module' vào một spec thì 7/7 xanh. Cách bền: chuyển standalone trước khi nâng (checkpoint 2)."
+              },
+              {
+                "prompt": "Ai đó nâng bằng cách sửa số phiên bản trong package.json rồi npm install (không ng update). Build xanh, nhưng dòng 'Đã duyệt' không tự ẩn. Vì sao?",
+                "options": [
+                  "zone.js bị gỡ tự động",
+                  "Angular 22 mặc định OnPush; ng update thêm ChangeDetectionStrategy.Eager để giữ hành vi, sửa tay thì không có migration đó",
+                  "setTimeout bị Angular 22 chặn",
+                  "Lỗi của Vitest"
+                ],
+                "answer": 1,
+                "explain": "Tài liệu kiểu ChangeDetectionStrategy của 22 ghi 'NOTE: OnPush is enabled by default.' Field thường gán trong setTimeout không làm component OnPush kiểm lại."
+              },
+              {
+                "prompt": "npm outdated cho typescript: Current 5.9.3, Latest 7.0.2. Lên Angular 22 thì cài bản nào?",
+                "options": [
+                  "Bản Angular 22 yêu cầu: @angular/compiler-cli@22 có peer typescript >=6.0 <6.1; để ng update chọn (~6.0.3)",
+                  "7.0.2 vì là bản mới nhất",
+                  "Giữ 5.9.3 cho an toàn",
+                  "Bản next để có tính năng mới"
+                ],
+                "answer": 0,
+                "explain": "Cột Latest không biết gì về Angular. Đọc peerDependencies của compiler-cli; Node cũng vậy: Angular 22 cần ^22.22.3 || ^24.15.0 || >=26."
+              }
+            ]
+          }
+        </script>
+      </div>
+
+      <h2>Phần 2 · Soi code sau migration (5 câu)</h2>
+      <div class="quiz" id="quiz-migration" data-quiz>
+        <script type="application/json">
+          {
+            "questions": [
+              {
+                "prompt": "Sau ng g @angular/core:standalone --mode=convert-to-standalone, test báo: Unexpected \"_TicketListComponent\" found in the \"declarations\" array of the \"TestBed.configureTestingModule\" call. Sửa thế nào?",
+                "options": [
+                  "Đặt lại standalone: false",
+                  "Bỏ test đó",
+                  "Thêm CUSTOM_ELEMENTS_SCHEMA",
+                  "Chuyển component từ declarations sang imports của TestBed (component standalone tự khai báo imports của nó)"
+                ],
+                "answer": 3,
+                "explain": "Migration không sửa spec. Đây là lý do chạy test sau mỗi lệnh: đỏ ngay ở bước gây ra."
+              },
+              {
+                "prompt": "Sau mode standalone-bootstrap, main.ts có importProvidersFrom(BrowserModule, AppRoutingModule, HttpClientModule, ...). Nên làm gì?",
+                "options": [
+                  "Giữ nguyên vì app vẫn chạy",
+                  "Viết lại bằng provide*: provideRouter(routes), provideHttpClient(); bỏ BrowserModule, module routing",
+                  "Thêm lại AppModule",
+                  "Chuyển sang platformBrowser().bootstrapModule"
+                ],
+                "answer": 1,
+                "explain": "importProvidersFrom chạy được nhưng vẫn là API kiểu NgModule; app.config.ts với provide* là đích của migration."
+              },
+              {
+                "prompt": "signal-input-migration báo 'Migrated 0/1 inputs', --insert-todos ghi: 'This input is used in a control flow expression ... migrating would break narrowing'. Làm gì?",
+                "options": [
+                  "Chạy --best-effort-mode rồi commit không đọc",
+                  "Giữ @Input vĩnh viễn",
+                  "Chuyển tay: ticket = input.required<Ticket>() và đọc một lần bằng @let t = ticket(); trong template",
+                  "Bỏ @if trong template"
+                ],
+                "answer": 2,
+                "explain": "Migration dừng ở chỗ không chắc chắn. @let giữ narrowing; test cũ xanh là bằng chứng."
+              },
+              {
+                "prompt": "Bỏ zone.js. Đoạn 'this.lastApproved = id; setTimeout(() => (this.lastApproved = null), 3000);' với lastApproved là field thường. Kết quả?",
+                "options": [
+                  "Dòng 'Đã duyệt' hiện nhưng không tự ẩn: không có zone thì gán field trong setTimeout không lên lịch change detection; đổi sang signal",
+                  "Chạy như cũ",
+                  "Lỗi biên dịch",
+                  "Dòng không bao giờ hiện"
+                ],
+                "answer": 0,
+                "explain": "Click trong template vẫn lên lịch kiểm tra (nên dòng hiện), setTimeout thì không. Test 'như người dùng' (autoDetectChanges, không gọi detectChanges) bắt được."
+              },
+              {
+                "prompt": "Kiểm tra 'không có secretKey trong client': grep -r 'care-dev-secret' frontend/apps ra 1 kết quả trong apps/portal-e2e/src/security/api-matrix.spec.ts. Kết luận?",
+                "options": [
+                  "Vi phạm, trượt khóa",
+                  "Xóa test cho sạch",
+                  "Chưa phải vi phạm: test E2E chạy trong Node, không vào bundle; kết luận phải dựa trên grep trong frontend/dist (0 file)",
+                  "Chỉ cần kiểm mã nguồn là đủ"
+                ],
+                "answer": 2,
+                "explain": "Điều kiện nói về client (bundle trình duyệt). Kiểm cả nguồn lẫn dist, hiểu từng kết quả trước khi kết luận."
+              }
+            ]
+          }
+        </script>
+      </div>
+
+      <h2>Phần 3 · Vận dụng: kế hoạch cho một dự án lớn hơn (10 phút)</h2>
+      <p>
+        Tình huống (giả định của đề): một hệ thống CSKH khác đang chạy <strong>Angular 20</strong>, khoảng 40 màn hình, <code>NgModule</code>, zone.js, test bằng Karma.
+        Đội 3 người, cần lên Angular 22 trong 6 tuần mà vẫn phát hành tính năng mỗi 2 tuần. Thư viện: <code>ngx-toastr</code> 20.0.5 và <code>ng2-charts</code>
+        (bản mới nhất 11.0.0 có peer <code>@angular/core &gt;=22.0.0</code>).
+      </p>
+      <ol class="steps">
+        <li>Liệt kê checkpoint theo thứ tự (mỗi major một bước), chỉ rõ bước nào gỡ <code>ngx-toastr</code>, bước nào nâng <code>ng2-charts</code>, và lệnh rollback của mỗi bước.</li>
+        <li>Chọn cách thay thế dần (strangler): màn hình nào chuyển standalone trước, vì sao; làm sao để code mới và cũ cùng chạy trong 6 tuần.</li>
+        <li>Mỗi checkpoint cần bằng chứng gì trước khi đi tiếp (test, smoke, số đo)? Điều gì khiến bạn dừng lại và rollback?</li>
+      </ol>
+      <details>
+        <summary>Đáp án tham khảo (chỉ mở sau khi đã viết)</summary>
+        <ol>
+          <li>(a) Trên 20: thay <code>ngx-toastr</code> (test ở chỗ dùng), standalone + control flow.
+            (b) <code>ng update</code> 20 → 21, test, <code>npm ci</code> sạch. (c) 21 → 22 <strong>cùng lúc</strong> nâng <code>ng2-charts</code> lên 11 (bản 11 chỉ nhận 22, nên không nâng trước được),
+            đọc migration (<code>Eager</code>, <code>withXhr()</code>); CLI 22 có migration tùy chọn <code>migrate-karma-to-vitest</code> cho test Karma (checkpoint riêng). (d) Zoneless sau, nếu test chứng minh được. Mỗi bước một nhánh/commit; rollback = <code>git reset --hard &lt;checkpoint trước&gt; &amp;&amp; npm ci</code>,
+            và image của bản trước còn trong registry (buổi 9).</li>
+          <li>Bắt đầu từ màn hình ít phụ thuộc, có test tốt (ví dụ tra cứu chỉ đọc), rồi tới màn hình nhiều thư viện. Migration standalone chạy được theo thư mục
+            (<code>--path</code>); component standalone dùng được trong <code>NgModule</code> cũ (thêm vào <code>imports</code>) nên hai kiểu cùng tồn tại. Luật import (buổi 1) chặn code mới phụ thuộc vào module cũ.
+            Không gộp tính năng mới vào commit nâng cấp.</li>
+          <li>Test và build xanh; <code>rm -rf node_modules &amp;&amp; npm ci</code> sạch; smoke trên bản triển khai (deep link, đăng nhập, 0 lỗi console); bundle ban đầu không vượt budget;
+            không lỗi mới trong log lọc theo version. Dừng khi: phải dùng <code>--force</code>, test hành vi đỏ mà chưa hiểu vì sao, hoặc smoke đỏ sau triển khai.</li>
+        </ol>
+      </details>
+
+      <h2>Phần tùy chọn · Inventory dự án của bạn</h2>
+      <p>
+        Với một dự án bạn được phép đọc (không gửi mã nguồn ra ngoài): chạy <code>npm outdated</code>, rồi với 3 thư viện bên thứ ba quan trọng nhất ghi
+        <code>npm view &lt;pkg&gt; peerDependencies</code> và <code>time.modified</code>. Thư viện nào sẽ chặn bạn lên major kế tiếp? Chỉ ghi tên thư viện và phiên bản.
+      </p>
+
+      <h2>Nộp bài</h2>
+      <p>Gửi giảng viên qua kênh của lớp, <strong>trong 1 tuần sau buổi 10</strong>:</p>
+      <ol>
+        <li>Điểm phần 1 và phần 2.</li>
+        <li>Kế hoạch phần 3.</li>
+        <li>(Tùy chọn) bảng inventory của phần tùy chọn.</li>
+      </ol>
+      <p class="meta">Khi bắt đầu áp dụng vào feature thật, mở lại kế hoạch áp dụng trong <code>docs/capstone-bang-chung.md</code> và làm checkpoint đầu tiên.</p>
+
+      <h2>Đọc thêm</h2>
+      <p>
+        <strong>Nguồn chính:</strong> <a href="https://angular.dev/update-guide">Angular — Update guide</a> (chọn phiên bản đi và đến, khoảng 10 phút).
+      </p>
+      <p>
+        Thêm: <a href="https://angular.dev/reference/migrations/standalone">Angular — Standalone migration</a> ·
+        <a href="https://angular.dev/guide/zoneless">Angular — Zoneless</a> ·
+        <a href="https://docs.npmjs.com/cli/v11/configuring-npm/package-json#overrides">npm — overrides</a> ·
+        <a href="https://martinfowler.com/bliki/StranglerFigApplication.html">Martin Fowler — Strangler Fig Application</a> ·
+        sản phẩm của lớp: <code>docs/nang-cap-angular-22.md</code>, <code>docs/adr/0004-nang-cap-app-cu-truoc-roi-zoneless.md</code> (nhánh <code>session10-end</code>).
+      </p>
+
+      <div class="callout">
+        <p><strong>Còn chỗ nào chưa rõ?</strong> Hỏi giảng viên, hoặc hỏi trợ lý AI ngay trong repo — ví dụ:
+          “vì sao test 'tự ẩn dòng Đã duyệt' trong <code>fixtures/legacy-a21</code> đỏ khi bỏ zone.js mà <code>lastApproved</code> còn là field thường?” (rồi chạy test để xác minh).</p>
+      </div>
+
+      <footer>Khóa Angular nâng cao · Bài tập sau buổi 10 · Dự án mẫu Care Portal</footer>
+    </main>
+    <script src="assets/quiz.js"></script>
+  </body>
+</html>

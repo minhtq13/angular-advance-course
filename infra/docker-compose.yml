@@ -81,11 +81,23 @@ services:
       - ./keycloak:/opt/keycloak/data/import:ro
 
   # Buổi 9: portal chạy trong nginx, http://localhost:8090 (8080 hay bị Jenkins/Tomcat chiếm).
-  #   WEB_VERSION=1.0.0 docker compose -f infra/docker-compose.yml --profile web up -d web
+  #   Build:    WEB_VERSION=1.0.0 GIT_COMMIT=$(git rev-parse --short HEAD) docker compose -f infra/docker-compose.yml --profile web build web
+  #   Chạy:     WEB_VERSION=1.0.0 docker compose -f infra/docker-compose.yml --profile web up -d web
+  #   Rollback: WEB_VERSION=<bản trước> docker compose -f infra/docker-compose.yml --profile web up -d --no-build web
   web:
     profiles: ["web"]
-    build: ../frontend
+    build:
+      context: ../frontend
+      args:
+        APP_VERSION: ${WEB_VERSION:-dev}
+        GIT_COMMIT: ${GIT_COMMIT:-local}
     image: care-portal-web:${WEB_VERSION:-dev}
+    environment:
+      # CSP connect-src: origin API mà trình duyệt gọi (phải khớp apiUrl trong config.json bên dưới).
+      API_ORIGIN: http://localhost:8081
+    volumes:
+      # Cấu hình theo môi trường, mount lúc chạy: cùng một image dùng cho mọi môi trường.
+      - ./web/config.json:/usr/share/nginx/html/config.json:ro
     ports:
       - "8090:80"
     depends_on:

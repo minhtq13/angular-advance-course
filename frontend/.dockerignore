@@ -1,0 +1,10 @@
+# Buổi 9: Dockerfile chép cả thư mục (COPY . .) -> loại những gì build trong container tự tạo lại.
+node_modules
+dist
+tmp
+.nx
+.angular
+coverage
+test-output
+playwright-report
+**/.DS_Store

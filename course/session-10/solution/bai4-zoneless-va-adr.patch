@@ -1,0 +1,243 @@
+diff --git a/docs/adr/0004-nang-cap-app-cu-truoc-roi-zoneless.md b/docs/adr/0004-nang-cap-app-cu-truoc-roi-zoneless.md
+new file mode 100644
+index 0000000..798ede7
+--- /dev/null
++++ b/docs/adr/0004-nang-cap-app-cu-truoc-roi-zoneless.md
+@@ -0,0 +1,41 @@
++# ADR-0004: Hiện đại hóa app cũ trên major đang chạy, nâng major sau, bỏ zone.js khi test chứng minh được
++
++- **Trạng thái:** Đã chấp nhận
++- **Ngày:** 2026-10-31
++- **Người quyết định:** Nhóm frontend (buổi 10)
++
++## Bối cảnh
++
++`fixtures/legacy-a21` là app Angular 21 viết kiểu cũ (`NgModule`, `*ngIf`, `@Input`, zone.js, `ngx-toastr`, `ngx-pipes`), 7 test. Cần lên Angular 22. Đã thử
++"nâng thẳng" trên một bản sao:
++
++- `ng update` dừng: `ngx-toastr` 20.0.5 chỉ nhận `@angular/core ^21.0.0`, không phát hành từ 2026-02-06.
++- `--force` qua được trên máy, nhưng `npm ci` từ lockfile báo `ERESOLVE`: CI và máy đồng nghiệp hỏng.
++- Lên 22 xong, `ng build` xanh nhưng `ng test` không biên dịch (NG8001, NG8002, NG8004 cho mọi component trong `NgModule`); thêm `import './app-module'`
++  vào một spec thì 7/7 xanh lại: builder test của Angular 22 chỉ biên dịch những gì spec import tới.
++- Angular 22 đổi mặc định sang `OnPush`. Nâng bằng tay (bỏ migration thêm `ChangeDetectionStrategy.Eager`): dòng "Đã duyệt" không tự ẩn, test đỏ.
++
++## Các phương án đã xem xét
++
++| Phương án | Ưu điểm | Nhược điểm |
++|---|---|---|
++| Nâng thẳng 21 → 22 với `--force`, sửa sau | Nhanh trên máy một người | `npm ci` hỏng; test không biên dịch; sửa nhiều thứ cùng lúc, khó biết lỗi từ đâu |
++| Hiện đại hóa trên 21 (bỏ thư viện chặn, standalone, control flow, signal), rồi `ng update` | Mỗi checkpoint nhỏ, test xanh, rollback bằng một commit; `ng update` lên 22 không cần `--force` | Nhiều bước hơn; phải sửa spec bằng tay sau migration standalone |
++| Giữ Angular 21 | Không tốn công | Hết hỗ trợ theo lịch của Angular; thư viện mới yêu cầu 22 (`ng2-charts` 11, `ngx-mask` 22...) |
++
++## Quyết định
++
++Chọn phương án 2. Zoneless là checkpoint riêng, sau khi đã lên 22: chỉ bỏ zone.js khi có test kiểm hành vi **không gọi `detectChanges`**
++(test "tự ẩn dòng Đã duyệt" đỏ khi bỏ zone mà `lastApproved` còn là field thường, xanh khi đổi sang `signal`).
++
++## Hệ quả
++
++- **Tốt:** `ng update` 27 giây, không `--force`, `npm ci` sạch. Bundle ban đầu 377,59 kB (bản cũ) → 297,44 kB (22, zoneless, không `ngx-toastr`).
++  Không còn `NgModule`; component tự khai báo `imports`, test biên dịch độc lập.
++- **Phải chấp nhận:** tự duy trì `NotificationService` (khoảng 30 dòng); `ngx-pipes` (bỏ rơi từ 2023) vẫn còn, ghi là rủi ro.
++- **Cách kiểm chứng:** mỗi checkpoint một commit có test và build xanh; sau `ng update` chạy `rm -rf node_modules && npm ci`; test thông báo và test
++  "tự ẩn" chạy không có zone.
++
++## Khi nào xem lại
++
++Khi `ngx-pipes` có vấn đề với Angular 23, hoặc khi áp dụng cách này cho một app thật lớn hơn (có thể cần chia checkpoint theo route, kiểu strangler).
+diff --git a/docs/adr/README.md b/docs/adr/README.md
+index 760222b..51ca296 100644
+--- a/docs/adr/README.md
++++ b/docs/adr/README.md
+@@ -9,3 +9,4 @@ viết ADR mới và ghi "Thay thế bởi ADR-MMMM" vào ADR cũ.
+ | [0001](0001-dung-ng-zorro-thay-primeng.md) | Dùng ng-zorro-antd thay PrimeNG | Đã chấp nhận |
+ | [0002](0002-tach-ticket-port.md) | Màn hình phiếu yêu cầu gọi dữ liệu qua TicketPort | Đã chấp nhận |
+ | [0003](0003-state-trang-phieu.md) | State trang Phiếu: URL là nguồn sự thật, SignalStore theo màn hình | Đã chấp nhận |
++| [0004](0004-nang-cap-app-cu-truoc-roi-zoneless.md) | Nâng cấp app cũ: hiện đại hóa trên major đang chạy, nâng major sau, zoneless khi test chứng minh được | Đã chấp nhận |
+diff --git a/fixtures/legacy-a21/angular.json b/fixtures/legacy-a21/angular.json
+index fcd8ab5..e9a1d52 100644
+--- a/fixtures/legacy-a21/angular.json
++++ b/fixtures/legacy-a21/angular.json
+@@ -28,9 +28,6 @@
+           "builder": "@angular/build:application",
+           "options": {
+             "browser": "src/main.ts",
+-            "polyfills": [
+-              "zone.js"
+-            ],
+             "tsConfig": "tsconfig.app.json",
+             "inlineStyleLanguage": "scss",
+             "assets": [
+diff --git a/fixtures/legacy-a21/package-lock.json b/fixtures/legacy-a21/package-lock.json
+index d25ffdd..dd01fd9 100644
+--- a/fixtures/legacy-a21/package-lock.json
++++ b/fixtures/legacy-a21/package-lock.json
+@@ -16,8 +16,7 @@
+         "@angular/router": "^22.2.4",
+         "ngx-pipes": "3.2.2",
+         "rxjs": "~7.8.0",
+-        "tslib": "^2.3.0",
+-        "zone.js": "~0.16.0"
++        "tslib": "^2.3.0"
+       },
+       "devDependencies": {
+         "@angular/build": "^22.2.5",
+@@ -7687,12 +7686,6 @@
+       "funding": {
+         "url": "https://github.com/sponsors/colinhacks"
+       }
+-    },
+-    "node_modules/zone.js": {
+-      "version": "0.16.3",
+-      "resolved": "https://registry.npmjs.org/zone.js/-/zone.js-0.16.3.tgz",
+-      "integrity": "sha512-ihXL9+vhYyEhXz4TDNpHeAOZN9FVrbog0Il64OIEI28UP/n5AaI6gsccRuOHBfx+206agzyoK527bYIO0Foy6A==",
+-      "license": "MIT"
+     }
+   }
+ }
+diff --git a/fixtures/legacy-a21/package.json b/fixtures/legacy-a21/package.json
+index e6db56b..549c031 100644
+--- a/fixtures/legacy-a21/package.json
++++ b/fixtures/legacy-a21/package.json
+@@ -19,8 +19,7 @@
+     "@angular/router": "^22.2.4",
+     "ngx-pipes": "3.2.2",
+     "rxjs": "~7.8.0",
+-    "tslib": "^2.3.0",
+-    "zone.js": "~0.16.0"
++    "tslib": "^2.3.0"
+   },
+   "devDependencies": {
+     "@angular/build": "^22.2.5",
+diff --git a/fixtures/legacy-a21/src/app/app.config.ts b/fixtures/legacy-a21/src/app/app.config.ts
+index 4e6a398..66ba5e0 100644
+--- a/fixtures/legacy-a21/src/app/app.config.ts
++++ b/fixtures/legacy-a21/src/app/app.config.ts
+@@ -1,9 +1,5 @@
+ import { provideHttpClient, withXhr } from '@angular/common/http';
+-import {
+-  ApplicationConfig,
+-  provideBrowserGlobalErrorListeners,
+-  provideZoneChangeDetection,
+-} from '@angular/core';
++import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
+ import { provideRouter } from '@angular/router';
+ import { routes } from './app.routes';
+ 
+@@ -12,7 +8,6 @@ import { routes } from './app.routes';
+ export const appConfig: ApplicationConfig = {
+   providers: [
+     provideBrowserGlobalErrorListeners(),
+-    provideZoneChangeDetection({ eventCoalescing: true }),
+     provideHttpClient(withXhr()),
+     provideRouter(routes),
+   ],
+diff --git a/fixtures/legacy-a21/src/app/app.ts b/fixtures/legacy-a21/src/app/app.ts
+index eb0198e..2993f54 100644
+--- a/fixtures/legacy-a21/src/app/app.ts
++++ b/fixtures/legacy-a21/src/app/app.ts
+@@ -1,4 +1,4 @@
+-import { Component, ChangeDetectionStrategy } from '@angular/core';
++import { Component } from '@angular/core';
+ import { RouterOutlet } from '@angular/router';
+ import { NotificationsComponent } from './shared/notifications.component';
+ 
+@@ -6,7 +6,6 @@ import { NotificationsComponent } from './shared/notifications.component';
+   selector: 'app-root',
+   templateUrl: './app.html',
+   styleUrl: './app.scss',
+-  changeDetection: ChangeDetectionStrategy.Eager,
+   imports: [RouterOutlet, NotificationsComponent],
+ })
+ export class App {}
+diff --git a/fixtures/legacy-a21/src/app/tickets/ticket-list.component.spec.ts b/fixtures/legacy-a21/src/app/tickets/ticket-list.component.spec.ts
+index d99a188..f5ef199 100644
+--- a/fixtures/legacy-a21/src/app/tickets/ticket-list.component.spec.ts
++++ b/fixtures/legacy-a21/src/app/tickets/ticket-list.component.spec.ts
+@@ -1,6 +1,5 @@
+ import { provideHttpClient } from '@angular/common/http';
+ import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+-import { provideZoneChangeDetection } from '@angular/core';
+ import { ComponentFixture, TestBed } from '@angular/core/testing';
+ import { NotificationService } from '../shared/notification.service';
+ import { Ticket } from './ticket';
+@@ -35,9 +34,7 @@ describe('TicketListComponent', () => {
+   beforeEach(async () => {
+     await TestBed.configureTestingModule({
+       imports: [TicketListComponent],
+-      // Như AppModule: app chạy với zone.js.
+       providers: [
+-        provideZoneChangeDetection(),
+         provideHttpClient(),
+         provideHttpClientTesting(),
+         { provide: NotificationService, useValue: notifications },
+diff --git a/fixtures/legacy-a21/src/app/tickets/ticket-list.component.ts b/fixtures/legacy-a21/src/app/tickets/ticket-list.component.ts
+index 083ea0f..9b0b9f6 100644
+--- a/fixtures/legacy-a21/src/app/tickets/ticket-list.component.ts
++++ b/fixtures/legacy-a21/src/app/tickets/ticket-list.component.ts
+@@ -1,4 +1,4 @@
+-import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
++import { Component, OnInit, inject, signal } from '@angular/core';
+ import { FormControl, ReactiveFormsModule } from '@angular/forms';
+ import { Observable, combineLatest, map, startWith } from 'rxjs';
+ import { Ticket, TicketStatus } from './ticket';
+@@ -20,8 +20,8 @@ import { TicketRowComponent } from './ticket-row.component';
+         <option [value]="s">{{ s }}</option>
+       }
+     </select>
+-    @if (lastApproved) {
+-      <p class="flash">Đã duyệt TK-{{ lastApproved }}</p>
++    @if (lastApproved(); as id) {
++      <p class="flash">Đã duyệt TK-{{ id }}</p>
+     }
+     @if (visible$ | async; as list) {
+       <table>
+@@ -36,7 +36,6 @@ import { TicketRowComponent } from './ticket-row.component';
+       <p class="empty">Không có phiếu nào</p>
+     }
+   `,
+-  changeDetection: ChangeDetectionStrategy.Eager,
+   imports: [ReactiveFormsModule, TicketRowComponent, AsyncPipe],
+ })
+ export class TicketListComponent implements OnInit {
+@@ -49,8 +48,8 @@ export class TicketListComponent implements OnInit {
+   newCount$!: Observable<number>;
+   /** Thời gian hiện dòng "Đã duyệt" (ms); test đặt nhỏ lại. */
+   static flashMs = 3000;
+-  /** Kiểu cũ (cố ý): field thường, gán trong setTimeout -> chỉ hiện/ẩn đúng nhờ zone.js. */
+-  lastApproved: number | null = null;
++  /** Signal: không có zone.js thì field thường gán trong setTimeout không làm màn hình cập nhật. */
++  readonly lastApproved = signal<number | null>(null);
+ 
+   ngOnInit(): void {
+     this.tickets.load().subscribe();
+@@ -64,8 +63,8 @@ export class TicketListComponent implements OnInit {
+   onApprove(id: number): void {
+     this.tickets.approve(id);
+     this.notifications.success(`Đã duyệt phiếu TK-${id}`);
+-    this.lastApproved = id;
+-    setTimeout(() => (this.lastApproved = null), TicketListComponent.flashMs);
++    this.lastApproved.set(id);
++    setTimeout(() => this.lastApproved.set(null), TicketListComponent.flashMs);
+   }
+ 
+   byId(_: number, t: Ticket): number {
+diff --git a/fixtures/legacy-a21/src/app/tickets/ticket-row.component.ts b/fixtures/legacy-a21/src/app/tickets/ticket-row.component.ts
+index ce8ed74..6ff4996 100644
+--- a/fixtures/legacy-a21/src/app/tickets/ticket-row.component.ts
++++ b/fixtures/legacy-a21/src/app/tickets/ticket-row.component.ts
+@@ -1,5 +1,5 @@
+ import { DatePipe } from '@angular/common';
+-import { Component, input, output, ChangeDetectionStrategy } from '@angular/core';
++import { Component, input, output } from '@angular/core';
+ import { NgStringPipesModule } from 'ngx-pipes';
+ import { PriorityLabelPipe } from './priority-label.pipe';
+ import { Ticket } from './ticket';
+@@ -23,7 +23,6 @@ import { Ticket } from './ticket';
+       }
+     </td>
+   `,
+-  changeDetection: ChangeDetectionStrategy.Eager,
+   imports: [DatePipe, NgStringPipesModule, PriorityLabelPipe],
+ })
+ export class TicketRowComponent {

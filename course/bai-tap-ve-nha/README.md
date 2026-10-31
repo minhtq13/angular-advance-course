@@ -13,6 +13,7 @@ Sau mỗi buổi học có một bài tập về nhà, làm trong khoảng 30 ph
 | 07 | [buoi-07-sso-va-kiem-thu.html](buoi-07-sso-va-kiem-thu.html) | SSO và chiến lược kiểm thử |
 | 08 | [buoi-08-ai-va-copilot.html](buoi-08-ai-va-copilot.html) | AI và Copilot trong phát triển Angular |
 | 09 | [buoi-09-build-va-cicd.html](buoi-09-build-va-cicd.html) | Build và CI/CD triển khai ứng dụng |
+| 10 | [buoi-10-nang-cap-va-capstone.html](buoi-10-nang-cap-va-capstone.html) | Nâng cấp, hiện đại hóa, capstone (bài sau khóa) |
 
 ## Cách làm
 

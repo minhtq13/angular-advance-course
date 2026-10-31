@@ -6,21 +6,8 @@
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
-    <script>
-      // Đặt theme TRƯỚC khi Angular chạy -> không nháy nền trang khi mở app ở chế độ tối.
-      // CSS dark của ng-zorro được ThemeService gắn sau stylesheet chính (thứ tự quyết định ghi đè).
-      (function () {
-        try {
-          var p = localStorage.getItem('care.theme');
-          var dark =
-            p === 'dark' ||
-            (p !== 'light' &&
-              matchMedia('(prefers-color-scheme: dark)').matches);
-          document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-          document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
-        } catch (e) {}
-      })();
-    </script>
+    <!-- Buổi 9: script ngoài, không inline -> CSP chỉ cần script-src 'self'. Không defer: theme phải có trước khi vẽ trang. -->
+    <script src="theme-init.js"></script>
   </head>
   <body>
     <care-root></care-root>

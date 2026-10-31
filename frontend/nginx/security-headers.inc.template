@@ -1,0 +1,7 @@
+# Buổi 9: header bảo mật, include vào từng location của default.conf.
+# script-src 'self': index.html không còn script inline (theme-init.js, inlineCritical: false).
+# style-src 'unsafe-inline': Angular và ng-zorro chèn <style>/style="" lúc chạy.
+# connect-src: API (và máy chủ SSO nếu dùng OIDC) phải có trong danh sách, nếu không trình duyệt chặn request.
+add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' ${API_ORIGIN}; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" always;
+add_header X-Content-Type-Options "nosniff" always;
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
