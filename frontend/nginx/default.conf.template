@@ -1,0 +1,33 @@
+# Buổi 9: portal (SPA) sau nginx. File là template: ${API_ORIGIN} được thay lúc container khởi động.
+server {
+  listen 80;
+  root /usr/share/nginx/html;
+  server_tokens off;
+
+  # add_header trong một location GHI ĐÈ toàn bộ add_header của cấp server (không cộng dồn)
+  # -> header bảo mật nằm trong file riêng và include vào từng location.
+
+  # File có hash trong tên (main-H62PDXC7.js, chunk-*.js, styles-*.css, font trong media/):
+  # nội dung đổi thì tên đổi -> cache 1 năm, không cần hỏi lại máy chủ.
+  location ~* "-[A-Za-z0-9_-]{8}\.(js|css|woff2?)$" {
+    include /etc/nginx/conf.d/security-headers.inc;
+    add_header Cache-Control "public, max-age=31536000, immutable" always;
+    try_files $uri =404;
+  }
+
+  # File không hash (index.html, config.json, i18n/*.json, themes/*.css, theme-init.js, favicon.ico):
+  # luôn hỏi lại máy chủ (ETag), bản mới có hiệu lực ngay. Thiếu file thì 404, KHÔNG rơi về index.html:
+  # chunk của bản cũ trả index.html thì trình duyệt báo lỗi MIME khó hiểu.
+  location ~ "\.[A-Za-z0-9]+$" {
+    include /etc/nginx/conf.d/security-headers.inc;
+    add_header Cache-Control "no-cache" always;
+    try_files $uri =404;
+  }
+
+  # Đường dẫn của router (/, /tickets?status=NEW, /subscribers/17) -> index.html để Angular xử lý.
+  # try_files chuyển NỘI BỘ sang /index.html, nginx chọn lại location -> khớp location ngay trên:
+  # header cache/bảo mật của index.html đặt ở đó, add_header ở đây không có tác dụng.
+  location / {
+    try_files $uri /index.html;
+  }
+}
