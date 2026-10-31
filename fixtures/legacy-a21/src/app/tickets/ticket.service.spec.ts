@@ -1,12 +1,27 @@
-import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { firstValueFrom } from 'rxjs';
 import { Ticket } from './ticket';
 import { TicketService } from './ticket.service';
 
 const TICKETS: Ticket[] = [
-  { id: 1, title: 'A', subscriber: '0900000001', priority: 'HIGH', status: 'NEW', createdAt: '2026-10-30T08:00:00Z' },
-  { id: 2, title: 'B', subscriber: '0900000002', priority: 'LOW', status: 'RESOLVED', createdAt: '2026-10-30T09:00:00Z' },
+  {
+    id: 1,
+    title: 'A',
+    subscriber: '0900000001',
+    priority: 'HIGH',
+    status: 'NEW',
+    createdAt: '2026-10-30T08:00:00Z',
+  },
+  {
+    id: 2,
+    title: 'B',
+    subscriber: '0900000002',
+    priority: 'LOW',
+    status: 'RESOLVED',
+    createdAt: '2026-10-30T09:00:00Z',
+  },
 ];
 
 describe('TicketService', () => {
@@ -14,7 +29,9 @@ describe('TicketService', () => {
   let http: HttpTestingController;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({ imports: [HttpClientTestingModule] });
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
     service = TestBed.inject(TicketService);
     http = TestBed.inject(HttpTestingController);
   });

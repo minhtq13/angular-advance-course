@@ -9,3 +9,4 @@ viết ADR mới và ghi "Thay thế bởi ADR-MMMM" vào ADR cũ.
 | [0001](0001-dung-ng-zorro-thay-primeng.md) | Dùng ng-zorro-antd thay PrimeNG | Đã chấp nhận |
 | [0002](0002-tach-ticket-port.md) | Màn hình phiếu yêu cầu gọi dữ liệu qua TicketPort | Đã chấp nhận |
 | [0003](0003-state-trang-phieu.md) | State trang Phiếu: URL là nguồn sự thật, SignalStore theo màn hình | Đã chấp nhận |
+| [0004](0004-nang-cap-app-cu-truoc-roi-zoneless.md) | Nâng cấp app cũ: hiện đại hóa trên major đang chạy, nâng major sau, zoneless khi test chứng minh được | Đã chấp nhận |

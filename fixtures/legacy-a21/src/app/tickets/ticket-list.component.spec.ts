@@ -1,17 +1,27 @@
-import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { provideZoneChangeDetection } from '@angular/core';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ReactiveFormsModule } from '@angular/forms';
-import { NgPipesModule } from 'ngx-pipes';
-import { ToastrService } from 'ngx-toastr';
+import { NotificationService } from '../shared/notification.service';
 import { Ticket } from './ticket';
-import { PriorityLabelPipe } from './priority-label.pipe';
 import { TicketListComponent } from './ticket-list.component';
-import { TicketRowComponent } from './ticket-row.component';
 
 const TICKETS: Ticket[] = [
-  { id: 1, title: 'Mạng yếu', subscriber: '0900000001', priority: 'HIGH', status: 'NEW', createdAt: '2026-10-30T08:00:00Z' },
-  { id: 2, title: 'Đổi gói', subscriber: '0900000002', priority: 'LOW', status: 'RESOLVED', createdAt: '2026-10-30T09:00:00Z' },
+  {
+    id: 1,
+    title: 'Mạng yếu',
+    subscriber: '0900000001',
+    priority: 'HIGH',
+    status: 'NEW',
+    createdAt: '2026-10-30T08:00:00Z',
+  },
+  {
+    id: 2,
+    title: 'Đổi gói',
+    subscriber: '0900000002',
+    priority: 'LOW',
+    status: 'RESOLVED',
+    createdAt: '2026-10-30T09:00:00Z',
+  },
 ];
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -19,14 +29,16 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 describe('TicketListComponent', () => {
   let fixture: ComponentFixture<TicketListComponent>;
   let el: HTMLElement;
-  const toastr = { success: vi.fn() };
+  const notifications = { success: vi.fn() };
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule, ReactiveFormsModule, NgPipesModule],
-      declarations: [TicketListComponent, TicketRowComponent, PriorityLabelPipe],
-      // Như AppModule: app chạy với zone.js.
-      providers: [provideZoneChangeDetection(), { provide: ToastrService, useValue: toastr }],
+      imports: [TicketListComponent],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: NotificationService, useValue: notifications },
+      ],
     }).compileComponents();
     fixture = TestBed.createComponent(TicketListComponent);
     el = fixture.nativeElement;
@@ -53,7 +65,7 @@ describe('TicketListComponent', () => {
     fixture.autoDetectChanges();
     (el.querySelector('tbody button') as HTMLButtonElement).click();
     await sleep(0);
-    expect(toastr.success).toHaveBeenCalledWith('Đã duyệt phiếu TK-1');
+    expect(notifications.success).toHaveBeenCalledWith('Đã duyệt phiếu TK-1');
     expect(el.querySelector('.flash')?.textContent).toContain('TK-1');
 
     // Như người dùng: không ai gọi detectChanges, màn hình phải tự cập nhật.

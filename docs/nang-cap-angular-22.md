@@ -1,0 +1,49 @@
+# Kế hoạch nâng cấp `fixtures/legacy-a21` lên Angular 22
+
+Buổi 10, Bài 1. Số liệu đo ngày 2026-10-31 (`npm outdated`, `npm view`, `npx ng update`).
+
+## 1. Inventory dependency
+
+| Package | Đang dùng | Bản mới nhất | Tương thích Angular 22 | Phát hành gần nhất | Kết luận |
+|---|---|---|---|---|---|
+| `@angular/*` | 21.2.25 (CLI, build 21.2.29) | 22.2.4 (CLI 22.2.5) | — | | Nâng bằng `ng update` |
+| `typescript` | 5.9.3 | 7.0.2 | Angular 22 cần `>=6.0 <6.1` | | **Không** theo cột "Latest" của `npm outdated`: để `ng update` chọn 6.0 |
+| Node | 24.22.0 (`.nvmrc`) | | Angular 22: `^22.22.3 \|\| ^24.15.0 \|\| >=26` (Angular 21 còn nhận Node 20) | | Đạt; máy/CI còn Node 20 thì phải nâng trước |
+| `ngx-toastr` | 20.0.5 | 20.0.5 | **Không**: peer `@angular/core ^21.0.0` | 2026-02-06 | **Chặn**. Thay bằng `NotificationService` tự viết (khoảng 30 dòng) trước khi nâng |
+| `ngx-pipes` | 3.2.2 | 3.2.2 | Có (peer `>=14`) | 2023-05-07 | Không chặn nhưng bị bỏ rơi: chỉ dùng `shorten`. Ghi rủi ro, thay khi có dịp |
+| `zone.js` | 0.16.x | 0.16.3 | Có | | Bỏ ở checkpoint 4 nếu đánh giá zoneless đạt |
+| `rxjs` | 7.8.x | 7.8.2 | Có | | Giữ |
+| `vitest`, `jsdom` | 4.1.12, 28.1.0 | 5.0.5, 30.1.3 | Theo `@angular/build` | | Không nâng riêng trong đợt này |
+
+Bằng chứng chặn (chạy `npx ng update @angular/core@22 @angular/cli@22` trên bản gốc):
+
+```
+Package "ngx-toastr" has an incompatible peer dependency to "@angular/common" (requires "^21.0.0", would install "22.2.4").
+Incompatible peer dependencies found. See above for details. You can bypass this check using the --force option.
+```
+
+**Không dùng `--force`.** Đã thử: nâng xong chạy được trên máy mình, nhưng `npm ci` từ lockfile (CI, máy đồng nghiệp) dừng ở
+`ERESOLVE could not resolve ... peer @angular/common@"^21.0.0" from ngx-toastr@20.0.5`.
+
+## 2. Thứ tự và checkpoint
+
+Nguyên tắc: hiện đại hóa **trên major đang chạy** trước, nâng major sau; mỗi checkpoint là một commit, test và build xanh.
+
+| # | Checkpoint | Lệnh chính | Kiểm tra | Rollback |
+|---|---|---|---|---|
+| 0 | Mốc xuất phát | `git switch -c nang-cap-22` | 7 test xanh, build | — |
+| 1 | Thay `ngx-toastr` (vẫn Angular 21) | Viết `NotificationService` + test trước; `npm uninstall ngx-toastr` | Test thông báo hiện và tự ẩn | `git revert` commit checkpoint 1 |
+| 2 | Standalone, control flow, `inject()`, signal input/output (vẫn 21) | `ng g @angular/core:standalone` (3 mode), `control-flow`, `inject`, `signal-input-migration`, `output-migration` | Test sau **mỗi** lệnh; sửa spec bằng tay | `git reset --hard <commit checkpoint 1>` |
+| 3 | Angular 22 | `npx ng update @angular/core@22 @angular/cli@22` (không `--force`) | Đọc danh sách migration; test, build; `rm -rf node_modules && npm ci` | `git reset --hard <commit checkpoint 2> && npm ci` |
+| 4 | Zoneless (nếu ADR chấp nhận) | Bỏ `provideZoneChangeDetection`, `zone.js` | Test "tự ẩn dòng Đã duyệt" không gọi `detectChanges` | `git revert` commit checkpoint 4 |
+
+Rollback luôn kèm `npm ci` để `node_modules` khớp lockfile của commit quay về.
+
+## 3. Rủi ro đã biết của Angular 22 (từ migration và tài liệu kiểu)
+
+- `OnPush` là mặc định (`NOTE: OnPush is enabled by default.` trong `ChangeDetectionStrategy`). `ng update` thêm
+  `changeDetection: ChangeDetectionStrategy.Eager` vào mọi component chưa khai báo. **Sửa `package.json` bằng tay thì không có migration này.**
+- `FetchBackend` là `HttpBackend` mặc định (tài liệu kiểu của `withFetch`): migration thêm `withXhr()` để giữ XHR như cũ (XHR cần khi báo tiến độ upload).
+- Hai extended diagnostics (`nullishCoalescingNotNullable`, `optionalChainNotNullable`) được migration tắt trong `tsconfig.app.json`.
+- App còn `NgModule`: sau khi nâng, `ng build` xanh nhưng `ng test` không biên dịch được (NG8001, NG8002, NG8004 cho mọi component khai báo trong module).
+  Lý do của thứ tự "standalone trước, nâng sau".

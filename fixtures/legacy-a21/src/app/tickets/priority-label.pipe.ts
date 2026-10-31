@@ -8,7 +8,7 @@ const LABELS: Record<TicketPriority, string> = {
   URGENT: 'Khẩn cấp',
 };
 
-@Pipe({ name: 'priorityLabel', standalone: false })
+@Pipe({ name: 'priorityLabel' })
 export class PriorityLabelPipe implements PipeTransform {
   transform(value: TicketPriority): string {
     return LABELS[value] ?? value;

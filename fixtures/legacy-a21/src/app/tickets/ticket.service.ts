@@ -1,36 +1,30 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable, map, tap } from 'rxjs';
 import { Ticket } from './ticket';
 
 /** Kiểu cũ (cố ý): constructor DI, BehaviorSubject làm state. */
 @Injectable({ providedIn: 'root' })
 export class TicketService {
-  private readonly tickets$ = new BehaviorSubject<Ticket[]>([]);
+  private http = inject(HttpClient);
 
-  constructor(private http: HttpClient) {}
+  private readonly tickets$ = new BehaviorSubject<Ticket[]>([]);
 
   get tickets(): Observable<Ticket[]> {
     return this.tickets$.asObservable();
   }
 
   load(): Observable<Ticket[]> {
-    return this.http
-      .get<Ticket[]>('tickets.json')
-      .pipe(tap((list) => this.tickets$.next(list)));
+    return this.http.get<Ticket[]>('tickets.json').pipe(tap((list) => this.tickets$.next(list)));
   }
 
   approve(id: number): void {
     this.tickets$.next(
-      this.tickets$.value.map((t) =>
-        t.id === id ? { ...t, status: 'RESOLVED' } : t,
-      ),
+      this.tickets$.value.map((t) => (t.id === id ? { ...t, status: 'RESOLVED' } : t)),
     );
   }
 
   countNew(): Observable<number> {
-    return this.tickets$.pipe(
-      map((list) => list.filter((t) => t.status === 'NEW').length),
-    );
+    return this.tickets$.pipe(map((list) => list.filter((t) => t.status === 'NEW').length));
   }
 }
