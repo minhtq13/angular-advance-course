@@ -1,0 +1,7 @@
+[
+  { "id": 101, "title": "Không vào được mạng 4G", "subscriber": "0900000017", "priority": "HIGH", "status": "NEW", "createdAt": "2026-10-30T08:15:00Z" },
+  { "id": 102, "title": "Cước phí tháng 10 bất thường", "subscriber": "0900000231", "priority": "MEDIUM", "status": "NEW", "createdAt": "2026-10-30T09:40:00Z" },
+  { "id": 103, "title": "Đổi gói cước sang Data 120", "subscriber": "0900000488", "priority": "LOW", "status": "IN_PROGRESS", "createdAt": "2026-10-29T14:05:00Z" },
+  { "id": 104, "title": "Không nhận được OTP", "subscriber": "0900000127", "priority": "URGENT", "status": "NEW", "createdAt": "2026-10-31T01:20:00Z" },
+  { "id": 105, "title": "Sóng yếu tại nhà", "subscriber": "0900001398", "priority": "MEDIUM", "status": "RESOLVED", "createdAt": "2026-10-28T10:00:00Z" }
+]
