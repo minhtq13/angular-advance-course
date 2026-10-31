@@ -105,6 +105,7 @@
     "filters": "Filter tickets",
     "status": "Status",
     "priority": "Priority",
+    "category": "Request type",
     "onlyMine": "Only tickets assigned to me",
     "loadError": "Could not load tickets.",
     "empty": "No tickets match the filters.",

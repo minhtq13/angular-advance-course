@@ -1,0 +1,61 @@
+diff --git a/frontend/libs/shared/ui-layout/src/lib/provide-ui.ts b/frontend/libs/shared/ui-layout/src/lib/provide-ui.ts
+index 177bbac..e49f760 100644
+--- a/frontend/libs/shared/ui-layout/src/lib/provide-ui.ts
++++ b/frontend/libs/shared/ui-layout/src/lib/provide-ui.ts
+@@ -5,25 +5,8 @@ import {
+   provideAppInitializer,
+ } from '@angular/core';
+ import { TitleStrategy } from '@angular/router';
+-import {
+-  AppstoreOutline,
+-  ArrowLeftOutline,
+-  BarChartOutline,
+-  CustomerServiceOutline,
+-  DesktopOutline,
+-  DownOutline,
+-  FileTextOutline,
+-  LockOutline,
+-  LogoutOutline,
+-  MenuOutline,
+-  MoonOutline,
+-  ReloadOutline,
+-  SearchOutline,
+-  StopOutline,
+-  SunOutline,
+-  TeamOutline,
+-  UnlockOutline,
+-} from '@ant-design/icons-angular/icons';
++import { IconDefinition } from '@ant-design/icons-angular';
++import * as AllIcons from '@ant-design/icons-angular/icons';
+ import { provideNzConfig } from 'ng-zorro-antd/core/config';
+ import { vi_VN, provideNzI18n } from 'ng-zorro-antd/i18n';
+ import { provideNzIcons } from 'ng-zorro-antd/icon';
+@@ -37,26 +20,8 @@ import { CareTitleStrategy } from './title-strategy';
+  */
+ const PRIMARY_COLOR = '#0958d9';
+ 
+-/** Chỉ đăng ký icon thực sự dùng -> không kéo cả bộ icon vào bundle (buổi 5). */
+-const ICONS = [
+-  AppstoreOutline,
+-  ArrowLeftOutline,
+-  BarChartOutline,
+-  CustomerServiceOutline,
+-  DesktopOutline,
+-  DownOutline,
+-  FileTextOutline,
+-  LockOutline,
+-  LogoutOutline,
+-  MenuOutline,
+-  MoonOutline,
+-  ReloadOutline,
+-  SearchOutline,
+-  StopOutline,
+-  SunOutline,
+-  TeamOutline,
+-  UnlockOutline,
+-];
++/** Đăng ký hết icon cho tiện: thêm màn hình mới khỏi phải quay lại sửa file này. */
++const ICONS: IconDefinition[] = Object.values(AllIcons);
+ 
+ export function provideUi(): EnvironmentProviders {
+   return makeEnvironmentProviders([

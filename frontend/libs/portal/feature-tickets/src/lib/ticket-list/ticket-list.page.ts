@@ -18,6 +18,7 @@ import { AuthService } from '@care/shared-data-access-auth';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { TranslocoDecimalPipe } from '@jsverse/transloco-locale';
 import {
+  TICKET_CATEGORY,
   TICKET_PRIORITY,
   TICKET_STATUS,
   toOptions,
@@ -79,6 +80,7 @@ export class TicketListPage {
 
   protected readonly statusOptions = toOptions(TICKET_STATUS);
   protected readonly priorityOptions = toOptions(TICKET_PRIORITY);
+  protected readonly categoryOptions = toOptions(TICKET_CATEGORY);
 
   /** Bộ lọc, trang và kết quả nằm trong store; component chỉ giữ state UI cục bộ (thông báo, đang duyệt). */
   protected readonly store = inject(TicketListStore);

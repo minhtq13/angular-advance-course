@@ -19,8 +19,8 @@ Nguồn là `course/session-$ARGUMENTS/slides/slides.md`. **PPTX chỉ là ảnh
 
 ```bash
 cd course/session-XX/slides
-npx @marp-team/marp-cli@4 slides.md --pdf  --allow-local-files -o buoi-XX-<chu-de>.pdf
-npx @marp-team/marp-cli@4 slides.md --pptx --allow-local-files -o buoi-XX-<chu-de>.pptx
+npx @marp-team/marp-cli@4 slides.md --no-stdin --pdf  --allow-local-files -o buoi-XX-<chu-de>.pdf < /dev/null
+npx @marp-team/marp-cli@4 slides.md --no-stdin --pptx --allow-local-files -o buoi-XX-<chu-de>.pptx < /dev/null
 ```
 
 PPTX mất 1–2 phút; đặt `timeout` 600000 hoặc chạy nền, đừng chạy hai bản copy cùng lúc.
@@ -34,6 +34,9 @@ npx @marp-team/marp-cli@4 slides.md --images png --allow-local-files -o <scratch
 Mở các ảnh (nhất là slide có bảng, khối code, hoặc nhiều chữ có dấu) và kiểm tra: chữ không bị cắt ở mép dưới, số trang không đè nội dung, không còn dòng bị ngắt giữa câu.
 
 Bẫy đã gặp:
+- **Marp treo không báo gì** khi chạy từ shell không có TTY (công cụ, nền): nó đợi đọc stdin. Luôn thêm `--no-stdin` và `< /dev/null`
+  (cả lệnh `--pdf`, `--pptx`, `--images`, `--html`). Buổi 8–9 đã mất nhiều phút vì lỗi này.
+- `--images png` vẫn chậm: có thể xuất `--html` rồi chụp từng slide `s.html#<n>` bằng Playwright (1280×720).
 - Marp xuống dòng ở **mỗi dấu xuống dòng đơn** trong đoạn văn: viết một đoạn trên một dòng, không bẻ dòng giữa câu.
 - Khối code: giữ dòng ≤ ~95 ký tự và ≤ ~16 dòng/slide; comment cuối dòng dễ bị cắt.
 - Slide nhiều bảng: giảm chữ thay vì giảm cỡ font.

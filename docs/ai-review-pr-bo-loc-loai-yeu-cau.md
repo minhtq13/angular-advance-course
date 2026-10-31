@@ -1,0 +1,71 @@
+# AI review: PR "thêm bộ lọc Loại yêu cầu" (buổi 8)
+
+PR mô phỏng một thay đổi do AI sinh khi **không có** hướng dẫn repository và acceptance criteria rõ: file
+`course/session-08/lab/pr-bo-loc-loai-yeu-cau.patch` (áp lên `session08-start`). Lỗi trong PR được **cài có chủ đích** để luyện review;
+mỗi finding dưới đây đã xác minh bằng lệnh, test hoặc trình duyệt (2026-10-30, backend thật, Chromium).
+
+## Prompt gốc (mô phỏng, quá ngắn)
+
+```
+Thêm bộ lọc theo loại yêu cầu vào danh sách phiếu. Viết test.
+```
+
+## Prompt nên dùng
+
+```
+Use case: nhân viên CSKH lọc danh sách phiếu theo Loại yêu cầu (Cước phí, Mạng/sóng, Dịch vụ, Khác).
+Acceptance criteria:
+- Select "Loại yêu cầu" cạnh bộ lọc Trạng thái, Ưu tiên; nhãn và option qua Transloco (vi/en), dùng TICKET_CATEGORY.
+- Lọc ở server: GET /api/tickets?category=<BILLING|NETWORK|SERVICE|OTHER> (xem /v3/api-docs). Mọi dòng trả về đúng loại.
+- Bộ lọc nằm trên URL (?category=), F5 và link chia sẻ giữ bộ lọc; giá trị lạ trên URL bị bỏ qua (whitelist).
+- "Xóa bộ lọc" hiện khi chỉ lọc theo loại, bấm thì xóa.
+Ràng buộc: theo AGENTS.md. Chỉ sửa domain-tickets (+ testing), data-access-api/models.ts, feature-tickets/ticket-list, i18n.
+Không thêm tính năng ngoài AC. Fake InMemoryTicketAdapter phải lọc theo category.
+Test: adapter gửi đúng tên tham số; URL sai; danh sách rỗng; API lỗi giữ bộ lọc khi Thử lại; E2E với backend thật.
+```
+
+## Review diff
+
+| Kiểm tra | Đạt? | Ghi chú |
+|---|---|---|
+| CI (lint, test, build) | Đạt | 16 project xanh. **Không chứng minh** tính năng chạy đúng |
+| Diff chỉ nằm trong phạm vi yêu cầu | Không | Thêm phím tắt Alt+L (không có trong yêu cầu) |
+| API đúng phiên bản Angular của dự án | Không | `@Input`/`@Output`/`EventEmitter`/`@ViewChild`, `CommonModule`, không `OnPush`, `track $index` |
+| Đúng hợp đồng API backend | Không | Gửi `type=`, backend nhận `category` |
+| Đúng quy ước (i18n, theme, URL whitelist) | Không | Chữ cứng tiếng Việt, màu `#1677ff`, `params.get('category') as ...` |
+| Có negative test | Không | Một test duy nhất, kiểm `query.type` |
+| Không có secret, dữ liệu thật | Đạt | |
+
+## Finding
+
+| # | Finding | Mức | Xác minh | Cách xác minh | Sửa |
+|---|---|---|---|---|---|
+| 1 | Gửi tham số `type`, backend nhận `category` → **không lọc** | Cao | Đúng | Chọn "Cước phí": request `/api/tickets?type=BILLING&page=0&size=20&sort=id,desc`; 20 dòng gồm Cước phí 5, Khác 5, Dịch vụ 5, Mạng/sóng 5. Swagger: tham số `category`. `TicketApiTests.filtersByCategory`: `type=BILLING` bị bỏ qua | `TicketSearch.category`, `TicketQuery.category` |
+| 2 | Fake `InMemoryTicketAdapter` không lọc theo loại; test của PR chỉ kiểm `port.calls.at(-1)?.query.type` | Cao | Đúng | Test xanh dù API sai: nó kiểm chi tiết cài đặt, không kiểm danh sách. Thử phá M3 (bên dưới) | Fake lọc như backend; test kiểm phiếu hiện ra |
+| 3 | URL không whitelist: `params.get('category') as TicketCategory` | Trung bình | Đúng (bị lỗi 1 che) | Với PR: `?category=abc` → `type=abc` bị bỏ qua, không lỗi. Chỉ sửa tên tham số: `?category=abc` → API **400** → "Không tải được danh sách phiếu. Kiểm tra kết nối rồi thử lại." (sai lý do) | `oneOf(params.get('category'), CATEGORIES)` |
+| 4 | Chữ cứng: "Loại yêu cầu", "Tất cả", tên loại; "Mạng" khác nhãn chuẩn "Mạng/sóng" | Trung bình | Đúng | Đổi sang English: nhãn vẫn "Loại yêu cầu" | Key `ticket.category` (vi/en), `toOptions(TICKET_CATEGORY)` |
+| 5 | Màu cứng `#1677ff` cho nhãn | Thấp | Đúng | Tương phản 4,10:1 trên nền trắng, 4,49:1 trên `#141414` (theme tối): **dưới 4.5:1**. Nhãn chuẩn (`--care-text-muted`) 7,57:1 ở theme tối | Bỏ style, dùng class `filter-field` sẵn có |
+| 6 | `fromEvent(document, 'keydown').subscribe(...)` không hủy → rò listener | Trung bình | Đúng | CDP `DOMDebugger.getEventListeners(document)`: keydown 2 → **7** sau 5 lần vào/ra trang phiếu | Bỏ (ngoài phạm vi); nếu cần thì `takeUntilDestroyed()` |
+| 7 | API cũ: `@Input`, `@Output` + `EventEmitter`, `@ViewChild`, `CommonModule`, thiếu `OnPush` | Thấp | Đúng | Lint **không** bắt (chỉ bắt `*ngFor` → PR đã đổi sang `@for ... track $index`). Đối chiếu AGENTS.md | `input()`, `output()`, `OnPush`, hoặc không tách component |
+| 8 | Phím tắt Alt+L ngoài yêu cầu (scope creep) | Thấp | Đúng | Đối chiếu AC | Bỏ |
+| 9 | "Nhãn không gắn với select, trình đọc màn hình không đọc được" | — | **Sai** | `page.getByLabel('Loại yêu cầu')` tìm được 1 phần tử: `nzId` đặt id cho input bên trong, khớp `for` | Không sửa |
+| 10 | "Store dùng `rxMethod` không có `takeUntilDestroyed`, rò subscription" | — | **Sai** | `rxMethod` tự hủy theo injector của store (store cung cấp ở component) | Không sửa |
+
+Dòng 9 và 10 là kiểu finding AI hay đưa ra: nghe hợp lý nhưng sai. Không xác minh mà đưa vào review là tốn thời gian của người viết PR.
+
+## Lỗi có chủ đích trên bản đã sửa (đã chạy thật)
+
+| Phá | Unit/integration đỏ | E2E `ticket-filter.spec.ts` (backend thật) |
+|---|---|---|
+| M1: adapter gửi `type` thay `category` | 1 (`http-ticket.adapter.spec`: tên tham số) | Đỏ: lọc "Cước phí" |
+| M2: bỏ whitelist URL | 2 (`ticket-url.spec`, `ticket-list.url.spec`) | Đỏ: `category=abc` |
+| M3: fake không lọc theo loại | 2 (`ticket-list.page.spec`) | Xanh (E2E không dùng fake) |
+| M4: `hasFilters` quên `category` | 1, **sau khi viết lại test** (bản đầu: 0, test gọi thẳng `clearFilters()` thay vì bấm nút) | Xanh |
+| M5: store quên truyền `category` | 11 | Đỏ: lọc "Cước phí" |
+
+Không có tầng nào một mình bắt hết: M1 chỉ test adapter và E2E bắt; M3, M4 chỉ unit bắt.
+
+## Thời gian
+
+Phần đo bằng máy (lần chạy này): E2E `ticket-filter.spec.ts` 2,1 giây; test `portal-feature-tickets` 44 test.
+Thời gian của người (viết prompt, đọc diff, xác minh, sửa) do từng nhóm ghi trong `docs/bao-cao-nang-suat-ai.md`.

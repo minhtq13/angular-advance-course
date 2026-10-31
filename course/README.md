@@ -59,7 +59,7 @@ xung đột cập nhật 409 (buổi 2), lỗi triển khai và rollback (buổi
 | [06](session-06/) | Authentication và bảo mật giao tiếp API | 401/403/409, một refresh cho nhiều 401, refresh lỗi, token reuse, chặn Bearer ra ngoài | Ma trận kiểm thử bảo mật, test refresh đồng thời, vòng đời session | Đã soạn |
 | [07](session-07/) | SSO và chiến lược kiểm thử hệ thống | Keycloak cục bộ qua thư viện OIDC; TestBed, HTTP testing, Playwright; server từ chối sai quyền | Checklist SSO, test report, regression test | Đã soạn |
 | [08](session-08/) | Ứng dụng AI và Copilot trong phát triển Angular | AI làm thay đổi nhỏ, negative test, lỗi có chủ đích để kiểm chứng test, đo thời gian | Prompt, diff đã review, finding đã xác minh, báo cáo năng suất | Đã soạn |
-| [09](session-09/) | Build và CI/CD triển khai ứng dụng | Gate như CI, budget fail, Docker + Nginx, deep link, cache, rollback | Pipeline YAML, release checklist, smoke test, quy trình rollback | Khung |
+| [09](session-09/) | Build và CI/CD triển khai ứng dụng | Gate như CI, budget fail, Docker + Nginx, deep link, cache, rollback | Pipeline YAML, release checklist, smoke test, quy trình rollback | Đã soạn |
 | [10](session-10/) | Nâng cấp, hiện đại hóa và bảo vệ dự án cuối khóa | Nâng fixture Angular 21 → 22 theo checkpoint; demo capstone, review chéo theo rubric | Migration plan có rollback, capstone có evidence, kế hoạch áp dụng | Khung |
 
 ## Đánh giá cuối khóa

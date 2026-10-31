@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BTVN Buổi 9 · Build và CI/CD</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600&display=swap" />
+    <link rel="stylesheet" href="assets/lesson.css" />
+  </head>
+  <body>
+    <main>
+      <p class="kicker">Bài tập về nhà · Buổi 9 · Build và CI/CD triển khai ứng dụng</p>
+      <h1>Gate xanh mới là nửa đường: bản đã triển khai cũng phải được kiểm</h1>
+      <dl class="homework-meta">
+        <dt>Làm sau</dt>
+        <dd>Buổi 9 (<a href="../session-09/slides/buoi-09-build-va-cicd.pdf">slide</a> · <a href="../session-09/lab/README.md">lab</a>)</dd>
+        <dt>Hạn nộp</dt>
+        <dd>Trước buổi 10</dd>
+        <dt>Thời gian</dt>
+        <dd>Khoảng 30 phút</dd>
+        <dt>Cần</dt>
+        <dd>Trình duyệt và giấy bút. Phần tùy chọn cần <code>curl</code> hoặc DevTools trên một ứng dụng web nội bộ bạn được phép truy cập.</dd>
+      </dl>
+
+      <div class="goal">
+        <p><strong>Mục tiêu:</strong> đọc đúng số liệu build và header triển khai, nhận ra cấu hình "trông đúng" mà sai, và áp dụng budget vào một thay đổi mới.</p>
+        <p>Làm phần 0 trước khi mở slide.</p>
+      </div>
+
+      <h2>Phần 0 · Khởi động: viết ra giấy (4 phút)</h2>
+      <ol>
+        <li>Vì sao <code>/tickets?status=NEW</code> mở được khi <code>npm start</code> nhưng 404 trên "bản đầu" chạy nginx?</li>
+        <li>Điền cache cho: <code>index.html</code>, <code>main-H62PDXC7.js</code>, <code>config.json</code>, <code>i18n/vi.json</code>. Vì sao khác nhau?</li>
+        <li>Cái gì thuộc về <strong>image</strong>, cái gì thuộc về <strong>môi trường</strong>? Kể 2 mỗi loại.</li>
+        <li>Rollback cần những gì có sẵn <strong>trước</strong> khi sự cố xảy ra?</li>
+      </ol>
+      <details>
+        <summary>Ôn lại sau khi đã viết xong</summary>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Câu</th><th>Ý chính</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>Dev server luôn trả <code>index.html</code> cho đường dẫn không phải file (SPA fallback). nginx chỉ trả file có thật: cần <code>try_files $uri /index.html</code> cho đường dẫn của router, nhưng file tĩnh thiếu vẫn phải 404.</td></tr>
+              <tr><td>2</td><td><code>main-*.js</code> có hash: 1 năm <code>immutable</code>. <code>index.html</code>, <code>config.json</code>, <code>i18n/*.json</code> không hash: <code>no-cache</code> (hỏi lại máy chủ). <code>index.html</code> cache lâu thì người dùng kẹt ở bản cũ, chunk cũ 404.</td></tr>
+              <tr><td>3</td><td>Image: <code>main-*.js</code>, <code>version.json</code> (version, commit), cấu hình nginx. Môi trường: <code>config.json</code> (tên môi trường, <code>apiUrl</code>), <code>API_ORIGIN</code> cho CSP.</td></tr>
+              <tr><td>4</td><td>Image version trước còn trên registry/máy chủ; lệnh rollback viết sẵn; điều kiện kích hoạt và người quyết định; smoke test có <code>EXPECTED_VERSION</code>; đã diễn tập.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+
+      <h2>Phần 1 · Đọc số liệu, phản ứng đúng (5 câu)</h2>
+      <div class="quiz" id="quiz-so-lieu" data-quiz>
+        <script type="application/json">
+          {
+            "questions": [
+              {
+                "prompt": "Build báo: 'bundle initial exceeded maximum budget. Budget 2.00 MB was not met by 55.17 kB with a total of 2.06 MB'. Lint, test xanh. Việc đầu tiên?",
+                "options": [
+                  "Nâng maximumError lên 2.1mb cho build xanh",
+                  "Chuyển budget sang maximumWarning",
+                  "So bảng 'Initial chunk files' với bản trước, tìm package phình (tạm nâng ngưỡng để có browser-stats.json), sửa nguyên nhân",
+                  "Tắt outputHashing để file nhỏ hơn"
+                ],
+                "answer": 2,
+                "explain": "Budget là gate. Nâng ngưỡng là che lỗi; trong lab, nguyên nhân là import * bộ icon: @ant-design/icons-angular 44,2 kB → 766,5 kB. Build đỏ thì không sinh browser-stats.json, nên phải tạm nâng ngưỡng để phân tích rồi trả lại."
+              },
+              {
+                "prompt": "Sau khi phát hành, người dùng báo: 'đăng nhập xong vẫn đứng ở trang đăng nhập'. Console: 'Failed to fetch dynamically imported module: .../chunk-D2HgOIw5.js' (404). Nguyên nhân khả dĩ nhất?",
+                "options": [
+                  "index.html (hoặc main-*.js) của bản cũ còn trong cache trình duyệt, xin chunk mà bản mới đã xóa",
+                  "Backend trả 401",
+                  "CSP chặn chunk",
+                  "Lỗi i18n"
+                ],
+                "answer": 0,
+                "explain": "Bản đầu cache mọi file 1 năm. Tab mới vẫn chạy main-*.js cũ, chunk cũ không còn trên máy chủ. Sửa: index.html no-cache. Tab đang mở từ trước vẫn có thể gặp: giữ file bản trước hoặc tải lại trang khi lỗi tải chunk."
+              },
+              {
+                "prompt": "Bản nginx mới: 'curl -I /tickets' → 200 text/html (tốt). 'curl -I /chunk-ZZZZZZZZ.js' → 200 text/html. Có vấn đề không?",
+                "options": [
+                  "Không, fallback hoạt động đúng",
+                  "Có: phải trả 500",
+                  "Chỉ là vấn đề hiệu năng",
+                  "Có: file tĩnh thiếu phải 404; trả index.html thì trình duyệt báo lỗi MIME khó đoán khi xin chunk cũ"
+                ],
+                "answer": 3,
+                "explain": "Fallback chỉ dành cho đường dẫn của router. File có phần mở rộng mà không tồn tại thì 404 (try_files $uri =404) để lỗi rõ ràng."
+              },
+              {
+                "prompt": "Máy một bạn có Node 20: 'npm ci' exit 0 kèm 87 cảnh báo EBADENGINE; 'nx build' lỗi 'require() of ES Module .../listr2/dist/index.mjs not supported'. Cách chặn sớm nhất cho cả nhóm?",
+                "options": [
+                  "Ghi vào README 'dùng Node 24'",
+                  "engines trong package.json + engine-strict=true trong .npmrc: npm ci dừng với thông báo rõ phiên bản cần",
+                  "Thêm --legacy-peer-deps",
+                  "Xóa package-lock.json rồi npm install"
+                ],
+                "answer": 1,
+                "explain": "Mặc định npm chỉ cảnh báo engine. engine-strict biến cảnh báo thành lỗi ở bước rẻ nhất. Xóa lockfile là phá build tái lập."
+              },
+              {
+                "prompt": "Triển khai 1.1.0 (gate xanh). Smoke: 5 xanh, 1 đỏ ('đăng nhập, thấy danh sách phiếu'). Log: '[care-portal 1.1.0 ab11baa] TypeError: ... (reading 'hotline')'. Làm gì trước?",
+                "options": [
+                  "Sửa nóng config.json trên máy chủ rồi thôi",
+                  "Build lại 1.0.0 từ mã nguồn",
+                  "Rollback image 1.0.0 (không build lại), smoke 1.0.0 xanh, rồi mới điều tra và sửa tiến",
+                  "Tạm tắt test smoke đỏ"
+                ],
+                "answer": 2,
+                "explain": "Khôi phục dịch vụ trước, điều tra sau. Image cũ chạy lại trong vài giây (đo: 0,4 giây) và đã được kiểm; build lại từ mã nguồn chậm và có thể ra kết quả khác."
+              }
+            ]
+          }
+        </script>
+      </div>
+
+      <h2>Phần 2 · Soi cấu hình (5 câu)</h2>
+      <div class="quiz" id="quiz-cau-hinh" data-quiz>
+        <script type="application/json">
+          {
+            "questions": [
+              {
+                "prompt": "nginx: ở cấp server có add_header Content-Security-Policy ...; trong 'location / { add_header Cache-Control \"no-cache\"; try_files $uri /index.html; }'. Response của /tickets có header nào?",
+                "options": [
+                  "Chỉ Cache-Control: add_header trong location ghi đè toàn bộ add_header của server",
+                  "Cả CSP và Cache-Control",
+                  "Chỉ CSP",
+                  "Không có header nào"
+                ],
+                "answer": 0,
+                "explain": "add_header không cộng dồn giữa các cấp. Cách làm trong đáp án: header bảo mật trong file riêng, include vào từng location; smoke kiểm header trên cả deep link."
+              },
+              {
+                "prompt": "Dockerfile khai báo 'ARG APP_VERSION' ở đầu stage build, trước 'RUN npx nx build portal'. Đổi version (code giữ nguyên) thì sao?",
+                "options": [
+                  "Không ảnh hưởng gì",
+                  "Image không có version.json",
+                  "Docker báo lỗi",
+                  "RUN sau ARG dùng nó như biến môi trường → cache miss, Angular build lại mỗi version; đặt ARG sau bước build"
+                ],
+                "answer": 3,
+                "explain": "Giá trị ARG đổi làm mất cache của các lệnh RUN phía sau nó. Đặt ARG ở stage nginx, sau COPY dist: đổi version chỉ chạy lại bước ghi version.json (đo: 0,1 giây)."
+              },
+              {
+                "prompt": "CSP 'script-src 'self'' + index.html có script inline đặt theme + beasties chèn script inline (inlineCritical). Cách sửa nên chọn?",
+                "options": [
+                  "Thêm 'unsafe-inline' vào script-src",
+                  "Đưa script theme ra file trong public/, tắt inlineCritical (hoặc dùng hash); không cho script inline",
+                  "Bỏ CSP",
+                  "Chỉ đặt CSP cho trang /login"
+                ],
+                "answer": 1,
+                "explain": "'unsafe-inline' cho script vô hiệu hóa phần lớn giá trị của CSP. Đo trong lab: bị chặn thì styles-*.css kẹt media=print, trang mất style; sửa xong 0 lỗi console."
+              },
+              {
+                "prompt": "docker-compose: 'image: care-portal-web:latest' và CI build lại mỗi lần push. Rollback gặp vấn đề gì?",
+                "options": [
+                  "Không có vấn đề",
+                  "latest chạy chậm hơn",
+                  "Không biết đang chạy bản nào, 'bản trước' đã bị ghi đè cùng tag: phải build lại từ mã nguồn",
+                  "Compose không hỗ trợ latest"
+                ],
+                "answer": 2,
+                "explain": "Mỗi image một version (trùng version.json), giữ ít nhất một version trước. Rollback = WEB_VERSION=<bản trước> ... up -d --no-build."
+              },
+              {
+                "prompt": "loadAppRelease() đọc '/version.json' bằng fetch + response.json(), không có try/catch. 'npm start' thì sao?",
+                "options": [
+                  "Chạy bình thường",
+                  "Dev server trả index.html cho /version.json (fallback) → response.json() ném lỗi → app không khởi động",
+                  "Trả 404, app vẫn chạy",
+                  "Chỉ lỗi ở production"
+                ],
+                "answer": 1,
+                "explain": "response.ok vẫn true (200 text/html), lỗi nằm ở bước parse. Đáp án bắt lỗi và trả 'dev'; unit test 'dev server tra index.html' đỏ ngay khi bỏ try/catch."
+              }
+            ]
+          }
+        </script>
+      </div>
+
+      <h2>Phần 3 · Vận dụng: 136 kB cho một tính năng ít người dùng (10 phút)</h2>
+      <p>
+        Khi phân tích bundle ở Bài 2, lớp thấy <code>angular-auth-oidc-client</code> chiếm <strong>136,3 kB</strong> trong bundle ban đầu, kể cả khi
+        <code>config.json</code> không có <code>auth</code> (đăng nhập local, đa số người dùng). Budget mới (lỗi ở 1,5 MB) chỉ còn khoảng 110 kB cho các tính năng sắp tới.
+        Nguyên nhân: <code>provideAuth()</code> trong <code>libs/shared/data-access-auth/src/lib/provide-auth.ts</code> import tĩnh cả hai adapter.
+      </p>
+      <ol class="steps">
+        <li>Đề xuất cách để thư viện OIDC chỉ được tải khi <code>config.auth.mode === 'oidc'</code> (gợi ý: <code>config.json</code> đã đọc trước khi bootstrap).
+          Nêu file nào đổi, và vì sao tách ở lib <code>data-access-auth</code> chứ không ở từng feature.</li>
+        <li>Viết 3 cách kiểm chứng sau khi sửa: một về kích thước, hai về hành vi (chế độ local và chế độ SSO của buổi 7).</li>
+        <li>Thay đổi này có ảnh hưởng gì tới triển khai không (CSP, smoke test, release checklist)? Nêu ít nhất 2 điểm.</li>
+      </ol>
+      <details>
+        <summary>Đáp án tham khảo (chỉ mở sau khi đã viết)</summary>
+        <ol>
+          <li>Tách cấu hình OIDC ra một entry riêng (vd <code>provideOidcAuth(config)</code> trong file riêng của <code>data-access-auth</code>) và nạp bằng
+            <code>import()</code> động trong <code>main.ts</code> khi <code>config.auth?.mode === 'oidc'</code>, trước <code>bootstrapApplication</code>; chế độ local chỉ import
+            <code>LocalAuthService</code>. Tách ở lib auth vì đó là composition root của port <code>AuthService</code> (buổi 7): feature chỉ biết port, không biết adapter.
+            Lưu ý luật lib (buổi 1): <code>main.ts</code> của app được import lib <code>data-access</code>.</li>
+          <li>Kích thước: bảng "Initial chunk files" và <code>browser-stats.json</code> không còn <code>angular-auth-oidc-client</code> trong file initial (xuất hiện ở chunk lazy).
+            Hành vi: smoke/E2E đăng nhập local vẫn xanh; E2E SSO của buổi 7 (profile <code>sso</code>) vẫn xanh, kể cả callback và đăng xuất. Thêm: Network ở chế độ local không tải chunk OIDC.</li>
+          <li>CSP: chế độ OIDC cần <code>connect-src</code> có máy chủ SSO (authority), nếu không trình duyệt chặn lấy token; smoke nên chạy cho mỗi chế độ đăng nhập đang dùng ở
+            môi trường. Chunk OIDC là file có hash: cache 1 năm như chunk khác, không cần đổi nginx. Checklist: thêm dòng "chế độ đăng nhập của môi trường (config.json) đã kiểm".</li>
+        </ol>
+      </details>
+
+      <h2>Phần tùy chọn · Soi một ứng dụng bạn được phép truy cập</h2>
+      <p>
+        Với một ứng dụng web nội bộ bạn có quyền dùng (không gửi mã nguồn, không chép dữ liệu ra ngoài): mở DevTools Network, tải lại trang, ghi
+        <code>Cache-Control</code> của tài liệu HTML và một file JS; xem có <code>Content-Security-Policy</code>, <code>X-Content-Type-Options</code> không.
+        F5 ở một trang con: có 404 không? Chỉ ghi tên header và giá trị, không ghi URL nội bộ.
+      </p>
+
+      <h2>Nộp bài</h2>
+      <p>Gửi giảng viên qua kênh của lớp, <strong>trước buổi 10</strong>:</p>
+      <ol>
+        <li>Điểm phần 1 và phần 2.</li>
+        <li>Câu trả lời phần 3.</li>
+        <li>(Tùy chọn) bảng header của phần tùy chọn.</li>
+      </ol>
+      <p class="meta">Một ngày trước buổi 10, làm lại phần 2 mà không mở phần ôn tập.</p>
+
+      <h2>Đọc thêm</h2>
+      <p>
+        <strong>Nguồn chính:</strong> <a href="https://angular.dev/tools/cli/deployment">Angular — Deployment</a> (khoảng 15 phút: cấu hình máy chủ, fallback về <code>index.html</code>).
+      </p>
+      <p>
+        Thêm: <a href="https://angular.dev/tools/cli/build">Angular — Building (budgets)</a> ·
+        <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control">MDN — Cache-Control</a> ·
+        <a href="https://web.dev/articles/strict-csp">web.dev — Strict CSP</a> ·
+        <a href="https://docs.docker.com/build/building/multi-stage/">Docker — Multi-stage builds</a> ·
+        <a href="https://nginx.org/en/docs/http/ngx_http_headers_module.html">nginx — add_header</a> ·
+        sản phẩm của lớp: <code>docs/release-checklist-1.1.0.md</code>, <code>docs/quy-trinh-rollback.md</code> (nhánh <code>session09-end</code>).
+      </p>
+
+      <div class="callout">
+        <p><strong>Còn chỗ nào chưa rõ?</strong> Hỏi giảng viên, hoặc hỏi trợ lý AI ngay trong repo — ví dụ:
+          “vì sao <code>frontend/nginx/default.conf.template</code> không đặt <code>add_header</code> trong <code>location /</code> mà <code>/tickets</code> vẫn có header?” (rồi xác minh bằng <code>curl -I</code>).</p>
+      </div>
+
+      <footer>Khóa Angular nâng cao · Bài tập về nhà buổi 9 · Dự án mẫu Care Portal</footer>
+    </main>
+    <script src="assets/quiz.js"></script>
+  </body>
+</html>

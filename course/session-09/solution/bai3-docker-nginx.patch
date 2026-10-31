@@ -1,0 +1,292 @@
+diff --git a/frontend/.dockerignore b/frontend/.dockerignore
+new file mode 100644
+index 0000000..976f5b8
+--- /dev/null
++++ b/frontend/.dockerignore
+@@ -0,0 +1,10 @@
++# Buổi 9: Dockerfile chép cả thư mục (COPY . .) -> loại những gì build trong container tự tạo lại.
++node_modules
++dist
++tmp
++.nx
++.angular
++coverage
++test-output
++playwright-report
++**/.DS_Store
+diff --git a/frontend/Dockerfile b/frontend/Dockerfile
+index c1c5800..9b68df4 100644
+--- a/frontend/Dockerfile
++++ b/frontend/Dockerfile
+@@ -1,6 +1,21 @@
+-# Bản đầu tiên (buổi 9): build portal trên máy rồi chép dist vào nginx.
+-#   npx nx build portal
+-#   docker build -t care-portal-web:dev .
+-FROM nginx:alpine
+-COPY dist/apps/portal/browser /usr/share/nginx/html
+-COPY nginx.conf /etc/nginx/conf.d/default.conf
++# syntax=docker/dockerfile:1
++# Buổi 9: build trong container từ lockfile -> máy dev, CI và máy học viên ra cùng một artifact.
++#   docker build -t care-portal-web:1.0.0 .
++#   docker run -p 8090:80 -e API_ORIGIN=http://localhost:8081 care-portal-web:1.0.0
++
++# Stage 1: build. Node khớp .nvmrc; engine-strict (.npmrc) chặn nếu lệch.
++FROM node:24.22.0-alpine AS build
++WORKDIR /app
++COPY package.json package-lock.json .npmrc ./
++# Cache thư mục tải của npm giữa các lần build (BuildKit); npm ci vẫn cài đúng theo lockfile.
++RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
++COPY . .
++RUN NX_DAEMON=false npx nx build portal --skip-nx-cache
++
++# Stage 2: chỉ file tĩnh + nginx. Image không chứa Node, mã nguồn, node_modules.
++FROM nginx:1.31.8-alpine
++# Origin của API cho CSP connect-src. Mặc định cho máy học viên; môi trường khác truyền -e API_ORIGIN=...
++ENV API_ORIGIN=http://localhost:8081
++# Image nginx thay ${API_ORIGIN} trong /etc/nginx/templates/*.template lúc container khởi động.
++COPY nginx/ /etc/nginx/templates/
++COPY --from=build /app/dist/apps/portal/browser /usr/share/nginx/html
+diff --git a/frontend/apps/portal-e2e/playwright.smoke.config.mts b/frontend/apps/portal-e2e/playwright.smoke.config.mts
+new file mode 100644
+index 0000000..70d9cb0
+--- /dev/null
++++ b/frontend/apps/portal-e2e/playwright.smoke.config.mts
+@@ -0,0 +1,21 @@
++import { defineConfig, devices } from '@playwright/test';
++
++// Buổi 9: smoke test chạy trên bản ĐÃ TRIỂN KHAI (nginx trong Docker), không bật dev server.
++// Dev server luôn có SPA fallback và không đặt header cache/bảo mật -> smoke trên dev server không chứng minh gì.
++//   BASE_URL=http://localhost:8090 npx playwright test -c apps/portal-e2e/playwright.smoke.config.mts
++export default defineConfig({
++  testDir: './src/smoke',
++  testMatch: '**/*.smoke.ts',
++  fullyParallel: true,
++  retries: 0,
++  outputDir: '../../dist/.playwright/smoke-results',
++  reporter: [
++    ['list'],
++    ['html', { outputFolder: '../../dist/smoke-report', open: 'never' }],
++  ],
++  use: {
++    baseURL: process.env['BASE_URL'] ?? 'http://localhost:8090',
++    trace: 'retain-on-failure',
++  },
++  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
++});
+diff --git a/frontend/apps/portal-e2e/src/smoke/deploy.smoke.ts b/frontend/apps/portal-e2e/src/smoke/deploy.smoke.ts
+new file mode 100644
+index 0000000..e83be02
+--- /dev/null
++++ b/frontend/apps/portal-e2e/src/smoke/deploy.smoke.ts
+@@ -0,0 +1,73 @@
++import { expect, Page, test } from '@playwright/test';
++
++// Buổi 9: kiểm tra nhanh sau mỗi lần triển khai. Đỏ ở đây = không phát hành (hoặc rollback).
++// Chạy: BASE_URL=http://localhost:8090 npx playwright test -c apps/portal-e2e/playwright.smoke.config.mts
++
++/** Lỗi console + lỗi JS chưa bắt. CSP chặn script/stylesheet chỉ hiện ở đây, giao diện có thể vẫn "trông như chạy". */
++function collectErrors(page: Page) {
++  const errors: string[] = [];
++  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
++  page.on('pageerror', (e) => errors.push(e.message));
++  return errors;
++}
++
++test('deep link tra ve index.html, khong 404', async ({ request }) => {
++  const res = await request.get('/tickets?status=NEW');
++  expect(res.status()).toBe(200);
++  expect(res.headers()['content-type']).toContain('text/html');
++});
++
++test('file tinh khong ton tai tra 404, khong tra index.html', async ({
++  request,
++}) => {
++  // Chunk của bản cũ đã bị xóa: trả index.html (200, text/html) thì trình duyệt báo lỗi MIME khó hiểu.
++  expect((await request.get('/chunk-ZZZZZZZZ.js')).status()).toBe(404);
++  expect((await request.get('/i18n/khong-co.json')).status()).toBe(404);
++});
++
++test('index.html, config.json, i18n khong cache; file co hash cache 1 nam', async ({
++  request,
++}) => {
++  for (const path of ['/', '/tickets', '/config.json', '/i18n/vi.json']) {
++    const res = await request.get(path);
++    expect(res.headers()['cache-control'], path).toBe('no-cache');
++  }
++  const html = await (await request.get('/')).text();
++  const main = html.match(/main-[A-Za-z0-9_-]{8}\.js/)?.[0];
++  expect(main).toBeTruthy();
++  const res = await request.get(`/${main}`);
++  expect(res.status()).toBe(200);
++  expect(res.headers()['cache-control']).toBe(
++    'public, max-age=31536000, immutable',
++  );
++});
++
++test('co header bao mat', async ({ request }) => {
++  // Kiểm cả deep link: add_header trong location ghi đè header của server.
++  for (const path of ['/', '/tickets?status=NEW', '/config.json']) {
++    const h = (await request.get(path)).headers();
++    expect(h['x-content-type-options'], path).toBe('nosniff');
++    expect(h['referrer-policy'], path).toBe('strict-origin-when-cross-origin');
++    expect(h['content-security-policy'], path).toMatch(
++      /script-src 'self';.*frame-ancestors 'none';.*object-src 'none'/,
++    );
++  }
++});
++
++test('mo deep link, dang nhap, thay danh sach phieu, khong loi console', async ({
++  page,
++}) => {
++  const errors = collectErrors(page);
++
++  await page.goto('/tickets?status=NEW');
++  await page.getByLabel('Tên đăng nhập').fill('agent1');
++  await page.getByLabel('Mật khẩu').fill('agent1');
++  await page.getByRole('button', { name: 'Đăng nhập' }).click();
++
++  await expect(page).toHaveURL(/\/tickets\?status=NEW$/);
++  await expect(page.locator('tbody tr.ant-table-row').first()).toBeVisible();
++  expect(errors).toEqual([]);
++  await expect(page.locator('link[rel=stylesheet][media=print]')).toHaveCount(
++    0,
++  );
++});
+diff --git a/frontend/apps/portal/project.json b/frontend/apps/portal/project.json
+index cc8f0ce..59335b7 100644
+--- a/frontend/apps/portal/project.json
++++ b/frontend/apps/portal/project.json
+@@ -53,7 +53,15 @@
+               "maximumError": "8kb"
+             }
+           ],
+-          "outputHashing": "all"
++          "outputHashing": "all",
++          "optimization": {
++            "scripts": true,
++            "styles": {
++              "minify": true,
++              "inlineCritical": false
++            },
++            "fonts": true
++          }
+         },
+         "development": {
+           "optimization": false,
+diff --git a/frontend/apps/portal/public/theme-init.js b/frontend/apps/portal/public/theme-init.js
+new file mode 100644
+index 0000000..4a1a725
+--- /dev/null
++++ b/frontend/apps/portal/public/theme-init.js
+@@ -0,0 +1,15 @@
++// Buổi 9: tách khỏi index.html (trước đây là script inline) để CSP chặn được mọi script inline.
++// Đặt theme TRƯỚC khi Angular chạy -> không nháy nền trang khi mở app ở chế độ tối.
++// CSS dark của ng-zorro được ThemeService gắn sau stylesheet chính (thứ tự quyết định ghi đè).
++(function () {
++  try {
++    const p = localStorage.getItem('care.theme');
++    const dark =
++      p === 'dark' ||
++      (p !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
++    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
++    document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
++  } catch {
++    // localStorage bị chặn (chế độ riêng tư, chính sách trình duyệt): ThemeService đặt lại sau.
++  }
++})();
+diff --git a/frontend/apps/portal/src/index.html b/frontend/apps/portal/src/index.html
+index 49b1ac0..e3cc69f 100644
+--- a/frontend/apps/portal/src/index.html
++++ b/frontend/apps/portal/src/index.html
+@@ -6,21 +6,8 @@
+     <base href="/" />
+     <meta name="viewport" content="width=device-width, initial-scale=1" />
+     <link rel="icon" type="image/x-icon" href="favicon.ico" />
+-    <script>
+-      // Đặt theme TRƯỚC khi Angular chạy -> không nháy nền trang khi mở app ở chế độ tối.
+-      // CSS dark của ng-zorro được ThemeService gắn sau stylesheet chính (thứ tự quyết định ghi đè).
+-      (function () {
+-        try {
+-          var p = localStorage.getItem('care.theme');
+-          var dark =
+-            p === 'dark' ||
+-            (p !== 'light' &&
+-              matchMedia('(prefers-color-scheme: dark)').matches);
+-          document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+-          document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+-        } catch (e) {}
+-      })();
+-    </script>
++    <!-- Buổi 9: script ngoài, không inline -> CSP chỉ cần script-src 'self'. Không defer: theme phải có trước khi vẽ trang. -->
++    <script src="theme-init.js"></script>
+   </head>
+   <body>
+     <care-root></care-root>
+diff --git a/frontend/nginx.conf b/frontend/nginx.conf
+deleted file mode 100644
+index 107326d..0000000
+--- a/frontend/nginx.conf
++++ /dev/null
+@@ -1,10 +0,0 @@
+-server {
+-  listen 80;
+-  root /usr/share/nginx/html;
+-  index index.html;
+-
+-  # Cache 1 năm cho nhanh.
+-  location / {
+-    expires 1y;
+-  }
+-}
+diff --git a/frontend/nginx/default.conf.template b/frontend/nginx/default.conf.template
+new file mode 100644
+index 0000000..a667539
+--- /dev/null
++++ b/frontend/nginx/default.conf.template
+@@ -0,0 +1,33 @@
++# Buổi 9: portal (SPA) sau nginx. File là template: ${API_ORIGIN} được thay lúc container khởi động.
++server {
++  listen 80;
++  root /usr/share/nginx/html;
++  server_tokens off;
++
++  # add_header trong một location GHI ĐÈ toàn bộ add_header của cấp server (không cộng dồn)
++  # -> header bảo mật nằm trong file riêng và include vào từng location.
++
++  # File có hash trong tên (main-H62PDXC7.js, chunk-*.js, styles-*.css, font trong media/):
++  # nội dung đổi thì tên đổi -> cache 1 năm, không cần hỏi lại máy chủ.
++  location ~* "-[A-Za-z0-9_-]{8}\.(js|css|woff2?)$" {
++    include /etc/nginx/conf.d/security-headers.inc;
++    add_header Cache-Control "public, max-age=31536000, immutable" always;
++    try_files $uri =404;
++  }
++
++  # File không hash (index.html, config.json, i18n/*.json, themes/*.css, theme-init.js, favicon.ico):
++  # luôn hỏi lại máy chủ (ETag), bản mới có hiệu lực ngay. Thiếu file thì 404, KHÔNG rơi về index.html:
++  # chunk của bản cũ trả index.html thì trình duyệt báo lỗi MIME khó hiểu.
++  location ~ "\.[A-Za-z0-9]+$" {
++    include /etc/nginx/conf.d/security-headers.inc;
++    add_header Cache-Control "no-cache" always;
++    try_files $uri =404;
++  }
++
++  # Đường dẫn của router (/, /tickets?status=NEW, /subscribers/17) -> index.html để Angular xử lý.
++  # try_files chuyển NỘI BỘ sang /index.html, nginx chọn lại location -> khớp location ngay trên:
++  # header cache/bảo mật của index.html đặt ở đó, add_header ở đây không có tác dụng.
++  location / {
++    try_files $uri /index.html;
++  }
++}
+diff --git a/frontend/nginx/security-headers.inc.template b/frontend/nginx/security-headers.inc.template
+new file mode 100644
+index 0000000..65c3343
+--- /dev/null
++++ b/frontend/nginx/security-headers.inc.template
+@@ -0,0 +1,7 @@
++# Buổi 9: header bảo mật, include vào từng location của default.conf.
++# script-src 'self': index.html không còn script inline (theme-init.js, inlineCritical: false).
++# style-src 'unsafe-inline': Angular và ng-zorro chèn <style>/style="" lúc chạy.
++# connect-src: API (và máy chủ SSO nếu dùng OIDC) phải có trong danh sách, nếu không trình duyệt chặn request.
++add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' ${API_ORIGIN}; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" always;
++add_header X-Content-Type-Options "nosniff" always;
++add_header Referrer-Policy "strict-origin-when-cross-origin" always;

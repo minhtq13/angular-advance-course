@@ -1,0 +1,258 @@
+diff --git a/frontend/Dockerfile b/frontend/Dockerfile
+index 9b68df4..9dd7a4e 100644
+--- a/frontend/Dockerfile
++++ b/frontend/Dockerfile
+@@ -1,7 +1,7 @@
+ # syntax=docker/dockerfile:1
+ # Buổi 9: build trong container từ lockfile -> máy dev, CI và máy học viên ra cùng một artifact.
+-#   docker build -t care-portal-web:1.0.0 .
+-#   docker run -p 8090:80 -e API_ORIGIN=http://localhost:8081 care-portal-web:1.0.0
++#   docker build --build-arg APP_VERSION=1.0.0 --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -t care-portal-web:1.0.0 .
++#   docker run -p 8090:80 -e API_ORIGIN=http://localhost:8081 -v $PWD/config.json:/usr/share/nginx/html/config.json:ro care-portal-web:1.0.0
+ 
+ # Stage 1: build. Node khớp .nvmrc; engine-strict (.npmrc) chặn nếu lệch.
+ FROM node:24.22.0-alpine AS build
+@@ -19,3 +19,9 @@ ENV API_ORIGIN=http://localhost:8081
+ # Image nginx thay ${API_ORIGIN} trong /etc/nginx/templates/*.template lúc container khởi động.
+ COPY nginx/ /etc/nginx/templates/
+ COPY --from=build /app/dist/apps/portal/browser /usr/share/nginx/html
++# version.json thuộc artifact (không đổi khi chuyển môi trường); config.json thuộc môi trường (mount lúc chạy).
++# ARG đặt sau bước build -> đổi version không build lại Angular.
++ARG APP_VERSION=dev
++ARG GIT_COMMIT=local
++LABEL org.opencontainers.image.version=$APP_VERSION org.opencontainers.image.revision=$GIT_COMMIT
++RUN printf '{"version":"%s","commit":"%s"}\n' "$APP_VERSION" "$GIT_COMMIT" > /usr/share/nginx/html/version.json
+diff --git a/frontend/apps/portal-e2e/src/smoke/deploy.smoke.ts b/frontend/apps/portal-e2e/src/smoke/deploy.smoke.ts
+index e83be02..4a40be1 100644
+--- a/frontend/apps/portal-e2e/src/smoke/deploy.smoke.ts
++++ b/frontend/apps/portal-e2e/src/smoke/deploy.smoke.ts
+@@ -42,6 +42,19 @@ test('index.html, config.json, i18n khong cache; file co hash cache 1 nam', asyn
+   );
+ });
+ 
++test('version.json dung ban vua trien khai, khong cache', async ({
++  request,
++}) => {
++  const res = await request.get('/version.json');
++  expect(res.headers()['cache-control']).toBe('no-cache');
++  const { version, commit } = await res.json();
++  // CI truyền EXPECTED_VERSION = version vừa build; chạy tay không truyền thì chỉ kiểm có giá trị.
++  expect(version).toBe(process.env['EXPECTED_VERSION'] ?? version);
++  expect(version).not.toBe('dev');
++  // Build quên --build-arg GIT_COMMIT thì không truy được lỗi về commit nào.
++  expect(commit).toMatch(/^[0-9a-f]{7,40}$/);
++});
++
+ test('co header bao mat', async ({ request }) => {
+   // Kiểm cả deep link: add_header trong location ghi đè header của server.
+   for (const path of ['/', '/tickets?status=NEW', '/config.json']) {
+diff --git a/frontend/apps/portal/src/app/app.config.ts b/frontend/apps/portal/src/app/app.config.ts
+index beb5a66..9834ac5 100644
+--- a/frontend/apps/portal/src/app/app.config.ts
++++ b/frontend/apps/portal/src/app/app.config.ts
+@@ -6,15 +6,25 @@ import {
+ import { provideRouter, withComponentInputBinding } from '@angular/router';
+ import { authInterceptor, provideAuth } from '@care/shared-data-access-auth';
+ import { provideUi } from '@care/shared-ui-layout';
+-import { AppConfig, provideAppConfig } from '@care/shared-util-config';
++import {
++  AppConfig,
++  AppRelease,
++  provideAppConfig,
++  provideAppRelease,
++} from '@care/shared-util-config';
+ import { acceptLanguageInterceptor, provideI18n } from '@care/shared-util-i18n';
+ import { appRoutes } from './app.routes';
+ 
+-export function appConfig(config: AppConfig): ApplicationConfig {
++export function appConfig(
++  config: AppConfig,
++  release: AppRelease,
++): ApplicationConfig {
+   return {
+     providers: [
+       provideBrowserGlobalErrorListeners(),
+       provideAppConfig(config),
++      // Buổi 9: lỗi chưa bắt ghi kèm version (version.json trong image) -> lọc lỗi theo bản phát hành.
++      provideAppRelease(release),
+       provideHttpClient(
+         withInterceptors([acceptLanguageInterceptor, authInterceptor]),
+       ),
+diff --git a/frontend/apps/portal/src/main.ts b/frontend/apps/portal/src/main.ts
+index d538037..a78df3c 100644
+--- a/frontend/apps/portal/src/main.ts
++++ b/frontend/apps/portal/src/main.ts
+@@ -1,8 +1,10 @@
+ import { bootstrapApplication } from '@angular/platform-browser';
+-import { loadAppConfig } from '@care/shared-util-config';
++import { loadAppConfig, loadAppRelease } from '@care/shared-util-config';
+ import { App } from './app/app';
+ import { appConfig } from './app/app.config';
+ 
+-loadAppConfig()
+-  .then((config) => bootstrapApplication(App, appConfig(config)))
++Promise.all([loadAppConfig(), loadAppRelease()])
++  .then(([config, release]) =>
++    bootstrapApplication(App, appConfig(config, release)),
++  )
+   .catch((err) => console.error(err));
+diff --git a/frontend/libs/shared/util-config/src/index.ts b/frontend/libs/shared/util-config/src/index.ts
+index 97ccde4..42df242 100644
+--- a/frontend/libs/shared/util-config/src/index.ts
++++ b/frontend/libs/shared/util-config/src/index.ts
+@@ -1 +1,2 @@
+ export * from './lib/app-config';
++export * from './lib/app-release';
+diff --git a/frontend/libs/shared/util-config/src/lib/app-release.spec.ts b/frontend/libs/shared/util-config/src/lib/app-release.spec.ts
+new file mode 100644
+index 0000000..3eed42a
+--- /dev/null
++++ b/frontend/libs/shared/util-config/src/lib/app-release.spec.ts
+@@ -0,0 +1,59 @@
++import { ErrorHandler } from '@angular/core';
++import { TestBed } from '@angular/core/testing';
++import { loadAppRelease, provideAppRelease } from './app-release';
++
++function mockFetch(body: string, init: ResponseInit = { status: 200 }) {
++  return vi
++    .spyOn(globalThis, 'fetch')
++    .mockResolvedValue(new Response(body, init));
++}
++
++describe('loadAppRelease', () => {
++  afterEach(() => vi.restoreAllMocks());
++
++  it('doc version va commit tu version.json cua image', async () => {
++    const fetch = mockFetch('{"version":"1.1.0","commit":"3f2c9ab"}');
++
++    await expect(loadAppRelease()).resolves.toEqual({
++      version: '1.1.0',
++      commit: '3f2c9ab',
++    });
++    expect(fetch).toHaveBeenCalledWith('/version.json', { cache: 'no-cache' });
++  });
++
++  it('dev server khong co version.json (tra index.html) -> dev, khong lam hong khoi dong', async () => {
++    mockFetch('<!doctype html><html></html>', {
++      status: 200,
++      headers: { 'content-type': 'text/html' },
++    });
++
++    await expect(loadAppRelease()).resolves.toEqual({
++      version: 'dev',
++      commit: 'local',
++    });
++  });
++
++  it('404 -> dev', async () => {
++    mockFetch('not found', { status: 404 });
++
++    await expect(loadAppRelease()).resolves.toEqual({
++      version: 'dev',
++      commit: 'local',
++    });
++  });
++});
++
++describe('provideAppRelease', () => {
++  it('loi chua bat duoc ghi kem version de loc theo ban phat hanh', () => {
++    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
++    TestBed.configureTestingModule({
++      providers: [provideAppRelease({ version: '1.1.0', commit: '3f2c9ab' })],
++    });
++    const error = new TypeError('x is undefined');
++
++    TestBed.inject(ErrorHandler).handleError(error);
++
++    expect(log).toHaveBeenCalledWith('[care-portal 1.1.0 3f2c9ab]', error);
++    log.mockRestore();
++  });
++});
+diff --git a/frontend/libs/shared/util-config/src/lib/app-release.ts b/frontend/libs/shared/util-config/src/lib/app-release.ts
+new file mode 100644
+index 0000000..11c662a
+--- /dev/null
++++ b/frontend/libs/shared/util-config/src/lib/app-release.ts
+@@ -0,0 +1,42 @@
++import { ErrorHandler, Provider } from '@angular/core';
++
++/**
++ * Bản phát hành đang chạy (buổi 9). Ghi vào image lúc build (version.json), KHÁC config.json:
++ * config theo môi trường (mount lúc chạy), version theo artifact (không đổi khi chuyển môi trường).
++ */
++export interface AppRelease {
++  version: string;
++  commit: string;
++}
++
++const DEV_RELEASE: AppRelease = { version: 'dev', commit: 'local' };
++
++export async function loadAppRelease(
++  url = '/version.json',
++): Promise<AppRelease> {
++  try {
++    const response = await fetch(url, { cache: 'no-cache' });
++    // Dev server không có version.json: trả 404 hoặc index.html (SPA fallback) -> không phải lỗi.
++    return response.ok ? await response.json() : DEV_RELEASE;
++  } catch {
++    return DEV_RELEASE;
++  }
++}
++
++/** Ghi lỗi chưa bắt kèm version + commit: log/kênh quan sát lọc được lỗi theo bản phát hành. */
++class ReleaseErrorHandler extends ErrorHandler {
++  constructor(private readonly release: AppRelease) {
++    super();
++  }
++
++  override handleError(error: unknown): void {
++    console.error(
++      `[care-portal ${this.release.version} ${this.release.commit}]`,
++      error,
++    );
++  }
++}
++
++export function provideAppRelease(release: AppRelease): Provider {
++  return { provide: ErrorHandler, useValue: new ReleaseErrorHandler(release) };
++}
+diff --git a/infra/docker-compose.yml b/infra/docker-compose.yml
+index e1a5e29..67047d0 100644
+--- a/infra/docker-compose.yml
++++ b/infra/docker-compose.yml
+@@ -81,11 +81,23 @@ services:
+       - ./keycloak:/opt/keycloak/data/import:ro
+ 
+   # Buổi 9: portal chạy trong nginx, http://localhost:8090 (8080 hay bị Jenkins/Tomcat chiếm).
+-  #   WEB_VERSION=1.0.0 docker compose -f infra/docker-compose.yml --profile web up -d web
++  #   Build:    WEB_VERSION=1.0.0 GIT_COMMIT=$(git rev-parse --short HEAD) docker compose -f infra/docker-compose.yml --profile web build web
++  #   Chạy:     WEB_VERSION=1.0.0 docker compose -f infra/docker-compose.yml --profile web up -d web
++  #   Rollback: WEB_VERSION=<bản trước> docker compose -f infra/docker-compose.yml --profile web up -d --no-build web
+   web:
+     profiles: ["web"]
+-    build: ../frontend
++    build:
++      context: ../frontend
++      args:
++        APP_VERSION: ${WEB_VERSION:-dev}
++        GIT_COMMIT: ${GIT_COMMIT:-local}
+     image: care-portal-web:${WEB_VERSION:-dev}
++    environment:
++      # CSP connect-src: origin API mà trình duyệt gọi (phải khớp apiUrl trong config.json bên dưới).
++      API_ORIGIN: http://localhost:8081
++    volumes:
++      # Cấu hình theo môi trường, mount lúc chạy: cùng một image dùng cho mọi môi trường.
++      - ./web/config.json:/usr/share/nginx/html/config.json:ro
+     ports:
+       - "8090:80"
+     depends_on:
+diff --git a/infra/web/config.json b/infra/web/config.json
+new file mode 100644
+index 0000000..b8f980f
+--- /dev/null
++++ b/infra/web/config.json
+@@ -0,0 +1,4 @@
++{
++  "environmentName": "DOCKER",
++  "apiUrl": "http://localhost:8081"
++}

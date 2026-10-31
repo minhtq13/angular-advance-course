@@ -1,0 +1,41 @@
+diff --git a/frontend/apps/portal/project.json b/frontend/apps/portal/project.json
+index 0c9d05b..cc8f0ce 100644
+--- a/frontend/apps/portal/project.json
++++ b/frontend/apps/portal/project.json
+@@ -44,8 +44,8 @@
+           "budgets": [
+             {
+               "type": "initial",
+-              "maximumWarning": "1.5mb",
+-              "maximumError": "2mb"
++              "maximumWarning": "1.45mb",
++              "maximumError": "1.5mb"
+             },
+             {
+               "type": "anyComponentStyle",
+diff --git a/frontend/eslint.config.mjs b/frontend/eslint.config.mjs
+index 6810a2a..0aed1a1 100644
+--- a/frontend/eslint.config.mjs
++++ b/frontend/eslint.config.mjs
+@@ -94,8 +94,19 @@ export default [
+       '**/*.cjs',
+       '**/*.mjs',
+     ],
+-    // Override or add rules here
+-    rules: {},
++    rules: {
++      // Buổi 9: import * từ bộ icon kéo cả 848 icon (~720 kB) vào bundle ban đầu. Budget chỉ bắt được ở bước build,
++      // lint bắt sớm hơn và chỉ đúng dòng.
++      'no-restricted-syntax': [
++        'error',
++        {
++          selector:
++            "ImportDeclaration[source.value='@ant-design/icons-angular/icons'] > ImportNamespaceSpecifier",
++          message:
++            'Chỉ import icon cần dùng (vd { SearchOutline }) rồi thêm vào ICONS; import * kéo cả bộ icon vào bundle ban đầu.',
++        },
++      ],
++    },
+   },
+   {
+     files: ['**/*.html'],

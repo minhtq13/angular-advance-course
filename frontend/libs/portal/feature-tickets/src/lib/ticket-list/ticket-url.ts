@@ -1,16 +1,22 @@
 import { ParamMap, Params } from '@angular/router';
-import { TicketPriority, TicketStatus } from '@care/portal-domain-tickets';
+import {
+  TicketCategory,
+  TicketPriority,
+  TicketStatus,
+} from '@care/portal-domain-tickets';
 import { DEFAULT_PAGE, PageRequest } from '@care/shared-data-access-api';
 
 export interface TicketFilters {
   status: TicketStatus | null;
   priority: TicketPriority | null;
+  category: TicketCategory | null;
   onlyMine: boolean;
 }
 
 export const NO_FILTERS: TicketFilters = {
   status: null,
   priority: null,
+  category: null,
   onlyMine: false,
 };
 
@@ -25,6 +31,12 @@ const PRIORITIES: readonly TicketPriority[] = [
   'MEDIUM',
   'HIGH',
   'URGENT',
+];
+const CATEGORIES: readonly TicketCategory[] = [
+  'BILLING',
+  'NETWORK',
+  'SERVICE',
+  'OTHER',
 ];
 const PAGE_SIZES: readonly number[] = [20, 50, 100];
 /** Chỉ cột mã bảng cho sắp xếp (nzColumnKey). */
@@ -42,6 +54,7 @@ export function filtersFromParams(params: ParamMap): TicketFilters {
   return {
     status: oneOf(params.get('status'), STATUSES),
     priority: oneOf(params.get('priority'), PRIORITIES),
+    category: oneOf(params.get('category'), CATEGORIES),
     onlyMine: params.get('mine') === '1',
   };
 }
@@ -66,6 +79,7 @@ export function toQueryParams(
   const params: Params = {};
   if (filters.status) params['status'] = filters.status;
   if (filters.priority) params['priority'] = filters.priority;
+  if (filters.category) params['category'] = filters.category;
   if (filters.onlyMine) params['mine'] = '1';
   if (page.page > 0) params['page'] = page.page + 1;
   if (page.size !== DEFAULT_PAGE.size) params['size'] = page.size;

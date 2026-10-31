@@ -1,0 +1,148 @@
+diff --git a/frontend/apps/portal/public/config.json b/frontend/apps/portal/public/config.json
+index 38aa980..0a278eb 100644
+--- a/frontend/apps/portal/public/config.json
++++ b/frontend/apps/portal/public/config.json
+@@ -1,4 +1,7 @@
+ {
+   "environmentName": "DEV",
+-  "apiUrl": "http://localhost:8081"
++  "apiUrl": "http://localhost:8081",
++  "support": {
++    "hotline": "1800 1234"
++  }
+ }
+diff --git a/frontend/apps/portal/src/app/app.html b/frontend/apps/portal/src/app/app.html
+index ff062d3..859a361 100644
+--- a/frontend/apps/portal/src/app/app.html
++++ b/frontend/apps/portal/src/app/app.html
+@@ -6,6 +6,7 @@
+   [userName]="auth.displayName()"
+   [roles]="auth.roleLabelKeys()"
+   [environmentName]="config.environmentName"
++  [hotline]="config.support.hotline"
+   (logout)="auth.logout()"
+ >
+   <router-outlet />
+diff --git a/frontend/apps/portal/src/app/app.spec.ts b/frontend/apps/portal/src/app/app.spec.ts
+index 0ed6d36..68a7fbf 100644
+--- a/frontend/apps/portal/src/app/app.spec.ts
++++ b/frontend/apps/portal/src/app/app.spec.ts
+@@ -20,6 +20,7 @@ describe('App', () => {
+           useValue: {
+             environmentName: 'TEST',
+             apiUrl: '',
++            support: { hotline: '1800 1234' },
+           },
+         },
+         {
+@@ -43,4 +44,15 @@ describe('App', () => {
+     expect(el.querySelector('.brand')?.textContent).toContain('Care Portal');
+     expect(el.querySelector('.user-info')?.textContent).toContain('Agent One');
+   });
++
++  it('hien tong dai ho tro tren header', async () => {
++    const fixture = TestBed.createComponent(App);
++    await fixture.whenStable();
++    const link = (fixture.nativeElement as HTMLElement).querySelector(
++      '.hotline',
++    );
++
++    expect(link?.textContent).toContain('1800 1234');
++    expect(link?.getAttribute('href')).toBe('tel:1800 1234');
++  });
+ });
+diff --git a/frontend/apps/portal/src/app/ticket-approval.spec.ts b/frontend/apps/portal/src/app/ticket-approval.spec.ts
+index 4b9e8f4..11cd0b5 100644
+--- a/frontend/apps/portal/src/app/ticket-approval.spec.ts
++++ b/frontend/apps/portal/src/app/ticket-approval.spec.ts
+@@ -55,7 +55,7 @@ describe('Duyet phieu (integration: route + trang + store + HTTP)', () => {
+         provideRouter(appRoutes),
+         provideHttpClient(),
+         provideHttpClientTesting(),
+-        provideAppConfig({ apiUrl: API }),
++        provideAppConfig({ apiUrl: API, support: { hotline: '1800 1234' } }),
+         provideUi(),
+         provideI18nTesting(),
+         {
+diff --git a/frontend/libs/shared/ui-layout/src/lib/shell.html b/frontend/libs/shared/ui-layout/src/lib/shell.html
+index eea4744..69ddf68 100644
+--- a/frontend/libs/shared/ui-layout/src/lib/shell.html
++++ b/frontend/libs/shared/ui-layout/src/lib/shell.html
+@@ -23,6 +23,10 @@
+     </a>
+     @if (environmentName(); as env) {
+     <nz-tag class="env-tag">{{ env }}</nz-tag>
++    } @if (hotline(); as phone) {
++    <a class="hotline" [href]="'tel:' + phone"
++      >{{ 'shell.hotline' | transloco }}: {{ phone }}</a
++    >
+     }
+ 
+     <div class="header-prefs">
+diff --git a/frontend/libs/shared/ui-layout/src/lib/shell.scss b/frontend/libs/shared/ui-layout/src/lib/shell.scss
+index 1894cd0..f0ef6a0 100644
+--- a/frontend/libs/shared/ui-layout/src/lib/shell.scss
++++ b/frontend/libs/shared/ui-layout/src/lib/shell.scss
+@@ -68,6 +68,12 @@
+   font-weight: 600;
+ }
+ 
++.hotline {
++  margin-right: var(--care-space-3);
++  color: var(--care-on-brand);
++  white-space: nowrap;
++}
++
+ .header-prefs {
+   display: flex;
+   gap: var(--care-space-2);
+diff --git a/frontend/libs/shared/ui-layout/src/lib/shell.ts b/frontend/libs/shared/ui-layout/src/lib/shell.ts
+index a8a4ba1..57c32cb 100644
+--- a/frontend/libs/shared/ui-layout/src/lib/shell.ts
++++ b/frontend/libs/shared/ui-layout/src/lib/shell.ts
+@@ -94,6 +94,8 @@ export class Shell {
+   /** Key dịch của vai trò, vd 'roles.AGENT'. */
+   readonly roles = input<string[]>([]);
+   readonly environmentName = input<string>();
++  /** Số tổng đài hỗ trợ; bỏ trống thì không hiện. */
++  readonly hotline = input<string>();
+   readonly logout = output<void>();
+ 
+   protected readonly isDesktop = toSignal(
+diff --git a/frontend/libs/shared/util-config/src/lib/app-config.ts b/frontend/libs/shared/util-config/src/lib/app-config.ts
+index 95d7bfc..12b433c 100644
+--- a/frontend/libs/shared/util-config/src/lib/app-config.ts
++++ b/frontend/libs/shared/util-config/src/lib/app-config.ts
+@@ -5,6 +5,8 @@ export interface AppConfig {
+   /** Tên môi trường hiện trên header, vd "DEV", "TEST". Bỏ trống ở production. */
+   environmentName?: string;
+   apiUrl: string;
++  /** Tổng đài hỗ trợ hiện trên header (bản 1.1.0). */
++  support: { hotline: string };
+   /** Cách đăng nhập. Bỏ trống = local (JWT do backend phát). Buổi 7: "oidc" qua Keycloak. */
+   auth?: AuthConfig;
+ }
+diff --git a/frontend/libs/shared/util-i18n/src/assets/i18n/en.json b/frontend/libs/shared/util-i18n/src/assets/i18n/en.json
+index 2ae8ea2..d37ef78 100644
+--- a/frontend/libs/shared/util-i18n/src/assets/i18n/en.json
++++ b/frontend/libs/shared/util-i18n/src/assets/i18n/en.json
+@@ -19,6 +19,7 @@
+     "mainNav": "Main navigation",
+     "account": "Account {{name}}",
+     "logout": "Sign out",
++    "hotline": "Hotline",
+     "settings": "Preferences"
+   },
+   "roles": {
+diff --git a/frontend/libs/shared/util-i18n/src/assets/i18n/vi.json b/frontend/libs/shared/util-i18n/src/assets/i18n/vi.json
+index 6448663..40dcb3d 100644
+--- a/frontend/libs/shared/util-i18n/src/assets/i18n/vi.json
++++ b/frontend/libs/shared/util-i18n/src/assets/i18n/vi.json
+@@ -19,6 +19,7 @@
+     "mainNav": "Điều hướng chính",
+     "account": "Tài khoản {{name}}",
+     "logout": "Đăng xuất",
++    "hotline": "Tổng đài",
+     "settings": "Tùy chỉnh"
+   },
+   "roles": {

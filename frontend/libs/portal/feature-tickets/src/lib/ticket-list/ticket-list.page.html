@@ -78,6 +78,20 @@
       }
     </nz-select>
   </div>
+  <div class="filter-field">
+    <label for="tk-category">{{ 'ticket.category' | transloco }}</label>
+    <nz-select
+      nzId="tk-category"
+      nzAllowClear
+      [nzPlaceHolder]="'common.all' | transloco"
+      [ngModel]="store.filters().category"
+      (ngModelChange)="store.setFilters({ category: $event })"
+    >
+      @for (o of categoryOptions; track o.value) {
+      <nz-option [nzValue]="o.value" [nzLabel]="o.labelKey | transloco" />
+      }
+    </nz-select>
+  </div>
   <div class="filters-actions">
     <label
       nz-checkbox

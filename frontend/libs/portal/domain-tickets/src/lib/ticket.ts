@@ -33,6 +33,7 @@ export interface CreateTicketCommand {
 export interface TicketQuery {
   status?: TicketStatus | null;
   priority?: TicketPriority | null;
+  category?: TicketCategory | null;
   assignee?: string | null;
 }
 

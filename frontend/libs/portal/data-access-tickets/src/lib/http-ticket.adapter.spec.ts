@@ -118,4 +118,20 @@ describe('HttpTicketAdapter', () => {
     expect(error).toBeInstanceOf(TicketConflictError);
     expect((error as Error).message).toBe('Du lieu da bi nguoi khac thay doi');
   });
+
+  it('loc theo loai yeu cau: gui dung ten tham so backend nhan (category), khong gui gia tri rong', () => {
+    const port = TestBed.inject(TicketPort);
+    const http = TestBed.inject(HttpTestingController);
+
+    port.search({ category: 'BILLING' }, { page: 0, size: 20 }).subscribe();
+    port.search({ category: null }, { page: 0, size: 20 }).subscribe();
+
+    const [withCategory, without] = http.match(
+      (r) => r.url === 'http://api/api/tickets',
+    );
+    // Backend (TicketSearch) nhận "category"; tham số lạ như "type" bị bỏ qua im lặng -> không lọc.
+    expect(withCategory.request.params.get('category')).toBe('BILLING');
+    expect(withCategory.request.params.has('type')).toBe(false);
+    expect(without.request.params.has('category')).toBe(false);
+  });
 });
