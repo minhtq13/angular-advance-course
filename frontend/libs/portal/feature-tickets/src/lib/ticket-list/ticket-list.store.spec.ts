@@ -47,7 +47,12 @@ describe('TicketListStore', () => {
 
     expect(router.url).toBe('/?status=RESOLVED&mine=1&size=50');
     expect(port.calls.at(-1)).toEqual({
-      query: { status: 'RESOLVED', priority: null, assignee: 'agent1' },
+      query: {
+        status: 'RESOLVED',
+        priority: null,
+        category: null,
+        assignee: 'agent1',
+      },
       page: { page: 0, size: 50, sort: 'id,desc' },
     });
     expect(port.calls).toHaveLength(3);
@@ -73,7 +78,20 @@ describe('TicketListStore', () => {
     expect(search.mock.calls.at(-1)?.[0]).toEqual({
       status: null,
       priority: 'HIGH',
+      category: null,
       assignee: null,
     });
+  });
+
+  it('API loi khi dang loc theo loai -> Thu lai van giu loai yeu cau', async () => {
+    const { store } = setup();
+    const search = vi.spyOn(port, 'search');
+    search.mockReturnValueOnce(throwError(() => new Error('500')));
+    await store.setFilters({ category: 'NETWORK' });
+    TestBed.tick();
+    expect(store.status()).toBe('error');
+
+    store.reload();
+    expect(search.mock.calls.at(-1)?.[0].category).toBe('NETWORK');
   });
 });

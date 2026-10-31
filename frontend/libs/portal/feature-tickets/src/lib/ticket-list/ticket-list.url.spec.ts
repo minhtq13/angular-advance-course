@@ -74,7 +74,12 @@ describe('TicketListPage - bo loc tren URL', () => {
     await settle();
 
     expect(lastCall()).toEqual({
-      query: { status: 'RESOLVED', priority: 'HIGH', assignee: null },
+      query: {
+        status: 'RESOLVED',
+        priority: 'HIGH',
+        category: null,
+        assignee: null,
+      },
       page: { page: 1, size: 20, sort: 'id,desc' },
     });
     const statusSelect = harness.routeNativeElement?.querySelector('nz-select');
@@ -88,7 +93,7 @@ describe('TicketListPage - bo loc tren URL', () => {
     await settle();
 
     expect(lastCall()).toEqual({
-      query: { status: null, priority: null, assignee: null },
+      query: { status: null, priority: null, category: null, assignee: null },
       page: { page: 0, size: 20, sort: 'id,desc' },
     });
   });
@@ -109,6 +114,7 @@ describe('TicketListPage - bo loc tren URL', () => {
     expect(lastCall()?.query).toEqual({
       status: 'RESOLVED',
       priority: null,
+      category: null,
       assignee: null,
     });
 
@@ -127,5 +133,35 @@ describe('TicketListPage - bo loc tren URL', () => {
 
     expect(port.calls).toHaveLength(before + 1);
     expect(lastCall()?.query.status).toBe('NEW');
+  });
+
+  // Buổi 8: negative test cho bộ lọc "Loại yêu cầu".
+  it('category tren URL sai hoac doc hai: khong gui xuong API, select de trong', async () => {
+    await harness.navigateByUrl('/tickets?category=abc');
+    await settle();
+
+    expect(lastCall()?.query.category).toBeNull();
+    expect(store().hasFilters()).toBe(false);
+    const select = harness.routeNativeElement?.querySelector(
+      'nz-select[nzId=tk-category]',
+    );
+    expect(select?.textContent).toContain('Tất cả');
+  });
+
+  it('chi loc theo loai: van hien nut "Xoa bo loc", bam thi xoa khoi URL va request', async () => {
+    await harness.navigateByUrl('/tickets?category=BILLING');
+    await settle();
+    const clear = () =>
+      [...(harness.routeNativeElement?.querySelectorAll('button') ?? [])].find(
+        (b) => b.textContent?.includes('Xóa bộ lọc'),
+      );
+    expect(clear()).toBeDefined();
+
+    clear()?.click();
+    await settle();
+
+    expect(TestBed.inject(Router).url).toBe('/tickets');
+    expect(lastCall()?.query.category).toBeNull();
+    expect(clear()).toBeUndefined();
   });
 });

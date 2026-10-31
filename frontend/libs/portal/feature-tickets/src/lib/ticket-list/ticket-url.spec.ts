@@ -13,6 +13,7 @@ describe('ticket-url', () => {
     const query = {
       status: 'RESOLVED',
       priority: 'HIGH',
+      category: 'BILLING',
       mine: '1',
       page: '3',
       size: '50',
@@ -24,6 +25,7 @@ describe('ticket-url', () => {
     expect(filters).toEqual({
       status: 'RESOLVED',
       priority: 'HIGH',
+      category: 'BILLING',
       onlyMine: true,
     });
     expect(page).toEqual({ page: 2, size: 50, sort: 'createdAt,asc' });
@@ -44,6 +46,7 @@ describe('ticket-url', () => {
     const bad = params({
       status: "NEW' OR 1=1",
       priority: 'high',
+      category: '<script>',
       mine: 'true',
       page: '-3',
       size: '5000',

@@ -81,6 +81,8 @@ export interface Ticket {
 export interface TicketSearch {
   status?: TicketStatus | null;
   priority?: TicketPriority | null;
+  /** Đúng tên tham số backend (TicketDtos.TicketSearch); tên khác bị bỏ qua im lặng. */
+  category?: TicketCategory | null;
   subscriberId?: number | null;
   assignee?: string | null;
 }

@@ -44,6 +44,7 @@ export class InMemoryTicketAdapter extends TicketPort {
       (t) =>
         (!query.status || t.status === query.status) &&
         (!query.priority || t.priority === query.priority) &&
+        (!query.category || t.category === query.category) &&
         (!query.assignee || t.assignee === query.assignee),
     );
     const start = page.page * page.size;

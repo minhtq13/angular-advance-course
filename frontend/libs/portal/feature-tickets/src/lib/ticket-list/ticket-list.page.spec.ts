@@ -1,5 +1,6 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { TicketPort } from '@care/portal-domain-tickets';
 import {
@@ -17,8 +18,8 @@ describe('TicketListPage', () => {
 
   beforeEach(async () => {
     port = new InMemoryTicketAdapter().seed([
-      aTicket({ code: 'TK-A', assignee: 'agent1' }),
-      aTicket({ code: 'TK-B', assignee: 'agent2' }),
+      aTicket({ code: 'TK-A', assignee: 'agent1', category: 'BILLING' }),
+      aTicket({ code: 'TK-B', assignee: 'agent2', category: 'NETWORK' }),
       aTicket({ code: 'TK-C', assignee: null, status: 'RESOLVED' }),
     ]);
 
@@ -52,6 +53,7 @@ describe('TicketListPage', () => {
     expect(port.calls[0].query).toEqual({
       status: null,
       priority: null,
+      category: null,
       assignee: null,
     });
     expect(port.calls[0].page.page).toBe(0);
@@ -69,6 +71,40 @@ describe('TicketListPage', () => {
 
     expect(port.calls.at(-1)?.query.assignee).toBe('agent1');
     expect(codes(fixture.nativeElement)).toEqual(['TK-A']);
+  });
+
+  it('chon "Loai yeu cau" -> chi con phieu dung loai, nhan select co ban dich', async () => {
+    const fixture = TestBed.createComponent(TicketListPage);
+    await fixture.whenStable();
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.querySelector('label[for=tk-category]')?.textContent).toContain(
+      'Loại yêu cầu',
+    );
+
+    fixture.debugElement
+      .query(By.css('nz-select[nzId=tk-category]'))
+      .triggerEventHandler('ngModelChange', 'BILLING');
+    await fixture.whenStable();
+
+    expect(port.calls.at(-1)?.query.category).toBe('BILLING');
+    expect(codes(el)).toEqual(['TK-A']);
+  });
+  it('khong co phieu nao thuoc loai da chon -> bao rong, khong hien bang cu', async () => {
+    const fixture = TestBed.createComponent(TicketListPage);
+    await fixture.whenStable();
+
+    fixture.debugElement
+      .query(By.css('nz-select[nzId=tk-category]'))
+      .triggerEventHandler('ngModelChange', 'OTHER');
+    await fixture.whenStable();
+
+    expect(port.calls.at(-1)?.query.category).toBe('OTHER');
+    expect(
+      fixture.nativeElement.querySelectorAll('tbody tr.ant-table-row'),
+    ).toHaveLength(0);
+    expect(fixture.nativeElement.textContent).toContain(
+      'Không có phiếu phù hợp với bộ lọc.',
+    );
   });
 });
 

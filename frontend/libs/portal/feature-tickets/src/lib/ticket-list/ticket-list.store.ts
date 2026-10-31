@@ -62,12 +62,14 @@ export const TicketListStore = signalStore(
       query: computed((): TicketQuery => ({
         status: filters().status,
         priority: filters().priority,
+        category: filters().category,
         assignee: filters().onlyMine ? auth.username() : null,
       })),
       hasFilters: computed(
         () =>
           filters().status !== null ||
           filters().priority !== null ||
+          filters().category !== null ||
           filters().onlyMine,
       ),
     };
