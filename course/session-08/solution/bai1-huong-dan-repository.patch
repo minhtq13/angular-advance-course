@@ -1,0 +1,82 @@
+diff --git a/.github/copilot-instructions.md b/.github/copilot-instructions.md
+new file mode 100644
+index 0000000..cde83fc
+--- /dev/null
++++ b/.github/copilot-instructions.md
+@@ -0,0 +1,12 @@
++# Copilot: hướng dẫn cho repository Care Portal
++
++Quy ước đầy đủ ở [AGENTS.md](../AGENTS.md) (gốc repo). Tóm tắt những điểm hay sai nhất:
++
++- Angular 22 standalone, zoneless, `OnPush`: dùng `input()`, `output()`, `signal`, `@if`/`@for (...; track x.id)`, `inject()`.
++  Không dùng `@Input`/`@Output`, `*ngIf`/`*ngFor`, `NgModule`, `CommonModule`.
++- Lib `type:feature` không gọi HTTP; màn hình phiếu dùng `TicketPort`. Tham số API lấy từ Swagger (`/v3/api-docs`), không đoán.
++- Chữ trên UI qua Transloco, thêm key ở cả `vi.json` và `en.json`. Màu chỉ `var(--care-*)`.
++- Giá trị đọc từ URL phải qua whitelist. Subscribe phải có teardown (`takeUntilDestroyed`).
++- Fake `InMemoryTicketAdapter` phải lọc giống backend; test có negative case và assertion trên dữ liệu.
++- Không sửa `eslint.config.mjs` hay tag Nx để qua lint. Chỉ sửa file trong phạm vi yêu cầu.
++- Chạy `npx nx run-many -t lint test build` trước khi đề xuất.
+diff --git a/AGENTS.md b/AGENTS.md
+new file mode 100644
+index 0000000..32f05c1
+--- /dev/null
++++ b/AGENTS.md
+@@ -0,0 +1,58 @@
++# Care Portal: hướng dẫn cho trợ lý AI (và người mới)
++
++Ứng dụng CSKH + quản lý thuê bao viễn thông. Frontend Nx 24 + Angular 22, backend Spring Boot 3.5 (Java 21).
++Đọc file này trước khi sinh hoặc sửa code. Không chắc thì hỏi lại, đừng đoán API.
++
++## Lệnh
++
++```bash
++cd frontend && nvm use && npm ci
++npx nx run-many -t lint test build                 # phải pass trước khi đề xuất thay đổi
++npx nx test <project>                              # vd portal-feature-tickets
++npx playwright test -c apps/portal-e2e/playwright.config.mts --project=chromium   # cần backend: docker compose -f infra/docker-compose.yml up -d
++```
++
++API thật (để kiểm tra tên tham số, không đoán): Swagger <http://localhost:8081/swagger-ui.html>, JSON <http://localhost:8081/v3/api-docs>.
++
++## Angular 22: viết theo kiểu này
++
++| Dùng | Không dùng |
++|---|---|
++| Standalone component, `changeDetection: ChangeDetectionStrategy.OnPush` | `NgModule`, `CommonModule` cho control flow |
++| `input()`, `output()`, `viewChild()`, `signal`, `computed` | `@Input`, `@Output` + `EventEmitter`, `@ViewChild` |
++| `@if`, `@for (x of xs; track x.id)` (track theo khóa ổn định) | `*ngIf`, `*ngFor`, `track $index` cho danh sách đổi thứ tự |
++| `inject()` | Constructor injection |
++| Ứng dụng zoneless: state đổi qua signal | Dựa vào zone.js để cập nhật màn hình |
++| `takeUntilDestroyed()`, `toSignal()`, `rxMethod` | `subscribe` không có teardown (rò listener, rò request) |
++
++UI library là **ng-zorro-antd** (MIT). Không thêm PrimeNG hay thư viện UI khác (ADR-0001).
++
++## Kiến trúc lib (lint chặn sai)
++
++- Tag: `type:app | feature | ui | data-access | domain | util` × `scope:portal | admin | shared`; luật trong `frontend/eslint.config.mjs`.
++- `type:feature` **không** import `@angular/common/http`, không gọi `TicketApi`: màn hình phiếu chỉ dùng `TicketPort` (`@care/portal-domain-tickets`, ADR-0002).
++- Thêm trường cho phiếu: sửa `TicketQuery`/`TicketSummary` (domain) → `TicketSearch` (`data-access-api/models.ts`, **đúng tên tham số backend**) →
++  `HttpTicketAdapter` → fake `InMemoryTicketAdapter` (`@care/portal-domain-tickets/testing`) **phải mô phỏng cùng luật** với backend.
++- Bộ lọc danh sách phiếu nằm trên URL (`ticket-url.ts`): giá trị đọc từ URL phải qua whitelist (`oneOf`), URL là input người dùng sửa tay được.
++- **Không sửa** `eslint.config.mjs`, `project.json` tag, migration Flyway đã có để "cho qua lỗi". Gặp lỗi lint thì sửa code.
++
++## Giao diện
++
++- Mọi chữ hiển thị qua Transloco: thêm key ở **cả** `libs/shared/util-i18n/src/assets/i18n/vi.json` và `en.json` (vi mặc định). Nhãn enum đã có:
++  `TICKET_STATUS`, `TICKET_PRIORITY`, `TICKET_CATEGORY` + `toOptions()` trong `@care/shared-data-access-api`.
++- Màu, khoảng cách chỉ dùng token `var(--care-*)` (`--care-text`, `--care-text-muted`, `--care-primary`, `--care-space-1..6`...). Không mã màu cứng.
++  Có theme sáng và tối; tương phản chữ ≥ 4.5:1 ở cả hai.
++- Form, select có `<label for>`; nút có tên đọc được (a11y).
++
++## Test
++
++- Vitest + TestBed. Màn hình test với fake `TicketPort`; adapter HTTP test bằng `HttpTestingController` (kiểm URL, **tên tham số**, body).
++- Assertion kiểm dữ liệu và chữ người dùng thấy, không chỉ "được gọi" hay `toBeTruthy()`.
++- Mỗi tính năng có **negative test**: giá trị rỗng/sai trên URL, API lỗi, không có quyền (403), danh sách rỗng.
++- Quyền thật kiểm ở API (Playwright `request`, `apps/portal-e2e/src/security/`), không chỉ ẩn nút.
++
++## Phạm vi và dữ liệu
++
++- Chỉ sửa file cần cho yêu cầu. Không đổi format, đổi tên, "dọn dẹp" file khác trong cùng thay đổi.
++- Không đưa token, mật khẩu, dữ liệu khách hàng thật (số thuê bao, CCCD) vào prompt, test hay log. Dữ liệu mẫu trong repo là giả.
++- Comment, tài liệu: tiếng Việt có dấu; thuật ngữ kỹ thuật giữ tiếng Anh (signature, revoke, token...).

@@ -1,0 +1,350 @@
+diff --git a/frontend/libs/portal/data-access-tickets/src/lib/http-ticket.adapter.spec.ts b/frontend/libs/portal/data-access-tickets/src/lib/http-ticket.adapter.spec.ts
+index 3585653..631d425 100644
+--- a/frontend/libs/portal/data-access-tickets/src/lib/http-ticket.adapter.spec.ts
++++ b/frontend/libs/portal/data-access-tickets/src/lib/http-ticket.adapter.spec.ts
+@@ -118,4 +118,20 @@ describe('HttpTicketAdapter', () => {
+     expect(error).toBeInstanceOf(TicketConflictError);
+     expect((error as Error).message).toBe('Du lieu da bi nguoi khac thay doi');
+   });
++
++  it('loc theo loai yeu cau: gui dung ten tham so backend nhan (category), khong gui gia tri rong', () => {
++    const port = TestBed.inject(TicketPort);
++    const http = TestBed.inject(HttpTestingController);
++
++    port.search({ category: 'BILLING' }, { page: 0, size: 20 }).subscribe();
++    port.search({ category: null }, { page: 0, size: 20 }).subscribe();
++
++    const [withCategory, without] = http.match(
++      (r) => r.url === 'http://api/api/tickets',
++    );
++    // Backend (TicketSearch) nhận "category"; tham số lạ như "type" bị bỏ qua im lặng -> không lọc.
++    expect(withCategory.request.params.get('category')).toBe('BILLING');
++    expect(withCategory.request.params.has('type')).toBe(false);
++    expect(without.request.params.has('category')).toBe(false);
++  });
+ });
+diff --git a/frontend/libs/portal/domain-tickets/src/lib/ticket.ts b/frontend/libs/portal/domain-tickets/src/lib/ticket.ts
+index 4dc0346..6eb788f 100644
+--- a/frontend/libs/portal/domain-tickets/src/lib/ticket.ts
++++ b/frontend/libs/portal/domain-tickets/src/lib/ticket.ts
+@@ -33,6 +33,7 @@ export interface CreateTicketCommand {
+ export interface TicketQuery {
+   status?: TicketStatus | null;
+   priority?: TicketPriority | null;
++  category?: TicketCategory | null;
+   assignee?: string | null;
+ }
+ 
+diff --git a/frontend/libs/portal/domain-tickets/src/testing.ts b/frontend/libs/portal/domain-tickets/src/testing.ts
+index 660b3ac..a2f551e 100644
+--- a/frontend/libs/portal/domain-tickets/src/testing.ts
++++ b/frontend/libs/portal/domain-tickets/src/testing.ts
+@@ -44,6 +44,7 @@ export class InMemoryTicketAdapter extends TicketPort {
+       (t) =>
+         (!query.status || t.status === query.status) &&
+         (!query.priority || t.priority === query.priority) &&
++        (!query.category || t.category === query.category) &&
+         (!query.assignee || t.assignee === query.assignee),
+     );
+     const start = page.page * page.size;
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.html b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.html
+index 733f487..a203855 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.html
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.html
+@@ -78,6 +78,20 @@
+       }
+     </nz-select>
+   </div>
++  <div class="filter-field">
++    <label for="tk-category">{{ 'ticket.category' | transloco }}</label>
++    <nz-select
++      nzId="tk-category"
++      nzAllowClear
++      [nzPlaceHolder]="'common.all' | transloco"
++      [ngModel]="store.filters().category"
++      (ngModelChange)="store.setFilters({ category: $event })"
++    >
++      @for (o of categoryOptions; track o.value) {
++      <nz-option [nzValue]="o.value" [nzLabel]="o.labelKey | transloco" />
++      }
++    </nz-select>
++  </div>
+   <div class="filters-actions">
+     <label
+       nz-checkbox
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.spec.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.spec.ts
+index 46eac3e..c1f6bc0 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.spec.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.spec.ts
+@@ -1,5 +1,6 @@
+ import { signal } from '@angular/core';
+ import { TestBed } from '@angular/core/testing';
++import { By } from '@angular/platform-browser';
+ import { provideRouter } from '@angular/router';
+ import { TicketPort } from '@care/portal-domain-tickets';
+ import {
+@@ -17,8 +18,8 @@ describe('TicketListPage', () => {
+ 
+   beforeEach(async () => {
+     port = new InMemoryTicketAdapter().seed([
+-      aTicket({ code: 'TK-A', assignee: 'agent1' }),
+-      aTicket({ code: 'TK-B', assignee: 'agent2' }),
++      aTicket({ code: 'TK-A', assignee: 'agent1', category: 'BILLING' }),
++      aTicket({ code: 'TK-B', assignee: 'agent2', category: 'NETWORK' }),
+       aTicket({ code: 'TK-C', assignee: null, status: 'RESOLVED' }),
+     ]);
+ 
+@@ -52,6 +53,7 @@ describe('TicketListPage', () => {
+     expect(port.calls[0].query).toEqual({
+       status: null,
+       priority: null,
++      category: null,
+       assignee: null,
+     });
+     expect(port.calls[0].page.page).toBe(0);
+@@ -70,6 +72,23 @@ describe('TicketListPage', () => {
+     expect(port.calls.at(-1)?.query.assignee).toBe('agent1');
+     expect(codes(fixture.nativeElement)).toEqual(['TK-A']);
+   });
++
++  it('chon "Loai yeu cau" -> chi con phieu dung loai, nhan select co ban dich', async () => {
++    const fixture = TestBed.createComponent(TicketListPage);
++    await fixture.whenStable();
++    const el: HTMLElement = fixture.nativeElement;
++    expect(el.querySelector('label[for=tk-category]')?.textContent).toContain(
++      'Loại yêu cầu',
++    );
++
++    fixture.debugElement
++      .query(By.css('nz-select[nzId=tk-category]'))
++      .triggerEventHandler('ngModelChange', 'BILLING');
++    await fixture.whenStable();
++
++    expect(port.calls.at(-1)?.query.category).toBe('BILLING');
++    expect(codes(el)).toEqual(['TK-A']);
++  });
+ });
+ 
+ // Buổi 2: Manager duyệt phiếu, hai người duyệt cùng một version.
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.ts
+index a112b98..b5d6e09 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.ts
+@@ -18,6 +18,7 @@ import { AuthService } from '@care/shared-data-access-auth';
+ import { TranslocoPipe } from '@jsverse/transloco';
+ import { TranslocoDecimalPipe } from '@jsverse/transloco-locale';
+ import {
++  TICKET_CATEGORY,
+   TICKET_PRIORITY,
+   TICKET_STATUS,
+   toOptions,
+@@ -79,6 +80,7 @@ export class TicketListPage {
+ 
+   protected readonly statusOptions = toOptions(TICKET_STATUS);
+   protected readonly priorityOptions = toOptions(TICKET_PRIORITY);
++  protected readonly categoryOptions = toOptions(TICKET_CATEGORY);
+ 
+   /** Bộ lọc, trang và kết quả nằm trong store; component chỉ giữ state UI cục bộ (thông báo, đang duyệt). */
+   protected readonly store = inject(TicketListStore);
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.spec.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.spec.ts
+index dae9bba..87b0721 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.spec.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.spec.ts
+@@ -47,7 +47,12 @@ describe('TicketListStore', () => {
+ 
+     expect(router.url).toBe('/?status=RESOLVED&mine=1&size=50');
+     expect(port.calls.at(-1)).toEqual({
+-      query: { status: 'RESOLVED', priority: null, assignee: 'agent1' },
++      query: {
++        status: 'RESOLVED',
++        priority: null,
++        category: null,
++        assignee: 'agent1',
++      },
+       page: { page: 0, size: 50, sort: 'id,desc' },
+     });
+     expect(port.calls).toHaveLength(3);
+@@ -73,6 +78,7 @@ describe('TicketListStore', () => {
+     expect(search.mock.calls.at(-1)?.[0]).toEqual({
+       status: null,
+       priority: 'HIGH',
++      category: null,
+       assignee: null,
+     });
+   });
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.ts
+index 7aa5c2f..16ad912 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.ts
+@@ -62,12 +62,14 @@ export const TicketListStore = signalStore(
+       query: computed((): TicketQuery => ({
+         status: filters().status,
+         priority: filters().priority,
++        category: filters().category,
+         assignee: filters().onlyMine ? auth.username() : null,
+       })),
+       hasFilters: computed(
+         () =>
+           filters().status !== null ||
+           filters().priority !== null ||
++          filters().category !== null ||
+           filters().onlyMine,
+       ),
+     };
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.url.spec.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.url.spec.ts
+index 603a00f..ad4510a 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.url.spec.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.url.spec.ts
+@@ -74,7 +74,12 @@ describe('TicketListPage - bo loc tren URL', () => {
+     await settle();
+ 
+     expect(lastCall()).toEqual({
+-      query: { status: 'RESOLVED', priority: 'HIGH', assignee: null },
++      query: {
++        status: 'RESOLVED',
++        priority: 'HIGH',
++        category: null,
++        assignee: null,
++      },
+       page: { page: 1, size: 20, sort: 'id,desc' },
+     });
+     const statusSelect = harness.routeNativeElement?.querySelector('nz-select');
+@@ -88,7 +93,7 @@ describe('TicketListPage - bo loc tren URL', () => {
+     await settle();
+ 
+     expect(lastCall()).toEqual({
+-      query: { status: null, priority: null, assignee: null },
++      query: { status: null, priority: null, category: null, assignee: null },
+       page: { page: 0, size: 20, sort: 'id,desc' },
+     });
+   });
+@@ -109,6 +114,7 @@ describe('TicketListPage - bo loc tren URL', () => {
+     expect(lastCall()?.query).toEqual({
+       status: 'RESOLVED',
+       priority: null,
++      category: null,
+       assignee: null,
+     });
+ 
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-url.spec.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-url.spec.ts
+index c6cd232..c7fa4b8 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-url.spec.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-url.spec.ts
+@@ -13,6 +13,7 @@ describe('ticket-url', () => {
+     const query = {
+       status: 'RESOLVED',
+       priority: 'HIGH',
++      category: 'BILLING',
+       mine: '1',
+       page: '3',
+       size: '50',
+@@ -24,6 +25,7 @@ describe('ticket-url', () => {
+     expect(filters).toEqual({
+       status: 'RESOLVED',
+       priority: 'HIGH',
++      category: 'BILLING',
+       onlyMine: true,
+     });
+     expect(page).toEqual({ page: 2, size: 50, sort: 'createdAt,asc' });
+@@ -44,6 +46,7 @@ describe('ticket-url', () => {
+     const bad = params({
+       status: "NEW' OR 1=1",
+       priority: 'high',
++      category: '<script>',
+       mine: 'true',
+       page: '-3',
+       size: '5000',
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-url.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-url.ts
+index 5e1126a..4e59406 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-url.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-url.ts
+@@ -1,16 +1,22 @@
+ import { ParamMap, Params } from '@angular/router';
+-import { TicketPriority, TicketStatus } from '@care/portal-domain-tickets';
++import {
++  TicketCategory,
++  TicketPriority,
++  TicketStatus,
++} from '@care/portal-domain-tickets';
+ import { DEFAULT_PAGE, PageRequest } from '@care/shared-data-access-api';
+ 
+ export interface TicketFilters {
+   status: TicketStatus | null;
+   priority: TicketPriority | null;
++  category: TicketCategory | null;
+   onlyMine: boolean;
+ }
+ 
+ export const NO_FILTERS: TicketFilters = {
+   status: null,
+   priority: null,
++  category: null,
+   onlyMine: false,
+ };
+ 
+@@ -26,6 +32,12 @@ const PRIORITIES: readonly TicketPriority[] = [
+   'HIGH',
+   'URGENT',
+ ];
++const CATEGORIES: readonly TicketCategory[] = [
++  'BILLING',
++  'NETWORK',
++  'SERVICE',
++  'OTHER',
++];
+ const PAGE_SIZES: readonly number[] = [20, 50, 100];
+ /** Chỉ cột mã bảng cho sắp xếp (nzColumnKey). */
+ const SORT = /^(code|priority|createdAt),(asc|desc)$/;
+@@ -42,6 +54,7 @@ export function filtersFromParams(params: ParamMap): TicketFilters {
+   return {
+     status: oneOf(params.get('status'), STATUSES),
+     priority: oneOf(params.get('priority'), PRIORITIES),
++    category: oneOf(params.get('category'), CATEGORIES),
+     onlyMine: params.get('mine') === '1',
+   };
+ }
+@@ -66,6 +79,7 @@ export function toQueryParams(
+   const params: Params = {};
+   if (filters.status) params['status'] = filters.status;
+   if (filters.priority) params['priority'] = filters.priority;
++  if (filters.category) params['category'] = filters.category;
+   if (filters.onlyMine) params['mine'] = '1';
+   if (page.page > 0) params['page'] = page.page + 1;
+   if (page.size !== DEFAULT_PAGE.size) params['size'] = page.size;
+diff --git a/frontend/libs/shared/data-access-api/src/lib/models.ts b/frontend/libs/shared/data-access-api/src/lib/models.ts
+index 7da1cab..76292fa 100644
+--- a/frontend/libs/shared/data-access-api/src/lib/models.ts
++++ b/frontend/libs/shared/data-access-api/src/lib/models.ts
+@@ -81,6 +81,8 @@ export interface Ticket {
+ export interface TicketSearch {
+   status?: TicketStatus | null;
+   priority?: TicketPriority | null;
++  /** Đúng tên tham số backend (TicketDtos.TicketSearch); tên khác bị bỏ qua im lặng. */
++  category?: TicketCategory | null;
+   subscriberId?: number | null;
+   assignee?: string | null;
+ }
+diff --git a/frontend/libs/shared/util-i18n/src/assets/i18n/en.json b/frontend/libs/shared/util-i18n/src/assets/i18n/en.json
+index 5fa506c..2ae8ea2 100644
+--- a/frontend/libs/shared/util-i18n/src/assets/i18n/en.json
++++ b/frontend/libs/shared/util-i18n/src/assets/i18n/en.json
+@@ -105,6 +105,7 @@
+     "filters": "Filter tickets",
+     "status": "Status",
+     "priority": "Priority",
++    "category": "Request type",
+     "onlyMine": "Only tickets assigned to me",
+     "loadError": "Could not load tickets.",
+     "empty": "No tickets match the filters.",
+diff --git a/frontend/libs/shared/util-i18n/src/assets/i18n/vi.json b/frontend/libs/shared/util-i18n/src/assets/i18n/vi.json
+index 95b1615..6448663 100644
+--- a/frontend/libs/shared/util-i18n/src/assets/i18n/vi.json
++++ b/frontend/libs/shared/util-i18n/src/assets/i18n/vi.json
+@@ -105,6 +105,7 @@
+     "filters": "Lọc phiếu yêu cầu",
+     "status": "Trạng thái",
+     "priority": "Mức ưu tiên",
++    "category": "Loại yêu cầu",
+     "onlyMine": "Chỉ phiếu giao cho tôi",
+     "loadError": "Không tải được danh sách phiếu.",
+     "empty": "Không có phiếu phù hợp với bộ lọc.",

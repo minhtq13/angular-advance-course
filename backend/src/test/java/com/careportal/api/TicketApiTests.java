@@ -3,6 +3,7 @@ package com.careportal.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -65,6 +66,28 @@ class TicketApiTests {
                 .andExpect(status().isForbidden());
     }
 
+    /** Buổi 7, regression: PATCH từng cho agent đóng phiếu (status=CLOSED), bỏ qua bước Manager duyệt. */
+    @Test
+    void nobodyClosesTicketByPatch() throws Exception {
+        long[] t = resolvedTicket(2);
+        var close = "{\"status\":\"CLOSED\",\"version\":" + t[1] + "}";
+        mvc.perform(patch("/api/tickets/{id}", t[0]).with(user("agent1", "AGENT"))
+                        .contentType(MediaType.APPLICATION_JSON).content(close))
+                .andExpect(status().isForbidden());
+        mvc.perform(patch("/api/tickets/{id}", t[0]).with(user("supervisor1", "AGENT", "SUPERVISOR"))
+                        .contentType(MediaType.APPLICATION_JSON).content(close))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/tickets/{id}", t[0]).with(user("agent1", "AGENT")))
+                .andExpect(jsonPath("$.status").value("RESOLVED"))
+                .andExpect(jsonPath("$.version").value(t[1]));
+
+        // Các thay đổi khác vẫn được (agent nhận phiếu, đổi độ ưu tiên).
+        mvc.perform(patch("/api/tickets/{id}", t[0]).with(user("agent1", "AGENT"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"priority\":\"HIGH\",\"version\":" + t[1] + "}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.priority").value("HIGH"));
+    }
+
     @Test
     void secondApproverWithSameVersionGetsConflict() throws Exception {
         long[] t = resolvedTicket(1);
@@ -76,6 +99,24 @@ class TicketApiTests {
                         .contentType(MediaType.APPLICATION_JSON).content(version(t[1])))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").exists());
+    }
+
+    /** Buổi 8: lọc theo loại yêu cầu ở server; tham số sai tên bị bỏ qua (không lọc), giá trị sai -> 400. */
+    @Test
+    void filtersByCategory() throws Exception {
+        var json = mvc.perform(get("/api/tickets").param("category", "BILLING").param("size", "50").with(user("agent1", "AGENT")))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        List<String> categories = JsonPath.read(json, "$.content[*].category");
+        assertThat(categories).isNotEmpty().containsOnly("BILLING");
+
+        var ignored = mvc.perform(get("/api/tickets").param("type", "BILLING").param("size", "50").with(user("agent1", "AGENT")))
+                .andReturn().getResponse().getContentAsString();
+        List<String> all = JsonPath.read(ignored, "$.content[*].category");
+        assertThat(all).contains("BILLING").anyMatch(c -> !c.equals("BILLING"));
+
+        mvc.perform(get("/api/tickets").param("category", "abc").with(user("agent1", "AGENT")))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

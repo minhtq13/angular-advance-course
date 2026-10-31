@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BTVN Buổi 8 · AI và Copilot</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600&display=swap" />
+    <link rel="stylesheet" href="assets/lesson.css" />
+  </head>
+  <body>
+    <main>
+      <p class="kicker">Bài tập về nhà · Buổi 8 · Ứng dụng AI và Copilot trong phát triển Angular</p>
+      <h1>Cho AI đủ ngữ cảnh, rồi đừng tin nó khi chưa kiểm</h1>
+      <dl class="homework-meta">
+        <dt>Làm sau</dt>
+        <dd>Buổi 8 (<a href="../session-08/slides/buoi-08-ai-va-copilot.pdf">slide</a> · <a href="../session-08/lab/README.md">lab</a>)</dd>
+        <dt>Hạn nộp</dt>
+        <dd>Trước buổi 9</dd>
+        <dt>Thời gian</dt>
+        <dd>Khoảng 30 phút</dd>
+        <dt>Cần</dt>
+        <dd>Trình duyệt và giấy bút. Phần tùy chọn cần công cụ AI <strong>được đơn vị cho phép</strong> và repo Care Portal.</dd>
+      </dl>
+
+      <div class="goal">
+        <p><strong>Mục tiêu:</strong> viết prompt và acceptance criteria kiểm được, nhận ra diff AI "trông đúng" mà sai, và tính năng suất có cả thời gian xác minh, trên một yêu cầu mới.</p>
+        <p>Làm phần 0 trước khi mở slide.</p>
+      </div>
+
+      <h2>Phần 0 · Khởi động: viết ra giấy (4 phút)</h2>
+      <ol>
+        <li>Vì sao PR bộ lọc "Loại yêu cầu" qua CI mà vẫn không lọc? Kể hai nguyên nhân cộng lại.</li>
+        <li><code>AGENTS.md</code> của Care Portal nên có những mục gì? Kể 4.</li>
+        <li>Một finding AI đưa ra khi review: làm gì trước khi chép vào review?</li>
+        <li>Báo cáo năng suất cần những dòng thời gian nào?</li>
+      </ol>
+      <details>
+        <summary>Ôn lại sau khi đã viết xong</summary>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Câu</th><th>Ý chính</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>Gửi <code>type=</code> trong khi backend nhận <code>category</code> (Spring bỏ qua tham số lạ, trả 200); fake adapter không lọc theo loại nên test kiểm <code>query.type</code> vẫn xanh.</td></tr>
+              <tr><td>2</td><td>Lệnh gate; bảng "dùng / không dùng" của Angular 22; kiến trúc lib + <code>TicketPort</code> + đường đi khi thêm trường (gồm fake); i18n vi/en, token <code>--care-*</code>; test và negative test; phạm vi, dữ liệu.</td></tr>
+              <tr><td>3</td><td>Xác minh: đúng / sai / chưa chắc, kèm cách xác minh chạy lại được (lệnh, test, Network, Swagger, CDP). Ví dụ finding sai: "nhãn không gắn với select" trong khi <code>getByLabel</code> tìm được.</td></tr>
+              <tr><td>4</td><td>Viết prompt/AC, AI sinh, đọc review diff, <strong>xác minh</strong> (test, curl, trình duyệt), sửa sau review; thêm số dòng giữ lại, số finding đúng/sai.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+
+      <h2>Phần 1 · Prompt và hướng dẫn (5 câu)</h2>
+      <div class="quiz" id="quiz-prompt" data-quiz>
+        <script type="application/json">
+          {
+            "questions": [
+              {
+                "prompt": "Câu nào là acceptance criteria kiểm được cho bộ lọc Loại yêu cầu?",
+                "options": ["Bộ lọc hoạt động tốt và thân thiện", "Chọn 'Cước phí' thì mọi dòng trả về có Phân loại = Cước phí; F5 giữ bộ lọc", "Code sạch, dễ bảo trì", "Dùng best practice của Angular"],
+                "answer": 1,
+                "explain": "AC kiểm được biến thẳng thành test (E2E kiểm cột Phân loại, reload). Ba câu còn lại không ai chứng minh đúng/sai được."
+              },
+              {
+                "prompt": "AI sinh component dùng @Input() và *ngFor dù dự án dùng Angular 22 với input() và @for. Cách sửa gốc rễ rẻ nhất?",
+                "options": ["Tự sửa tay mỗi lần", "Ghi bảng 'dùng / không dùng' vào AGENTS.md (và copilot-instructions), cấu hình Angular MCP đúng phiên bản", "Bật thêm mọi rule lint có thể", "Đổi sang công cụ AI khác"],
+                "answer": 1,
+                "explain": "Model viết theo số đông của dữ liệu huấn luyện. Hướng dẫn repository và tài liệu đúng phiên bản cho nó ngữ cảnh; lint là lưới an toàn, không thay được."
+              },
+              {
+                "prompt": "Prompt cho AI: 'Gọi API lọc phiếu theo loại'. Nguồn sự thật nào nên đưa vào để AI không đoán tên tham số?",
+                "options": ["Ví dụ SubscriberSearch có trường type", "Swagger /v3/api-docs của GET /api/tickets (hoặc TicketDtos.TicketSearch)", "Trí nhớ của AI về các API tương tự", "Tên cột trong bảng"],
+                "answer": 1,
+                "explain": "Lỗi của PR đến từ việc chép theo SubscriberSearch.type. Hợp đồng API là nguồn duy nhất đúng."
+              },
+              {
+                "prompt": "Đồng nghiệp muốn dán log lỗi production (có số thuê bao, token) vào một chatbot công cộng để hỏi nguyên nhân. Bạn nên?",
+                "options": ["Đồng ý, cho nhanh", "Chỉ xóa token là đủ", "Dừng lại: dùng công cụ đơn vị cho phép, và ẩn mọi dữ liệu khách hàng, token trước khi đưa vào", "Chụp màn hình thay vì dán text"],
+                "answer": 2,
+                "explain": "Số thuê bao là dữ liệu cá nhân, token là secret. Chụp màn hình vẫn là gửi dữ liệu đi. Chính sách dữ liệu đứng trước tốc độ."
+              },
+              {
+                "prompt": "AI gặp lỗi lint enforce-module-boundaries và đề xuất thêm ngoại lệ vào eslint.config.mjs. Phản ứng đúng?",
+                "options": ["Chấp nhận vì CI sẽ xanh", "Từ chối: luật lib là quyết định kiến trúc (ADR); sửa code cho đúng hướng phụ thuộc", "Tắt lint trong CI", "Chấp nhận nhưng ghi TODO"],
+                "answer": 1,
+                "explain": "Đó là sửa thước đo cho hợp kết quả. AGENTS.md của lab ghi rõ: không sửa eslint.config.mjs, tag Nx để qua lỗi."
+              }
+            ]
+          }
+        </script>
+      </div>
+
+      <h2>Phần 2 · Soi diff và test do AI viết (5 câu)</h2>
+      <div class="quiz" id="quiz-diff" data-quiz>
+        <script type="application/json">
+          {
+            "questions": [
+              {
+                "prompt": "Test AI viết: expect(port.calls.at(-1)?.query.type).toBe('BILLING'). Test này chứng minh gì?",
+                "options": ["Bộ lọc hoạt động với backend", "Chỉ chứng minh code gán query.type đúng như code đã viết; không chứng minh danh sách được lọc hay API nhận tham số đó", "Không chứng minh gì vì dùng optional chaining", "Chứng minh fake adapter đúng"],
+                "answer": 1,
+                "explain": "Kiểm chi tiết cài đặt. Kiểm hành vi: phiếu hiện ra đúng loại (fake phải lọc), và adapter gửi đúng tên tham số."
+              },
+              {
+                "prompt": "filtersFromParams: category: params.get('category') as TicketCategory | null. Mở /tickets?category=abc khi tên tham số API đã đúng thì?",
+                "options": ["Bị bỏ qua", "API trả 400, màn hình báo 'Không tải được danh sách phiếu. Kiểm tra kết nối rồi thử lại.'", "Trả danh sách rỗng", "Trình duyệt chặn"],
+                "answer": 1,
+                "explain": "Ép kiểu không kiểm tra giá trị. URL là input người dùng sửa được: dùng whitelist oneOf(..., CATEGORIES). Thông báo 'kiểm tra kết nối' còn sai lý do."
+              },
+              {
+                "prompt": "ngOnInit() { fromEvent(document, 'keydown').subscribe(...) } trong component của trang danh sách. Đo thật được gì sau 5 lần vào/ra trang?",
+                "options": ["Không đổi", "Listener keydown trên document tăng 2 → 7", "Trang chạy nhanh hơn", "Lỗi biên dịch"],
+                "answer": 1,
+                "explain": "document sống suốt app, component bị hủy nhưng subscription thì không. Dùng takeUntilDestroyed() (hoặc host listener của Angular)."
+              },
+              {
+                "prompt": "Thử phá: xóa dòng category trong hasFilters. Không test nào đỏ. Test 'Xóa bộ lọc' mở ?category=BILLING&status=NEW rồi gọi store.clearFilters(). Vì sao lọt?",
+                "options": ["Vitest lỗi", "status=NEW đã làm hasFilters true, và test gọi thẳng hàm thay vì kiểm nút hiện và bấm nút", "Cần fakeAsync", "hasFilters không quan trọng"],
+                "answer": 1,
+                "explain": "Test kiểm code, không kiểm cái người dùng thấy. Viết lại: chỉ lọc theo loại, nút 'Xóa bộ lọc' phải hiện, bấm nút."
+              },
+              {
+                "prompt": "AI review nói: 'Store dùng rxMethod mà không có takeUntilDestroyed, sẽ rò subscription'. Bạn xử lý thế nào?",
+                "options": ["Chép vào review ngay", "Xác minh: rxMethod tự hủy theo injector của store (cung cấp ở component) → finding sai, không đưa vào review", "Thêm takeUntilDestroyed cho chắc", "Bỏ qua mọi finding của AI"],
+                "answer": 1,
+                "explain": "Finding nghe hợp lý chưa chắc đúng. Thêm code 'cho chắc' cũng là nợ kỹ thuật. Bỏ qua mọi finding thì mất lợi ích của AI."
+              }
+            ]
+          }
+        </script>
+      </div>
+
+      <h2>Phần 3 · Vận dụng: xuất danh sách phiếu ra CSV (10 phút)</h2>
+      <p>
+        Yêu cầu mới: Manager muốn nút <em>Xuất CSV</em> trên danh sách phiếu, xuất đúng các phiếu theo bộ lọc đang chọn. Backend sẽ làm
+        <code>GET /api/tickets/export?status=&amp;priority=&amp;category=</code> (trả <code>text/csv</code>, tối đa 10.000 dòng, chỉ SUPERVISOR).
+      </p>
+      <ol class="steps">
+        <li>Viết prompt cho AI làm phần frontend: use case, ít nhất 5 acceptance criteria <strong>kiểm được</strong>, ràng buộc (file nào, theo
+          <code>AGENTS.md</code>), test bắt buộc.</li>
+        <li>Đoán trước 4 lỗi AI dễ mắc với yêu cầu này và cách bạn sẽ phát hiện từng lỗi (test nào, xem gì trên Network).</li>
+        <li>Chỉ ra 3 dòng cho báo cáo năng suất mà bạn sẽ đo, và một tiêu chí để quyết định "lần sau tự làm nhanh hơn".</li>
+      </ol>
+      <details>
+        <summary>Đáp án tham khảo (chỉ mở sau khi đã viết)</summary>
+        <ol>
+          <li>AC ví dụ: nút chỉ hiện với SUPERVISOR (và API trả 403 cho AGENT: test API trực tiếp); request mang <strong>đúng</strong> bộ lọc đang có trên URL
+            (<code>status</code>, <code>priority</code>, <code>category</code>, <code>assignee</code> khi "Chỉ phiếu của tôi"); file tên <code>phieu-YYYY-MM-DD.csv</code>;
+            đang tải thì nút quay và không bấm lại được; lỗi 403/500 báo bằng chữ đã dịch vi/en; tải bằng <code>HttpClient</code> (<code>responseType: 'blob'</code>) để
+            interceptor gắn Bearer (thẻ <code>&lt;a href&gt;</code> trần không gửi token, buổi 6). Ràng buộc: feature không gọi HTTP trực tiếp, thêm <code>export</code> vào
+            <code>TicketPort</code> + adapter + fake.</li>
+          <li>Ví dụ: dùng <code>&lt;a href&gt;</code> → 401 (Network); quên một bộ lọc (thường <code>assignee</code>/"của tôi") hoặc sai tên tham số → so query string
+            với Swagger, E2E so số dòng CSV với tổng trên màn hình; chỉ ẩn nút mà quên test 403 ở API; <code>URL.createObjectURL</code> không <code>revokeObjectURL</code>
+            (rò bộ nhớ); chữ cứng "Xuất CSV"; fake <code>export</code> không áp bộ lọc nên test xanh.</li>
+          <li>Phút viết prompt/AC, phút review diff, phút <strong>xác minh</strong> (test, Network, mở file CSV); số finding đúng/sai. Tiêu chí ví dụ: nếu thời gian
+            xác minh + sửa vượt thời gian ước lượng tự làm, hoặc AI sai ở hợp đồng API hai lần liên tiếp, thì phần đó tự làm, chỉ giao AI phần test bảng và cập nhật spec.</li>
+        </ol>
+      </details>
+
+      <h2>Phần tùy chọn · Thử trên repo mẫu</h2>
+      <p>
+        Chỉ với công cụ <strong>được đơn vị cho phép</strong>, trên repo Care Portal (không dùng mã của dự án thật): checkout <code>session08-end</code>, hỏi AI
+        "Thêm input <code>highlight</code> (boolean) cho <code>TicketRow</code>" hai lần: một lần xóa tạm <code>AGENTS.md</code>, một lần có. Ghi 3 khác biệt trong diff
+        (decorator hay <code>input()</code>, có test không, sửa file nào).
+      </p>
+
+      <h2>Nộp bài</h2>
+      <p>Gửi giảng viên qua kênh của lớp, <strong>trước buổi 9</strong>:</p>
+      <ol>
+        <li>Điểm phần 1 và phần 2.</li>
+        <li>Prompt và câu trả lời phần 3.</li>
+        <li>(Tùy chọn) 3 khác biệt của phần tùy chọn.</li>
+      </ol>
+      <p class="meta">Một ngày trước buổi 9, làm lại phần 2 mà không mở phần ôn tập.</p>
+
+      <h2>Đọc thêm</h2>
+      <p>
+        <strong>Nguồn chính:</strong> <a href="https://angular.dev/ai">Angular — Build with AI</a> (khoảng 15 phút: hướng dẫn cho LLM, Angular CLI MCP server).
+      </p>
+      <p>
+        Thêm: <a href="https://agents.md/">AGENTS.md</a> ·
+        <a href="https://docs.github.com/en/copilot/how-tos/configure-custom-instructions/add-repository-instructions">GitHub — Repository custom instructions</a> ·
+        <a href="https://owasp.org/www-project-top-10-for-large-language-model-applications/">OWASP Top 10 for LLM Applications</a> ·
+        sản phẩm của lớp: <code>AGENTS.md</code>, <code>docs/ai-review-pr-bo-loc-loai-yeu-cau.md</code> (nhánh <code>session08-end</code>).
+      </p>
+
+      <div class="callout">
+        <p><strong>Còn chỗ nào chưa rõ?</strong> Hỏi giảng viên, hoặc hỏi trợ lý AI ngay trong repo — ví dụ:
+          “vì sao fake <code>InMemoryTicketAdapter</code> phải lọc giống backend thì test mới có giá trị?” (rồi xác minh câu trả lời).</p>
+      </div>
+
+      <footer>Khóa Angular nâng cao · Bài tập về nhà buổi 8 · Dự án mẫu Care Portal</footer>
+    </main>
+    <script src="assets/quiz.js"></script>
+  </body>
+</html>

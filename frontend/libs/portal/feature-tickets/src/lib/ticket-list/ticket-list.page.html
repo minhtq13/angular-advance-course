@@ -151,7 +151,7 @@
       <tr
         care-ticket-row
         [ticket]="t"
-        [canApprove]="isManager() && t.status === 'RESOLVED'"
+        [canApprove]="canApprove(t)"
         [approving]="approvingId() === t.id"
         (approve)="approve($event)"
       ></tr>

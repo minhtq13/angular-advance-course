@@ -1,7 +1,6 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  computed,
   DestroyRef,
   inject,
   signal,
@@ -10,6 +9,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import {
+  canApprove,
   TicketConflictError,
   TicketPort,
   TicketSummary,
@@ -72,10 +72,10 @@ export class TicketListPage {
   /** Lỗi khi duyệt (409: dữ liệu đã đổi). Người dùng chọn tải lại, không tự động ghi đè màn hình. */
   protected readonly approveError = signal<Notice | null>(null);
   protected readonly approvingId = signal<number | null>(null);
-  /** Chỉ ẩn/hiện nút. Quyền thật sự do API kiểm tra (agent gọi thẳng API vẫn nhận 403). */
-  protected readonly isManager = computed(() =>
-    this.auth.hasAnyRole('SUPERVISOR'),
-  );
+  /** Chỉ ẩn/hiện nút (quy tắc ở domain). Quyền thật sự do API kiểm tra. */
+  protected canApprove(ticket: TicketSummary): boolean {
+    return canApprove(ticket, this.auth.roles());
+  }
 
   protected readonly statusOptions = toOptions(TICKET_STATUS);
   protected readonly priorityOptions = toOptions(TICKET_PRIORITY);

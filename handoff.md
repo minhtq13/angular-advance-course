@@ -73,6 +73,7 @@ dựng từ cây đã kiểm tra (không dùng commit tạm), gỡ patch ra đú
 
 | 6 Auth + bảo mật API | Token hết hạn, trang chi tiết thuê bao 2 request 401 → 2 refresh → lần hai bị coi là reuse → bị đá ra | Backend: bảng `refresh_token` (Flyway V5), rotation + revoke cả family khi dùng lại, `POST /api/auth/logout`, claim `aud`, clock skew 10s, `ACCESS_TOKEN_TTL`/`REFRESH_TOKEN_TTL`; FE: `AuthService.refresh()` chưa dùng chung, interceptor refresh mỗi 401, không gắn token cho `/api/auth/*` | Ma trận bảo mật (Playwright `request`, 18 test) + `docs/ma-tran-bao-mat.md`; refresh dùng chung (`share` + `finalize`), 401 về muộn; đăng xuất một lần + `reason=expired` + logout revoke ở server; `apiPathOf` so origin; `docs/vong-doi-phien.md` |
 | 7 SSO + kiểm thử | (1) OIDC gửi ID token tới API → mọi API 401 `aud`; (2) đăng xuất chỉ xóa token trong tab → máy dùng chung vào thẳng tài khoản cũ; (3) lỗi thật từ buổi 2: `PATCH /api/tickets/{id}` cho agent đóng phiếu (200); bộ test cũ lọt 2/4 chỗ phá | Keycloak 26.8.1 (profile `sso`, cổng 8180, realm `infra/keycloak/care-realm.json`); backend nhận token Keycloak (`JwtIssuerAuthenticationManagerResolver`, JWKS, `iss`, `aud`; `SsoTokenTests`); FE: `AuthService` thành port, `LocalAuthService` + `OidcAuthService` (lỗi 1, 2 cố ý), `provideAuth(config.auth)`, nút SSO; `angular-auth-oidc-client` 22.0.1; `ticket-approval.spec.ts` (integration yếu cố ý) | Access token cho API; `logoffAndRevokeTokens`; `docs/checklist-sso.md`; `canApprove` (domain) + integration test viết lại, bảng thử phá M1–M4; E2E hành trình duyệt phiếu, `role-denial.spec.ts`, `sso.spec.ts` (4); `@PreAuthorize` chặn PATCH CLOSED + `TicketApiTests` regression; `docs/bao-cao-kiem-thu.md` |
+| 8 AI + Copilot | PR "bộ lọc Loại yêu cầu" mô phỏng AI (lỗi cài có chủ đích, `course/session-08/lab/pr-bo-loc-loai-yeu-cau.patch`) qua trọn gate nhưng gửi `type=` thay `category=` → không lọc (20 dòng lẫn 4 loại); fake không lọc; URL không whitelist (bị che, sửa tên → 400); chữ cứng; `#1677ff` < 4.5:1; listener keydown 2 → 7 | Backend `GET /api/tickets?category=` + `TicketApiTests.filtersByCategory`; frontend chưa có bộ lọc | `AGENTS.md` + `.github/copilot-instructions.md`; bộ lọc đúng (domain, `TicketSearch.category`, fake lọc, whitelist URL, i18n `ticket.category`); negative test + thử phá M1–M5 + `ticket-filter.spec.ts` (E2E); `docs/ai-review-pr-bo-loc-loai-yeu-cau.md`, `docs/bao-cao-nang-suat-ai.md` |
 
 Mọi đáp án đã kiểm tra: lint + test + build pass **sau từng patch** (16 project), áp/gỡ sạch; các buổi 2–6 còn kiểm tra trên trình duyệt thật
 với backend thật (Playwright). Buổi 6 kiểm tra với backend riêng (Postgres cổng 5434, API cổng 8091 chạy jar, `ACCESS_TOKEN_TTL=30s`,
@@ -81,7 +82,11 @@ seed 2.000 thuê bao → `i18n.spec` báo sai số tổng, không phải hồi q
 **Buổi 7 đã commit và push (2026-10-30).** Nhánh `session07-start` (`ec20bef`) / `session07-end` (`129fe68`) dựng từ cây đã kiểm tra (khớp commit tạm),
 `main` có commit "Soạn buổi 7: SSO và chiến lược kiểm thử hệ thống".
 
-**Buổi 8–10:** chỉ có `README.md` + `instructor-notes.md` dạng khung theo đề cương (mục tiêu, use case, kế hoạch lab, "cần chuẩn bị").
+**Buổi 8 đã commit và push (2026-10-31).** Nhánh `session08-start` (`abcc668`) / `session08-end` (`f24e6ae`) dựng từ cây đã kiểm tra (khớp commit tạm),
+`main` có commit "Soạn buổi 8: Ứng dụng AI và Copilot trong phát triển Angular". Patch bài 1 thêm file ở gốc repo (`AGENTS.md`, `.github/copilot-instructions.md`),
+nên hai file này có trên `session08-end` nhưng không có trên `main`.
+
+**Buổi 9–10:** chỉ có `README.md` + `instructor-notes.md` dạng khung theo đề cương (mục tiêu, use case, kế hoạch lab, "cần chuẩn bị").
 
 **Libs** (`frontend/libs/`): `admin/feature-dashboard`; `portal/{data-access-tickets, domain-tickets, feature-service-plans,
 feature-subscribers, feature-tickets, ui-tickets}`; `shared/{data-access-api, data-access-auth, feature-auth, ui-layout, util-config, util-i18n}`.
@@ -95,7 +100,8 @@ Dữ liệu local đã bị các lần test đóng vài phiếu RESOLVED và t�
 1. **Container `care-api-1` của người dùng vẫn chạy code buổi 5**: để thử buổi 6 cần `ACCESS_TOKEN_TTL=30s docker compose -f infra/docker-compose.yml up -d --build api`
    (dump có V1–V4 nên Flyway tự áp V5). Sau buổi học bỏ biến `ACCESS_TOKEN_TTL` để về 15 phút.
 2. **Buổi 7:** chưa chạy thử đúng kịch bản học viên (cổng 4200 + `docker compose --profile sso`) trên trình duyệt; E2E SSO chỉ kiểm trên cổng 4210 (realm tạm thêm URI 4210); trên máy học viên dùng 4200 theo realm. Image Keycloak cần tải trước (~475 MB).
-3. **Buổi 8:** diff có lỗi cài sẵn cho bài AI review; mẫu `course/_templates/ai-review.md` đã có.
+3. **Buổi 8:** chưa hỏi được chính sách AI của VNPT (lab có phương án làm theo cặp).
+   `.github/workflows/ci.yml` trên `main` có comment có dấu nhưng các nhánh `session*` vẫn bản không dấu (quy trình chỉ đồng bộ `frontend backend infra docs`).
 4. **Buổi 9:** `frontend/Dockerfile` + `nginx.conf` (SPA fallback, cache, header bảo mật), pipeline GitHub Actions + GitLab CI, diễn tập rollback.
    Job CI kiểm tra import đã có từ buổi 1 (`.github/workflows/ci.yml`).
 5. **Buổi 10:** fixture Angular 21 (`fixtures/legacy-a21/`, NgModule, `*ngIf`, zone.js, có test) để nâng lên 22 theo checkpoint.
@@ -194,7 +200,7 @@ npx @marp-team/marp-cli@4 slides.md --pdf  --allow-local-files -o buoi-XX-<ten>.
 - **Keycloak/OIDC (buổi 7):** `angular-auth-oidc-client` mặc định tự điều hướng tới `postLoginRoute` sau callback (mất `returnUrl`) → `triggerAuthorizationResultEvent: true`.
   `checkAuth()` ném lỗi khi `state` sai → phải bắt trong `init()`, không thì app initializer làm trắng trang. Realm chỉ cho redirect URI chính xác `:4200`;
   thử ở cổng khác thì tạo bản realm tạm. Container api lấy JWKS qua `http://keycloak:8180` nhưng `iss` là `http://localhost:8180` (`KC_HOSTNAME`).
-- **Marp:** lệnh xuất gộp (png + pdf + pptx) từng treo ở bước png >10 phút; chạy từng lệnh riêng.
+- **Marp:** `--images png` hay treo (>5 phút). Soát slide bằng `--html` rồi Playwright chụp từng `#n`; xuất PDF, PPTX bằng lệnh riêng.
 - **Backend test:** VS Code (extension Java) ghi đè `backend/target/classes` không có bean MapStruct → `./mvnw test` lỗi
   `No qualifying bean ...Mapper`. Chạy trong bản sao: `rsync -a --exclude target backend/ <scratch>/be && cd <scratch>/be && ./mvnw -q test`.
 - **zsh:** biến không tự tách từ (`for p in $L` sai) → viết danh sách trực tiếp; không có lệnh `timeout`. **Không đặt tên biến `path`** (hay `status`, `fpath`, `cdpath`): `path` gắn với `PATH`, gán vào là mất mọi lệnh (`git: command not found`). Script nhiều bước nên viết ra file và chạy bằng `bash`.

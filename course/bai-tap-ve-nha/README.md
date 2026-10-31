@@ -11,6 +11,7 @@ Sau mỗi buổi học có một bài tập về nhà, làm trong khoảng 30 ph
 | 05 | [buoi-05-hieu-nang-va-bo-nho.html](buoi-05-hieu-nang-va-bo-nho.html) | Hiệu năng và bộ nhớ |
 | 06 | [buoi-06-xac-thuc-va-bao-mat-api.html](buoi-06-xac-thuc-va-bao-mat-api.html) | Xác thực và bảo mật API |
 | 07 | [buoi-07-sso-va-kiem-thu.html](buoi-07-sso-va-kiem-thu.html) | SSO và chiến lược kiểm thử |
+| 08 | [buoi-08-ai-va-copilot.html](buoi-08-ai-va-copilot.html) | AI và Copilot trong phát triển Angular |
 
 ## Cách làm
 

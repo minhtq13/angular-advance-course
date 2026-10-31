@@ -35,7 +35,7 @@ describe('TicketListPage - bo loc tren URL', () => {
         { provide: TicketPort, useValue: port },
         {
           provide: AuthService,
-          useValue: { username: signal('agent1'), hasAnyRole: () => false },
+          useValue: { username: signal('agent1'), roles: signal(['AGENT']) },
         },
       ],
     });

@@ -1,0 +1,160 @@
+diff --git a/frontend/apps/portal-e2e/src/ticket-filter.spec.ts b/frontend/apps/portal-e2e/src/ticket-filter.spec.ts
+new file mode 100644
+index 0000000..7553dd1
+--- /dev/null
++++ b/frontend/apps/portal-e2e/src/ticket-filter.spec.ts
+@@ -0,0 +1,66 @@
++import { expect, Page, test } from '@playwright/test';
++
++// Buổi 8: bộ lọc "Loại yêu cầu" với backend thật. Unit test dùng fake adapter không chứng minh được
++// tên tham số khớp với API: fake lọc gì cũng được, backend bỏ qua tham số lạ mà không báo lỗi.
++async function login(page: Page, url: string) {
++  await page.goto(url);
++  await page.getByLabel('Tên đăng nhập').fill('agent1');
++  await page.getByLabel('Mật khẩu').fill('agent1');
++  await page.getByRole('button', { name: 'Đăng nhập' }).click();
++}
++
++/** Cột "Phân loại" của các dòng đang hiện. */
++async function categories(page: Page) {
++  const headers = (await page.locator('thead th').allInnerTexts()).map((h) =>
++    h.trim(),
++  );
++  const col = headers.indexOf('Phân loại') + 1;
++  expect(col).toBeGreaterThan(0);
++  return (
++    await page
++      .locator(`tbody tr.ant-table-row td:nth-child(${col})`)
++      .allInnerTexts()
++  ).map((c) => c.trim());
++}
++
++test('loc "Cuoc phi": request gui category, moi dong deu la Cuoc phi, F5 giu bo loc', async ({
++  page,
++}) => {
++  await login(page, '/tickets');
++  await expect(page.locator('tbody tr.ant-table-row').first()).toBeVisible();
++  expect(new Set(await categories(page)).size).toBeGreaterThan(1);
++
++  const filtered = page.waitForResponse(
++    (r) => r.url().includes('/api/tickets?') && r.url().includes('BILLING'),
++  );
++  await page.locator('nz-select:has(#tk-category)').click();
++  await page.locator('nz-option-item', { hasText: 'Cước phí' }).click();
++  const res = await filtered;
++  expect(new URL(res.url()).searchParams.get('category')).toBe('BILLING');
++  expect(res.status()).toBe(200);
++  await expect(page).toHaveURL(/category=BILLING/);
++
++  await expect
++    .poll(() => categories(page))
++    .toEqual(expect.arrayContaining(['Cước phí']));
++  expect(new Set(await categories(page))).toEqual(new Set(['Cước phí']));
++
++  await page.reload();
++  await expect(page.locator('nz-select:has(#tk-category)')).toContainText(
++    'Cước phí',
++  );
++  expect(new Set(await categories(page))).toEqual(new Set(['Cước phí']));
++});
++
++test('URL sua tay category=abc: bo qua, khong loi, khong gui xuong API', async ({
++  page,
++}) => {
++  await login(page, '/tickets');
++  await expect(page.locator('tbody tr.ant-table-row').first()).toBeVisible();
++
++  const req = page.waitForRequest((r) => r.url().includes('/api/tickets?'));
++  await page.goto('/tickets?category=abc');
++  expect(new URL((await req).url()).searchParams.has('category')).toBe(false);
++  await expect(page.locator('tbody tr.ant-table-row').first()).toBeVisible();
++  await expect(page.getByRole('alert')).toHaveCount(0);
++});
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.spec.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.spec.ts
+index c1f6bc0..a92aa5c 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.spec.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.page.spec.ts
+@@ -89,6 +89,23 @@ describe('TicketListPage', () => {
+     expect(port.calls.at(-1)?.query.category).toBe('BILLING');
+     expect(codes(el)).toEqual(['TK-A']);
+   });
++  it('khong co phieu nao thuoc loai da chon -> bao rong, khong hien bang cu', async () => {
++    const fixture = TestBed.createComponent(TicketListPage);
++    await fixture.whenStable();
++
++    fixture.debugElement
++      .query(By.css('nz-select[nzId=tk-category]'))
++      .triggerEventHandler('ngModelChange', 'OTHER');
++    await fixture.whenStable();
++
++    expect(port.calls.at(-1)?.query.category).toBe('OTHER');
++    expect(
++      fixture.nativeElement.querySelectorAll('tbody tr.ant-table-row'),
++    ).toHaveLength(0);
++    expect(fixture.nativeElement.textContent).toContain(
++      'Không có phiếu phù hợp với bộ lọc.',
++    );
++  });
+ });
+ 
+ // Buổi 2: Manager duyệt phiếu, hai người duyệt cùng một version.
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.spec.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.spec.ts
+index 87b0721..21dbef9 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.spec.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.store.spec.ts
+@@ -82,4 +82,16 @@ describe('TicketListStore', () => {
+       assignee: null,
+     });
+   });
++
++  it('API loi khi dang loc theo loai -> Thu lai van giu loai yeu cau', async () => {
++    const { store } = setup();
++    const search = vi.spyOn(port, 'search');
++    search.mockReturnValueOnce(throwError(() => new Error('500')));
++    await store.setFilters({ category: 'NETWORK' });
++    TestBed.tick();
++    expect(store.status()).toBe('error');
++
++    store.reload();
++    expect(search.mock.calls.at(-1)?.[0].category).toBe('NETWORK');
++  });
+ });
+diff --git a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.url.spec.ts b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.url.spec.ts
+index ad4510a..863892f 100644
+--- a/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.url.spec.ts
++++ b/frontend/libs/portal/feature-tickets/src/lib/ticket-list/ticket-list.url.spec.ts
+@@ -134,4 +134,34 @@ describe('TicketListPage - bo loc tren URL', () => {
+     expect(port.calls).toHaveLength(before + 1);
+     expect(lastCall()?.query.status).toBe('NEW');
+   });
++
++  // Buổi 8: negative test cho bộ lọc "Loại yêu cầu".
++  it('category tren URL sai hoac doc hai: khong gui xuong API, select de trong', async () => {
++    await harness.navigateByUrl('/tickets?category=abc');
++    await settle();
++
++    expect(lastCall()?.query.category).toBeNull();
++    expect(store().hasFilters()).toBe(false);
++    const select = harness.routeNativeElement?.querySelector(
++      'nz-select[nzId=tk-category]',
++    );
++    expect(select?.textContent).toContain('Tất cả');
++  });
++
++  it('chi loc theo loai: van hien nut "Xoa bo loc", bam thi xoa khoi URL va request', async () => {
++    await harness.navigateByUrl('/tickets?category=BILLING');
++    await settle();
++    const clear = () =>
++      [...(harness.routeNativeElement?.querySelectorAll('button') ?? [])].find(
++        (b) => b.textContent?.includes('Xóa bộ lọc'),
++      );
++    expect(clear()).toBeDefined();
++
++    clear()?.click();
++    await settle();
++
++    expect(TestBed.inject(Router).url).toBe('/tickets');
++    expect(lastCall()?.query.category).toBeNull();
++    expect(clear()).toBeUndefined();
++  });
+ });
