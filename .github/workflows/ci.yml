@@ -1,5 +1,5 @@
-# Buoi 1: kiem tra luat phu thuoc (ESLint module boundaries) moi lan push/PR.
-# Buoi 9 mo rong thanh pipeline day du (test, build, budget, Docker).
+# Buổi 1: kiểm tra luật phụ thuộc (ESLint module boundaries) mỗi lần push/PR.
+# Buổi 9 mở rộng thành pipeline đầy đủ (test, build, budget, Docker).
 name: ci
 
 on:

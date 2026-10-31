@@ -41,6 +41,8 @@ services:
       # iss phải khớp URL trình duyệt thấy (localhost:8180); key công khai (JWKS) lấy qua mạng nội bộ docker.
       SSO_ISSUER_URI: ${SSO_ISSUER_URI:-http://localhost:8180/realms/care}
       SSO_JWK_SET_URI: ${SSO_JWK_SET_URI:-http://keycloak:8180/realms/care/protocol/openid-connect/certs}
+      # Buổi 9: thêm origin của portal chạy trong nginx (service web).
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:4200,http://localhost:4300,http://localhost:8090}
     ports:
       - "8081:8081"
     depends_on:
@@ -77,6 +79,17 @@ services:
       - "8180:8180"
     volumes:
       - ./keycloak:/opt/keycloak/data/import:ro
+
+  # Buổi 9: portal chạy trong nginx, http://localhost:8090 (8080 hay bị Jenkins/Tomcat chiếm).
+  #   WEB_VERSION=1.0.0 docker compose -f infra/docker-compose.yml --profile web up -d web
+  web:
+    profiles: ["web"]
+    build: ../frontend
+    image: care-portal-web:${WEB_VERSION:-dev}
+    ports:
+      - "8090:80"
+    depends_on:
+      - api
 
   redis:
     profiles: ["cache"]
